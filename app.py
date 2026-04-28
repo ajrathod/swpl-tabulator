@@ -13,6 +13,11 @@ from seeding import compute_stages, distribute
 
 app = Flask(__name__)
 
+# Initialise DB on startup — works with both gunicorn and direct python run
+print(f"[startup] DATABASE_URL = {os.environ.get('DATABASE_URL','sqlite:///skating.db')[:40]}...")
+init_db()
+print("[startup] Database tables initialised OK")
+
 def db():
     return SessionLocal()
 
