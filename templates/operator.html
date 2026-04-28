@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{comp.name}} — Operator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#F4511E;--orange-l:#FFF3F0;--orange-d:#BF360C;--blue:#1565C0;--blue-l:#E3F2FD;
+    --green:#2E7D32;--green-l:#E8F5E9;--gold:#F9A825;--gold-l:#FFF8E1;
+    --purple:#6A1B9A;--purple-l:#F3E5F5;--red:#C62828;--red-l:#FFEBEE;
+    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;--g400:#BDBDBD;
+    --g500:#9E9E9E;--g600:#757575;--g700:#616161;--g800:#424242;--g900:#212121;
+    --sidebar:256px;--topbar:60px;--r:10px;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh}
+  .topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar);background:#fff;
+    border-bottom:1px solid var(--g200);display:flex;align-items:center;padding:0 16px;
+    gap:10px;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  .topbar a{color:var(--g500);font-size:13px;text-decoration:none;display:flex;align-items:center;gap:4px}
+  .topbar a:hover{color:var(--g900)}
+  .comp-name{font-size:15px;font-weight:700}.sep{color:var(--g300);margin:0 2px}
+  .sidebar{position:fixed;top:var(--topbar);left:0;bottom:0;width:var(--sidebar);
+    background:#fff;border-right:1px solid var(--g200);overflow-y:auto;z-index:50}
+  .sb-sec{padding:12px 10px 4px}
+  .sb-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--g400);padding:0 6px 6px}
+  .sb-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;
+    border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--g700);
+    transition:all .12s;margin-bottom:1px}
+  .sb-item:hover{background:var(--g100);color:var(--g900)}
+  .sb-item.active{background:var(--orange-l);color:var(--orange-d);font-weight:600}
+  .sb-item .cnt{font-size:11px;background:var(--g200);color:var(--g600);padding:1px 6px;border-radius:10px}
+  .sb-item.active .cnt{background:var(--orange);color:#fff}
+  .sb-div{height:1px;background:var(--g200);margin:6px 10px}
+  .main{margin-left:var(--sidebar);margin-top:var(--topbar);padding:20px;min-height:calc(100vh - var(--topbar))}
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;
+    transition:all .15s;text-decoration:none;white-space:nowrap}
+  .btn-primary{background:var(--orange);color:#fff}.btn-primary:hover{background:var(--orange-d)}
+  .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.9}
+  .btn-green{background:var(--green);color:#fff}.btn-green:hover{opacity:.9}
+  .btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{opacity:.9}
+  .btn-outline{background:#fff;color:var(--g700);border:1px solid var(--g300)}.btn-outline:hover{background:var(--g50)}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .grp-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .grp-header h2{font-size:20px;font-weight:700}
+  .sk-badge{background:var(--orange-l);color:var(--orange-d);font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
+  .grp-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .ev-tabs{display:flex;gap:3px;margin-bottom:16px;border-bottom:2px solid var(--g200);padding-bottom:0;flex-wrap:wrap}
+  .ev-tab{padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;
+    color:var(--g500);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;
+    font-family:inherit;border-radius:6px 6px 0 0}
+  .ev-tab:hover{color:var(--g800);background:var(--g100)}
+  .ev-tab.active{color:var(--orange);border-bottom-color:var(--orange);background:var(--orange-l)}
+  .ev-tab.standings-tab.active{color:var(--gold);border-bottom-color:var(--gold);background:var(--gold-l)}
+  .stage-sec{margin-bottom:24px}
+  .stage-title{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--g500);margin-bottom:10px}
+  .stage-title::after{content:'';flex:1;height:1px;background:var(--g200)}
+  .stage-title.ht{color:var(--blue)}.stage-title.sm{color:var(--green)}.stage-title.fn{color:#B8860B}
+  .heats-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+  .hcard{background:#fff;border-radius:var(--r);box-shadow:0 1px 3px rgba(0,0,0,.07);
+    overflow:hidden;min-width:268px;flex:1;max-width:380px}
+  .hcard-head{padding:9px 14px;display:flex;align-items:center;justify-content:space-between}
+  .hcard-head.hh{background:var(--blue);color:#fff}
+  .hcard-head.sh{background:var(--green);color:#fff}
+  .hcard-head.fh{background:var(--gold);color:#fff}
+  .hcard-head h3{font-size:14px;font-weight:700}.sk-cnt{font-size:12px;opacity:.8}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--g400);padding:6px 10px;text-align:left;border-bottom:1px solid var(--g100)}
+  td{padding:7px 10px;font-size:13px;border-bottom:1px solid var(--g100)}
+  tr:last-child td{border-bottom:none}
+  tr.r1{background:#FFFDE7}tr.r2{background:#FAFAFA}tr.r3{background:#FFF8F0}
+  .nm{font-weight:500}.pn,.cl{color:var(--g500);font-family:'DM Mono',monospace;font-size:12px}
+  .pl-input{width:50px;padding:4px 6px;border:1px solid var(--g300);border-radius:6px;
+    font-size:13px;font-family:'DM Mono',monospace;text-align:center;outline:none;font-weight:600;transition:border-color .15s}
+  .pl-input:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
+  .pl-dq{background:var(--red-l);border-color:var(--red);color:var(--red)}
+  .hcard-foot{padding:8px 10px;border-top:1px solid var(--g100);display:flex;align-items:center;gap:8px;background:var(--g50);flex-wrap:wrap}
+  .hint{font-size:11px;color:var(--g400);margin-left:auto}
+  .adv-bar{background:var(--blue-l);border:1px solid #BBDEFB;border-radius:var(--r);
+    padding:10px 14px;display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+  .adv-bar.sm-bar{background:var(--green-l);border-color:#C8E6C9}
+  .adv-bar p{font-size:13px;color:var(--g700);flex:1}
+  .direct-notice{background:var(--purple-l);border:1px solid #CE93D8;border-radius:var(--r);
+    padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--purple)}
+  .pub-banner{background:linear-gradient(135deg,#1565C0,#1976D2);border-radius:var(--r);
+    padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:18px;color:#fff;flex-wrap:wrap}
+  .pub-url{font-family:'DM Mono',monospace;font-size:12px;background:rgba(255,255,255,.15);
+    padding:4px 10px;border-radius:6px;flex:1;word-break:break-all}
+  /* Standings table */
+  .standings-card{background:#fff;border-radius:var(--r);box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
+  .standings-head{padding:14px 18px;border-bottom:1px solid var(--g100);display:flex;align-items:center;gap:10px}
+  .standings-head h3{font-size:15px;font-weight:700}
+  .pts-legend{font-size:12px;color:var(--g500);margin-left:auto}
+  .pts-legend span{margin-left:10px}
+  .pos-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:13px;font-weight:700}
+  .pos-1{background:var(--gold-l);color:#B8860B}
+  .pos-2{background:var(--g100);color:var(--g600)}
+  .pos-3{background:#EFEBE9;color:#8D6E63}
+  .pos-n{background:var(--g100);color:var(--g500);font-size:12px}
+  .pts-pill{background:var(--orange-l);color:var(--orange-d);font-weight:700;
+    padding:2px 10px;border-radius:20px;font-size:13px;font-family:'DM Mono',monospace}
+  .breakdown-cell{font-size:11px;color:var(--g500);font-family:'DM Mono',monospace}
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:#fff;border-radius:14px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+  .modal-hdr{padding:18px 22px 12px;border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between}
+  .modal-hdr h3{font-size:17px;font-weight:700}
+  .mc{font-size:22px;cursor:pointer;color:var(--g400);background:none;border:none;line-height:1}.mc:hover{color:var(--g700)}
+  .modal-body{padding:18px 22px}
+  .modal-foot{padding:12px 22px;border-top:1px solid var(--g200);display:flex;gap:8px;justify-content:flex-end}
+  .form-grp{margin-bottom:14px}
+  .form-lbl{display:block;font-size:13px;font-weight:600;color:var(--g700);margin-bottom:5px}
+  .form-inp,.form-sel{width:100%;padding:8px 12px;border:1px solid var(--g300);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+  .form-inp:focus,.form-sel:focus{border-color:var(--orange)}
+  .xfer-list{border:1px solid var(--g300);border-radius:8px;max-height:220px;overflow-y:auto}
+  .xfer-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--g100);cursor:pointer}
+  .xfer-item:last-child{border-bottom:none}
+  .xfer-item:hover{background:var(--g50)}
+  .xfer-item input{accent-color:var(--orange);width:16px;height:16px}
+  .xfer-nm{font-weight:500;font-size:13px}
+  .xfer-meta{font-size:11px;color:var(--g400);font-family:'DM Mono',monospace}
+  .radio-grp{display:flex;flex-direction:column;gap:8px}
+  .radio-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
+    border:1px solid var(--g200);border-radius:8px;cursor:pointer;transition:all .12s}
+  .radio-item:hover{border-color:var(--orange);background:var(--orange-l)}
+  .radio-item input{accent-color:var(--orange);margin-top:2px}
+  .rl-lbl{font-weight:600;font-size:13px}.rl-desc{font-size:12px;color:var(--g500);margin-top:2px}
+  .upload-area{border:2px dashed var(--g300);border-radius:var(--r);padding:18px;text-align:center;cursor:pointer;transition:all .2s;background:#fff}
+  .upload-area:hover{border-color:var(--orange);background:var(--orange-l)}
+  #toast{position:fixed;bottom:22px;right:22px;background:var(--g900);color:#fff;padding:10px 16px;
+    border-radius:8px;font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);
+    transition:all .2s;pointer-events:none;max-width:300px}
+  #toast.show{opacity:1;transform:translateY(0)}
+  #toast.success{background:var(--green)}
+  #toast.error{background:var(--red)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/">← Competitions</a>
+  <span class="sep">/</span>
+  <span class="comp-name">{{comp.name}}</span>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <label class="btn btn-outline btn-sm" style="cursor:pointer">
+      📋 Individual Master <input type="file" id="up-ind" accept=".xlsx,.xls" style="display:none">
+    </label>
+    <label class="btn btn-outline btn-sm" style="cursor:pointer">
+      🔄 Relay Master <input type="file" id="up-rel" accept=".xlsx,.xls" style="display:none">
+    </label>
+    <a href="/athletes" class="btn btn-outline btn-sm">⛸️ Athletes</a>
+    <a href="/public/{{comp.id}}" target="_blank" class="btn btn-blue btn-sm">👁 Public ↗</a>
+  </div>
+</div>
+
+<div class="sidebar" id="sidebar">
+  <div class="sb-sec">
+    <div class="sb-lbl">Race Groups</div>
+    <div id="grp-list"><div style="padding:14px;font-size:13px;color:var(--g400)">Load master sheet →</div></div>
+  </div>
+  <div class="sb-div"></div>
+  <div class="sb-sec">
+    <div class="sb-lbl">Relay Events</div>
+    <div id="relay-list"></div>
+  </div>
+</div>
+
+<div class="main" id="main">
+  <div id="welcome">
+    <div class="pub-banner">
+      <span>📡 Public URL:</span>
+      <span class="pub-url" id="pub-url"></span>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="copyPub()">Copy</button>
+    </div>
+    <p style="font-size:15px;color:var(--g600);margin-bottom:20px">Load master sheets above to begin.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:660px">
+      <div class="upload-area" onclick="document.getElementById('up-ind').click()">
+        <div style="font-size:28px;margin-bottom:8px">📋</div>
+        <div style="font-weight:600;color:var(--g700)">Individual Master Sheet</div>
+        <div style="font-size:12px;color:var(--g400);margin-top:4px">Auto-seeds heats per selected events</div>
+      </div>
+      <div class="upload-area" onclick="document.getElementById('up-rel').click()">
+        <div style="font-size:28px;margin-bottom:8px">🔄</div>
+        <div style="font-weight:600;color:var(--g700)">Relay Master Sheet</div>
+        <div style="font-size:12px;color:var(--g400);margin-top:4px">Full heat/semi/final structure for relay teams</div>
+      </div>
+    </div>
+  </div>
+  <div id="grp-view" style="display:none"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Transfer modal -->
+<div class="modal-overlay" id="xfer-modal">
+  <div class="modal">
+    <div class="modal-hdr"><h3>↔ Transfer Skater</h3><button class="mc" onclick="closeM('xfer-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grp"><label class="form-lbl">From group</label>
+        <div id="xfer-from" style="font-weight:600;color:var(--orange);font-size:14px"></div></div>
+      <div class="form-grp"><label class="form-lbl">Select skater(s)</label>
+        <div class="xfer-list" id="xfer-sk-list"></div></div>
+      <div class="form-grp"><label class="form-lbl">Move to group</label>
+        <select class="form-sel" id="xfer-to"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeM('xfer-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doTransfer()">↔ Transfer & Re-seed</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add event modal -->
+<div class="modal-overlay" id="addEv-modal">
+  <div class="modal">
+    <div class="modal-hdr"><h3>+ Add Event</h3><button class="mc" onclick="closeM('addEv-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grp"><label class="form-lbl">Event name</label>
+        <input class="form-inp" id="ev-name-inp" placeholder="e.g. 300M Sprint"></div>
+      <div class="form-grp"><label class="form-lbl">Type</label>
+        <div class="radio-grp">
+          <label class="radio-item"><input type="radio" name="evtype" value="heat_based" checked>
+            <div><div class="rl-lbl">Heats / Semis / Final</div><div class="rl-desc">Auto-seeds based on roster</div></div></label>
+          <label class="radio-item"><input type="radio" name="evtype" value="direct_final">
+            <div><div class="rl-lbl">Direct Final</div><div class="rl-desc">Open / Elimination — no heats</div></div></label>
+        </div></div>
+      <div class="form-grp">
+        <label class="form-lbl" style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="ev-points" style="accent-color:var(--orange);width:16px;height:16px">
+          Count toward group overall standings (30/20/10 pts)
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeM('addEv-modal')">Cancel</button>
+      <button class="btn btn-green" onclick="doAddEvent()">Create Event</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COMP_ID={{comp.id}};
+let curGroup=null, curEvent=null, allGroups={};
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.className='show'+(type?' '+type:'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3200);
+}
+
+const pubUrl=`${location.protocol}//${location.hostname}:${location.port}/public/${COMP_ID}`;
+document.getElementById('pub-url').textContent=pubUrl;
+function copyPub(){navigator.clipboard.writeText(pubUrl).then(()=>toast('✓ URL copied!','success'));}
+
+// ── Upload ──
+document.getElementById('up-ind').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);toast('Loading…');
+  const r=await fetch(`/api/upload/individual/${COMP_ID}`,{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok){toast(`✓ ${d.skater_count} skaters loaded`,'success');await refreshGroups();if(d.groups.length)selectGroup(d.groups[0]);}
+  else toast(d.error,'error');
+  e.target.value='';
+});
+document.getElementById('up-rel').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);toast('Loading relay…');
+  const r=await fetch(`/api/upload/relay/${COMP_ID}`,{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok){toast('✓ Relay data loaded','success');refreshRelays();}
+  else toast(d.error,'error');
+  e.target.value='';
+});
+
+// ── Groups ──
+async function refreshGroups(){
+  const r=await fetch(`/api/${COMP_ID}/groups`);allGroups=await r.json();
+  const list=document.getElementById('grp-list');list.innerHTML='';
+  Object.entries(allGroups).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([g,info])=>{
+    const el=document.createElement('div');
+    el.className='sb-item'+(g===curGroup?' active':'');
+    el.innerHTML=`<span>${g}</span><span class="cnt">${info.skater_count}</span>`;
+    el.onclick=()=>selectGroup(g);list.appendChild(el);
+  });
+}
+async function refreshRelays(){
+  const r=await fetch(`/api/${COMP_ID}/relays`);const data=await r.json();
+  const list=document.getElementById('relay-list');list.innerHTML='';
+  Object.keys(data).forEach(ev=>{
+    const el=document.createElement('div');el.className='sb-item';
+    el.textContent=ev||'Relay';el.onclick=()=>showRelay(ev,data[ev]);list.appendChild(el);
+  });
+}
+
+async function selectGroup(group){
+  curGroup=group;
+  document.querySelectorAll('#grp-list .sb-item').forEach(el=>
+    el.classList.toggle('active',el.querySelector('span').textContent===group));
+  const r=await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const events=await r.json();renderGroup(group,events);
+}
+
+function renderGroup(group,events){
+  const info=allGroups[group]||{};
+  const evNames=Object.keys(events);
+  const hasPoints=Object.values(events).some(e=>e.points_event);
+  if(!curEvent||!events[curEvent])curEvent=evNames[0];
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('grp-view').style.display='block';
+  const gv=document.getElementById('grp-view');
+  gv.innerHTML=`
+    <div class="grp-header">
+      <h2>${group}</h2>
+      <span class="sk-badge">${info.skater_count||0} skaters</span>
+      <div class="grp-actions">
+        <button class="btn btn-purple btn-sm" onclick="openXfer('${esc(group)}')">↔ Transfer</button>
+        <button class="btn btn-outline btn-sm" onclick="openAddEv('${esc(group)}')">+ Add Event</button>
+      </div>
+    </div>
+    <div class="ev-tabs" id="ev-tabs">
+      ${evNames.map(n=>`<button class="ev-tab${n===curEvent?' active':''}"
+        onclick="switchEv('${esc(group)}','${esc(n)}',this)">${n}</button>`).join('')}
+      ${hasPoints?`<button class="ev-tab standings-tab${curEvent==='__standings__'?' active':''}"
+        onclick="switchEv('${esc(group)}','__standings__',this)">🏆 Standings</button>`:''}
+    </div>
+    <div id="ev-body"></div>`;
+  gv._events=events;
+  if(curEvent==='__standings__') loadStandings(group);
+  else renderEvent(events[curEvent]);
+}
+
+function switchEv(group,name,btn){
+  curEvent=name;
+  document.querySelectorAll('.ev-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(name==='__standings__'){loadStandings(group);return;}
+  renderEvent((document.getElementById('grp-view')._events||{})[name]);
+}
+
+// ── Standings ──
+async function loadStandings(group){
+  const r=await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+  const d=await r.json();
+  const data=d.standings||[]; const tbEv=d.tiebreaker_event||'';
+  const body=document.getElementById('ev-body');
+
+  // Get points events for tiebreaker selector
+  const evs=document.getElementById('grp-view')._events||{};
+  const pointsEvs=Object.values(evs).filter(e=>e.points_event).map(e=>e.name);
+
+  // Tiebreaker control bar
+  const tbBar=`<div style="background:#fff;border-radius:10px;padding:12px 16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:600;color:var(--g700)">⚖️ Tiebreaker event:</span>
+    <select id="tb-select" style="padding:5px 10px;border:1px solid var(--g300);border-radius:7px;font-size:13px;font-family:inherit;outline:none">
+      <option value="">None selected</option>
+      ${pointsEvs.map(n=>`<option value="${esc(n)}"${n===tbEv?' selected':''}>${n}</option>`).join('')}
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="saveTiebreaker()">Save</button>
+    <span style="font-size:12px;color:var(--g500)">Used to break ties when skaters have equal points</span>
+  </div>`;
+
+  if(!data.length){
+    body.innerHTML=tbBar+`<div style="text-align:center;padding:40px;color:var(--g400)">
+      <div style="font-size:36px;margin-bottom:10px">📊</div>
+      <p>No final results yet.</p></div>`;
+    return;
+  }
+
+  const rows=data.map(row=>{
+    const pcls=row.position===1?'pos-1':row.position===2?'pos-2':row.position===3?'pos-3':'pos-n';
+    const posLabel=row.position;
+    const bd=Object.entries(row.breakdown||{}).map(([ev,info])=>{
+      const suffix=['st','nd','rd'][info.place-1]||'th';
+      const tbMark=(ev===tbEv)?' ⚖️':'';
+      return `${ev.replace(' Distance','')}: <strong>${info.pts}pts</strong> (${info.place}${suffix})${tbMark}`;
+    }).join(' · ');
+    const tbWarn=row.tb_needed
+      ? `<span style="font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 7px;border-radius:10px;font-weight:600;margin-left:6px">⚠️ Manual TB needed</span>`
+      : '';
+    return `<tr>
+      <td><div class="pos-badge ${pcls}">${posLabel}</div></td>
+      <td class="nm">${row.name}${tbWarn}</td>
+      <td class="pn">${row.panel}</td>
+      <td class="cl">${row.club}</td>
+      <td><span class="pts-pill">${row.points}</span></td>
+      <td class="breakdown-cell">${bd||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML=tbBar+`<div class="standings-card">
+    <div class="standings-head">
+      <h3>Overall Group Standings</h3>
+      <div class="pts-legend">
+        <span>1st=30</span><span>2nd=20</span><span>3rd=10</span><span>4th=5</span>
+      </div>
+    </div>
+    <table><thead><tr><th>Pos</th><th>Name</th><th>Panel</th><th>Club</th><th>Points</th><th>Breakdown</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <p style="font-size:12px;color:var(--g400);margin-top:8px">
+      ⚖️ = tiebreaker event · ⚠️ = tied after tiebreaker, resolve manually
+    </p>`;
+}
+
+async function saveTiebreaker(){
+  const evName=document.getElementById('tb-select').value;
+  const r=await fetch(`/api/${COMP_ID}/tiebreaker`,{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:evName})});
+  const d=await r.json();
+  if(d.ok){toast('✓ Tiebreaker saved','success');loadStandings(curGroup);}
+  else toast(d.error,'error');
+}
+
+// ── Render event ──
+function renderEvent(ev){
+  const body=document.getElementById('ev-body');if(!ev){body.innerHTML='';return;}
+  let html='';
+  if(ev.type==='direct_final'){
+    html+=`<div class="direct-notice">🏁 <strong>Direct Final</strong> — all skaters go straight to the final.</div>`;
+    html+=renderStage('Final',ev.finals,'fh','fn',ev.id,'individual');
+    body.innerHTML=html;return;
+  }
+  if(ev.heats.length){
+    html+=`<div class="stage-sec"><div class="stage-title ht">Heats</div>
+    <div class="heats-row">${ev.heats.map(h=>hCard(h,'hh',ev.id,'individual')).join('')}</div>
+    <div class="adv-bar"><p>Save heat results, then advance qualifiers.</p>
+    <button class="btn btn-blue btn-sm" onclick="advance(${ev.id},'heats','individual')">▶ Advance from Heats</button></div></div>`;
+  }
+  if(ev.semis.length){
+    html+=`<div class="stage-sec"><div class="stage-title sm">Semi-Finals</div>
+    <div class="heats-row">${ev.semis.map(h=>hCard(h,'sh',ev.id,'individual')).join('')}</div>
+    <div class="adv-bar sm-bar"><p>Save semi results, advance top 3.</p>
+    <button class="btn btn-green btn-sm" onclick="advance(${ev.id},'semis','individual')">▶ Advance from Semis</button></div></div>`;
+  }
+  if(ev.finals.length){
+    html+=`<div class="stage-sec"><div class="stage-title fn">Final</div>
+    <div class="heats-row">${ev.finals.map(h=>hCard(h,'fh',ev.id,'individual')).join('')}</div></div>`;
+  }
+  html+=`<div style="margin-top:4px">
+    <button class="btn btn-outline btn-sm" onclick="reseedEv(${ev.id},'individual')">🔄 Re-seed Heats</button>
+    ${ev.points_event?'<span style="font-size:12px;color:var(--g400);margin-left:8px">🏆 Final results count toward group standings</span>':''}
+  </div>`;
+  body.innerHTML=html;
+}
+
+function renderStage(title,heats,hdrCls,titleCls,id,kind){
+  return `<div class="stage-sec"><div class="stage-title ${titleCls}">${title}</div>
+  <div class="heats-row">${heats.map(h=>hCard(h,hdrCls,id,kind)).join('')}</div></div>`;
+}
+
+function hCard(heat,hdrCls,parentId,kind){
+  const isRelay=(kind==='relay');
+  const items=isRelay?heat.teams:heat.skaters;
+  const label=heat.stage==='Final'?'Final':`${heat.stage} ${heat.number}`;
+  if(!items||!items.length) return `<div class="hcard">
+    <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sk-cnt">0</span></div>
+    <div style="padding:18px;text-align:center;color:var(--g400);font-size:13px">Waiting for advancement</div></div>`;
+
+  const rows=items.map((s,i)=>{
+    const pl=s.placement;const rc=pl=='1'?'r1':pl=='2'?'r2':pl=='3'?'r3':'';
+    const nameCell=isRelay?`${s.club} <span style="font-size:11px;color:var(--g400)">[${s.color}]</span>`:s.full_name;
+    const idAttr=isRelay?`data-team="${s.team_id}"`:(`data-panel="${s.panel}"`);
+    return `<tr class="${rc}"><td>${i+1}</td>
+      <td class="nm">${nameCell}</td>
+      ${!isRelay?`<td class="pn">${s.panel}</td><td class="cl">${s.club}</td>`:''}
+      <td><input class="pl-input${pl==='DQ'?' pl-dq':''}" type="text"
+        value="${pl||''}" placeholder="—"
+        data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
+        onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
+        oninput="this.classList.toggle('pl-dq',this.value.trim().toUpperCase()==='DQ')"></td></tr>`;
+  }).join('');
+
+  const cols=isRelay?'<th>#</th><th>Team</th><th>Place</th>':'<th>#</th><th>Name</th><th>Panel</th><th>Club</th><th>Place</th>';
+  return `<div class="hcard">
+    <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sk-cnt">${items.length}</span></div>
+    <table><thead><tr>${cols}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="hcard-foot">
+      <button class="btn btn-primary btn-sm" onclick="saveCard(${heat.id},'${kind}')">💾 Save</button>
+      <button class="btn btn-outline btn-sm" onclick="clearCard(${heat.id},'${kind}')">✕ Clear</button>
+      <span class="hint">1–6 or DQ · ↵ to save</span>
+    </div></div>`;
+}
+
+async function saveCard(heatId,kind){
+  const inputs=document.querySelectorAll(`input[data-heatid="${heatId}"]`);
+  const results={};
+  inputs.forEach(inp=>{
+    const v=inp.value.trim();if(!v)return;
+    const key=kind==='relay'?inp.dataset.team:inp.dataset.panel;
+    results[key]=v;
+  });
+  const url=kind==='relay'?'/api/save_relay_results':'/api/save_results';
+  const payload=kind==='relay'?{relay_heat_id:heatId,results}:{heat_id:heatId,results};
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(d.ok)toast('✓ Saved','success');else toast(d.error,'error');
+}
+
+async function clearCard(heatId,kind){
+  const url=kind==='relay'?'/api/save_relay_results':'/api/save_results';
+  const payload=kind==='relay'?{relay_heat_id:heatId,results:{}}:{heat_id:heatId,results:{}};
+  await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(kind==='relay')refreshRelays();else selectGroup(curGroup);
+}
+
+async function advance(id,from,kind){
+  const url=kind==='relay'?'/api/advance_relay':'/api/advance';
+  const payload=kind==='relay'?{relay_event_id:id,from}:{event_id:id,from};
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(d.ok){toast('✓ '+d.message,'success');if(kind==='relay')refreshRelays();else selectGroup(curGroup);}
+  else toast(d.error||'Error','error');
+}
+
+async function reseedEv(id,kind){
+  if(!confirm('Re-seed heats from current roster? Saved results are kept.'))return;
+  const url=kind==='relay'?'/api/reseed_relay':'/api/reseed';
+  const payload=kind==='relay'?{relay_event_id:id}:{event_id:id};
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(d.ok){toast('✓ '+d.message,'success');if(kind==='relay')refreshRelays();else selectGroup(curGroup);}
+  else toast(d.error,'error');
+}
+
+// ── Relay view ──
+function showRelay(evName,ev){
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('grp-view').style.display='block';
+  const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#212121',
+    yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
+  let html=`<div class="grp-header"><h2>🔄 ${evName}</h2></div>`;
+  // Heats/Semis/Finals
+  if(ev.heats&&ev.heats.length){
+    html+=`<div class="stage-sec"><div class="stage-title ht">Heats</div>
+    <div class="heats-row">${ev.heats.map(h=>hCard(h,'hh',ev.id,'relay')).join('')}</div>
+    <div class="adv-bar"><p>Save heat results, then advance.</p>
+    <button class="btn btn-blue btn-sm" onclick="advance(${ev.id},'heats','relay')">▶ Advance from Heats</button></div></div>`;
+  }
+  if(ev.semis&&ev.semis.length){
+    html+=`<div class="stage-sec"><div class="stage-title sm">Semi-Finals</div>
+    <div class="heats-row">${ev.semis.map(h=>hCard(h,'sh',ev.id,'relay')).join('')}</div>
+    <div class="adv-bar sm-bar"><p>Advance top 3 from each semi.</p>
+    <button class="btn btn-green btn-sm" onclick="advance(${ev.id},'semis','relay')">▶ Advance from Semis</button></div></div>`;
+  }
+  if(ev.finals&&ev.finals.length){
+    html+=`<div class="stage-sec"><div class="stage-title fn">Final</div>
+    <div class="heats-row">${ev.finals.map(h=>hCard(h,'fh',ev.id,'relay')).join('')}</div></div>`;
+  }
+  // Teams list
+  const teamCards=(ev.teams||[]).map(t=>{
+    const c=COLORS[t.color?.toLowerCase()]||'#455A64';
+    const mems=(t.members||[]).filter(m=>m&&m!=='nan').map(m=>`<div style="font-size:13px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.85)">• ${m}</div>`).join('');
+    return `<div style="border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:10px">
+      <div style="background:${c};padding:9px 14px;font-weight:700;font-size:13px;color:#fff">${t.club} — ${t.color} bib</div>
+      <div style="background:${c};opacity:.85;padding:6px 14px 10px">${mems}</div></div>`;
+  }).join('');
+  if(teamCards){
+    html+=`<div style="margin-top:16px"><div class="stage-title">Teams</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">${teamCards}</div></div>`;
+  }
+  document.getElementById('grp-view').innerHTML=html;
+}
+
+// ── Transfer ──
+let xferGroup=null;
+async function openXfer(group){
+  xferGroup=group;document.getElementById('xfer-from').textContent=group;
+  const r=await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const evs=await r.json();const firstEv=Object.values(evs)[0];
+  const seen=new Set();const skaters=[];
+  if(firstEv){[...firstEv.heats,...firstEv.semis,...firstEv.finals].forEach(h=>
+    h.skaters.forEach(s=>{if(!seen.has(s.panel)){seen.add(s.panel);skaters.push(s);}}));}
+  skaters.sort((a,b)=>a.last.localeCompare(b.last));
+  document.getElementById('xfer-sk-list').innerHTML=skaters.map(s=>`
+    <label class="xfer-item"><input type="checkbox" value="${s.panel}">
+    <div><div class="xfer-nm">${s.full_name}</div>
+    <div class="xfer-meta">#${s.panel} · ${s.club}</div></div></label>`).join('')
+    ||'<div style="padding:14px;color:var(--g400);font-size:13px">No skaters found</div>';
+  const others=Object.keys(allGroups).filter(g=>g!==group).sort();
+  document.getElementById('xfer-to').innerHTML=others.map(g=>`<option value="${esc(g)}">${g}</option>`).join('');
+  openM('xfer-modal');
+}
+async function doTransfer(){
+  const panels=[...document.querySelectorAll('#xfer-sk-list input:checked')].map(c=>c.value);
+  if(!panels.length){toast('Select at least one skater','error');return;}
+  const toGroup=document.getElementById('xfer-to').value;
+  const r=await fetch('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,panels,to_group:toGroup})});
+  const d=await r.json();
+  if(d.ok){closeM('xfer-modal');toast(`✓ ${panels.length} skater(s) moved`,'success');await refreshGroups();selectGroup(curGroup);}
+  else toast(d.error,'error');
+}
+
+// ── Add event ──
+let addEvGroup=null;
+function openAddEv(group){addEvGroup=group;document.getElementById('ev-name-inp').value='';openM('addEv-modal');}
+async function doAddEvent(){
+  const name=document.getElementById('ev-name-inp').value.trim();
+  if(!name){toast('Enter event name','error');return;}
+  const type=document.querySelector('input[name="evtype"]:checked').value;
+  const pts=document.getElementById('ev-points').checked?1:0;
+  const r=await fetch('/api/add_event',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,group:addEvGroup,name,type,points_event:pts})});
+  const d=await r.json();
+  if(d.ok){closeM('addEv-modal');curEvent=name;toast('✓ Created','success');selectGroup(curGroup);}
+  else toast(d.error,'error');
+}
+
+function openM(id){document.getElementById(id).classList.add('open');}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(m=>
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+
+refreshGroups().then(()=>{const gs=Object.keys(allGroups);if(gs.length)selectGroup(gs[0]);});
+refreshRelays();
+</script>
+</body>
+</html>

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Athlete Profiles — PacWest Racing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --orange:#F4511E;--orange-l:#FFF3F0;--orange-d:#BF360C;
+    --blue:#1565C0;--blue-l:#E3F2FD;
+    --green:#2E7D32;--green-l:#E8F5E9;
+    --gold:#F9A825;--gold-l:#FFF8E1;
+    --silver:#9E9E9E;--silver-l:#F5F5F5;
+    --bronze:#8D6E63;--bronze-l:#EFEBE9;
+    --red:#C62828;--red-l:#FFEBEE;
+    --purple:#6A1B9A;--purple-l:#F3E5F5;
+    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;
+    --g400:#BDBDBD;--g500:#9E9E9E;--g600:#757575;--g700:#616161;
+    --g800:#424242;--g900:#212121;
+    --topbar:60px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh}
+
+  /* ── Top bar ── */
+  .topbar{position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid var(--g200);
+    height:var(--topbar);display:flex;align-items:center;padding:0 20px;gap:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  .topbar a{color:var(--g500);font-size:13px;text-decoration:none;display:flex;align-items:center;gap:4px}
+  .topbar a:hover{color:var(--g900)}
+  .topbar .pg-title{font-size:15px;font-weight:700;color:var(--g900)}
+  .topbar .sep{color:var(--g300)}
+
+  /* ── Layout ── */
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - var(--topbar))}
+  .left-panel{background:#fff;border-right:1px solid var(--g200);display:flex;flex-direction:column;height:calc(100vh - var(--topbar));position:sticky;top:var(--topbar);overflow:hidden}
+  .right-panel{padding:24px;overflow-y:auto}
+
+  /* ── Search panel ── */
+  .search-header{padding:16px 16px 10px;border-bottom:1px solid var(--g100)}
+  .search-title{font-size:13px;font-weight:700;color:var(--g700);margin-bottom:10px}
+  .search-box{position:relative}
+  .search-box input{width:100%;padding:9px 12px 9px 36px;border:1px solid var(--g300);border-radius:8px;
+    font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;background:#fff}
+  .search-box input:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
+  .search-box .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g400);font-size:15px;pointer-events:none}
+  .filter-row{display:flex;gap:6px;margin-top:8px}
+  .filter-sel{flex:1;padding:6px 8px;border:1px solid var(--g300);border-radius:7px;
+    font-size:12px;font-family:inherit;outline:none;color:var(--g700);background:#fff}
+  .filter-sel:focus{border-color:var(--orange)}
+
+  /* ── Skater list ── */
+  .sk-list{flex:1;overflow-y:auto}
+  .sk-list-item{display:flex;align-items:center;gap:10px;padding:10px 16px;
+    border-bottom:1px solid var(--g100);cursor:pointer;transition:background .1s}
+  .sk-list-item:hover{background:var(--g50)}
+  .sk-list-item.active{background:var(--orange-l)}
+  .sk-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;color:#fff}
+  .sk-list-info{flex:1;min-width:0}
+  .sk-list-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sk-list-meta{font-size:11px;color:var(--g400);font-family:'DM Mono',monospace;margin-top:1px}
+  .sk-list-badge{font-size:11px;font-weight:600;color:var(--g500)}
+  .no-results{padding:32px 16px;text-align:center;color:var(--g400)}
+  .no-results .nr-icon{font-size:32px;margin-bottom:8px}
+
+  /* ── Profile panel ── */
+  .profile-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:400px;color:var(--g400)}
+  .profile-empty .pe-icon{font-size:56px;margin-bottom:12px}
+  .profile-empty p{font-size:15px}
+
+  /* Profile header */
+  .profile-head{background:#fff;border-radius:12px;padding:20px 24px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:18px;display:flex;align-items:center;gap:18px}
+  .profile-avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0}
+  .profile-name{font-size:22px;font-weight:700;margin-bottom:3px}
+  .profile-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+  .profile-meta span{font-size:12px;color:var(--g500);display:flex;align-items:center;gap:4px}
+  .profile-meta strong{color:var(--g800)}
+
+  /* Stats row */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:18px}
+  .stat-card{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center}
+  .stat-card .sv{font-size:26px;font-weight:700;line-height:1;margin-bottom:3px}
+  .stat-card .sl{font-size:11px;color:var(--g500);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .stat-card.gold-card .sv{color:var(--gold)}
+  .stat-card.silver-card .sv{color:var(--silver)}
+  .stat-card.bronze-card .sv{color:var(--bronze)}
+  .stat-card.podium-card .sv{color:var(--orange)}
+  .stat-card.races-card .sv{color:var(--blue)}
+  .stat-card.comps-card .sv{color:var(--purple)}
+
+  /* Filters bar */
+  .filters-bar{background:#fff;border-radius:10px;padding:12px 16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:16px;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .filters-bar label{font-size:12px;font-weight:600;color:var(--g600)}
+  .filter-pill-group{display:flex;gap:6px;flex-wrap:wrap}
+  .fpill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+    background:var(--g100);color:var(--g600);border:1px solid var(--g200);transition:all .12s;font-family:inherit}
+  .fpill:hover{border-color:var(--orange);color:var(--orange)}
+  .fpill.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .fsel{padding:5px 10px;border:1px solid var(--g200);border-radius:20px;font-size:12px;
+    font-family:inherit;outline:none;color:var(--g600);background:#fff;cursor:pointer}
+  .fsel:focus{border-color:var(--orange)}
+
+  /* History table */
+  .history-section{background:#fff;border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .history-header{padding:14px 18px;border-bottom:1px solid var(--g100);
+    display:flex;align-items:center;justify-content:space-between}
+  .history-header h3{font-size:15px;font-weight:700}
+  .history-header .hcount{font-size:12px;color:var(--g400)}
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--g400);padding:8px 16px;text-align:left;border-bottom:1px solid var(--g100);
+    background:var(--g50);white-space:nowrap}
+  tbody td{padding:10px 16px;font-size:13px;border-bottom:1px solid var(--g100)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--g50)}
+  .place-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+    border-radius:20px;font-size:12px;font-weight:700}
+  .place-1{background:var(--gold-l);color:#B8860B}
+  .place-2{background:var(--silver-l);color:var(--g600)}
+  .place-3{background:var(--bronze-l);color:var(--bronze)}
+  .place-dq{background:var(--red-l);color:var(--red)}
+  .place-n{background:var(--g100);color:var(--g600)}
+  .stage-pill{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .stage-Heat{background:var(--blue-l);color:var(--blue)}
+  .stage-Semi{background:var(--green-l);color:var(--green)}
+  .stage-Final{background:var(--gold-l);color:#B8860B}
+  .comp-link{color:var(--blue);text-decoration:none;font-weight:500}
+  .comp-link:hover{text-decoration:underline}
+  .empty-history{padding:40px;text-align:center;color:var(--g400)}
+  .empty-history .eh-icon{font-size:36px;margin-bottom:8px}
+
+  /* Btn */
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;
+    font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all .15s;text-decoration:none}
+  .btn-orange{background:var(--orange);color:#fff}.btn-orange:hover{background:var(--orange-d)}
+  .btn-outline{background:#fff;color:var(--g700);border:1px solid var(--g300)}.btn-outline:hover{background:var(--g50)}
+
+  /* Toast */
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--g900);color:#fff;padding:10px 16px;
+    border-radius:8px;font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);
+    transition:all .2s;pointer-events:none}
+  #toast.show{opacity:1;transform:translateY(0)}
+  #toast.success{background:var(--green)}
+  #toast.error{background:var(--red)}
+
+  @media(max-width:800px){
+    .layout{grid-template-columns:1fr}
+    .left-panel{height:auto;position:static;border-right:none;border-bottom:1px solid var(--g200)}
+    .sk-list{max-height:260px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/">← Competitions</a>
+  <span class="sep">/</span>
+  <span class="pg-title">⛸️ Athlete Profiles</span>
+</div>
+
+<div class="layout">
+  <!-- Left: search + list -->
+  <div class="left-panel">
+    <div class="search-header">
+      <div class="search-title">Search Athletes</div>
+      <div class="search-box">
+        <span class="si">🔍</span>
+        <input type="text" id="search-inp" placeholder="Name, panel number, or club…" oninput="doSearch()">
+      </div>
+      <div class="filter-row">
+        <select class="filter-sel" id="comp-filter" onchange="doSearch()">
+          <option value="">All competitions</option>
+          {% for c in competitions %}
+          <option value="{{c.id}}">{{c.name}}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="sk-list" id="sk-list">
+      <div class="no-results">
+        <div class="nr-icon">🔍</div>
+        <p>Type to search athletes</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: profile -->
+  <div class="right-panel" id="right-panel">
+    <div class="profile-empty">
+      <div class="pe-icon">⛸️</div>
+      <p>Select an athlete to view their profile</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let searchTimer = null;
+let currentPanel = null;
+let profileData = null;
+
+// ── Search ──────────────────────────────────────────────────────────────────
+function doSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 220);
+}
+
+async function runSearch() {
+  const q = document.getElementById('search-inp').value.trim();
+  const compId = document.getElementById('comp-filter').value;
+  if (!q && !compId) {
+    document.getElementById('sk-list').innerHTML = `
+      <div class="no-results"><div class="nr-icon">🔍</div><p>Type to search athletes</p></div>`;
+    return;
+  }
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (compId) params.set('comp_id', compId);
+
+  const r = await fetch('/api/athletes/search?' + params);
+  const data = await r.json();
+  renderSkList(data);
+}
+
+function renderSkList(skaters) {
+  const list = document.getElementById('sk-list');
+  if (!skaters.length) {
+    list.innerHTML = `<div class="no-results"><div class="nr-icon">😕</div><p>No athletes found</p></div>`;
+    return;
+  }
+  const COLORS = ['#F4511E','#1565C0','#2E7D32','#6A1B9A','#F9A825','#00838F','#AD1457'];
+  list.innerHTML = skaters.map((s, i) => {
+    const initials = ((s.first||'')[0]||'') + ((s.last||'')[0]||'');
+    const color = COLORS[i % COLORS.length];
+    return `<div class="sk-list-item${s.panel===currentPanel?' active':''}"
+      onclick="loadProfile('${s.panel}', this)">
+      <div class="sk-avatar" style="background:${color}">${initials.toUpperCase()}</div>
+      <div class="sk-list-info">
+        <div class="sk-list-name">${s.full_name}</div>
+        <div class="sk-list-meta">#${s.panel} · ${s.club||'—'} · Age ${s.age||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Profile ─────────────────────────────────────────────────────────────────
+async function loadProfile(panel, el) {
+  currentPanel = panel;
+  document.querySelectorAll('.sk-list-item').forEach(e => e.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const r = await fetch(`/api/athlete/${panel}`);
+  profileData = await r.json();
+  renderProfile(profileData);
+}
+
+function renderProfile(d) {
+  const COLORS = ['#F4511E','#1565C0','#2E7D32','#6A1B9A'];
+  const color = COLORS[d.panel.charCodeAt(0) % COLORS.length];
+  const initials = ((d.name||'').split(' ').map(w=>w[0]||'').join('')).slice(0,2).toUpperCase();
+
+  // Build filter options from history
+  const competitions = [...new Set(d.history.map(r => r.competition))];
+  const events = [...new Set(d.history.map(r => r.event))];
+  const stages = [...new Set(d.history.map(r => r.stage))];
+
+  const rp = document.getElementById('right-panel');
+  rp.innerHTML = `
+    <!-- Profile header -->
+    <div class="profile-head">
+      <div class="profile-avatar" style="background:${color}">${initials}</div>
+      <div style="flex:1">
+        <div class="profile-name">${d.name}</div>
+        <div class="profile-meta">
+          <span>🎫 Panel <strong>#${d.panel}</strong></span>
+          ${d.usars_no ? `<span>🪪 USARS <strong>${d.usars_no}</strong></span>` : ''}
+          ${d.club ? `<span>🏒 <strong>${d.club}</strong></span>` : ''}
+          ${d.age  ? `<span>🎂 Age <strong>${d.age}</strong></span>` : ''}
+          ${d.gender ? `<span>⚧ <strong>${d.gender}</strong></span>` : ''}
+        </div>
+      </div>
+      <a href="/api/athlete/${d.panel}" target="_blank" class="btn btn-outline">JSON ↗</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card races-card">
+        <div class="sv">${d.stats.total_finals}</div><div class="sl">Finals</div>
+      </div>
+      <div class="stat-card comps-card">
+        <div class="sv">${d.stats.competitions}</div><div class="sl">Meets</div>
+      </div>
+      <div class="stat-card podium-card">
+        <div class="sv">${d.stats.podiums}</div><div class="sl">Podiums</div>
+      </div>
+      <div class="stat-card gold-card">
+        <div class="sv">🥇 ${d.stats.gold}</div><div class="sl">Gold</div>
+      </div>
+      <div class="stat-card silver-card">
+        <div class="sv">🥈 ${d.stats.silver}</div><div class="sl">Silver</div>
+      </div>
+      <div class="stat-card bronze-card">
+        <div class="sv">🥉 ${d.stats.bronze}</div><div class="sl">Bronze</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar" id="hist-filters">
+      <label>Filter:</label>
+      <div class="filter-pill-group" id="comp-pills">
+        <button class="fpill active" onclick="filterBy('comp','',this)">All meets</button>
+        ${competitions.map(c=>`<button class="fpill" onclick="filterBy('comp','${esc(c)}',this)">${c}</button>`).join('')}
+      </div>
+      <select class="fsel" id="ev-filter" onchange="applyFilters()">
+        <option value="">All events</option>
+        ${events.map(e=>`<option value="${esc(e)}">${e}</option>`).join('')}
+      </select>
+      <select class="fsel" id="stage-filter" onchange="applyFilters()">
+        <option value="">All stages</option>
+        ${stages.map(s=>`<option value="${esc(s)}">${s}</option>`).join('')}
+      </select>
+    </div>
+
+    <!-- History table -->
+    <div class="history-section">
+      <div class="history-header">
+        <h3>Race History</h3>
+        <span class="hcount" id="hist-count">${d.history.length} results</span>
+      </div>
+      <div id="hist-table-wrap">
+        ${renderTable(d.history)}
+      </div>
+    </div>
+  `;
+
+  rp._filters = { comp: '', event: '', stage: '' };
+}
+
+function renderTable(rows) {
+  if (!rows.length) return `<div class="empty-history"><div class="eh-icon">📭</div><p>No results match the current filters</p></div>`;
+
+  const trs = rows.map(r => {
+    const pl = r.placement;
+    const num = parseInt(pl);
+    const medal = {1:'🥇',2:'🥈',3:'🥉'}[num]||'';
+    const plClass = pl==='DQ'?'place-dq': num===1?'place-1': num===2?'place-2': num===3?'place-3':'place-n';
+    const plText = pl==='DQ'?'DQ': medal?`${medal} ${pl}`: pl||'—';
+    const heatLabel = r.stage==='Final'?'Final': r.stage==='Semi'?`Semi ${r.heat_number}`:`Heat ${r.heat_number}`;
+    return `<tr>
+      <td><a href="/comp/${r.competition_id}" class="comp-link">${r.competition}</a>
+          ${r.date?`<div style="font-size:11px;color:var(--g400);margin-top:1px">📅 ${r.date}</div>`:''}
+      </td>
+      <td style="color:var(--g600);font-size:12px">${r.group}</td>
+      <td>${r.event}</td>
+      
+      <td><span class="place-badge ${plClass}">${plText}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `<table>
+    <thead><tr>
+      <th>Competition</th><th>Group</th><th>Event</th><th>Placement</th>
+    </tr></thead>
+    <tbody>${trs}</tbody>
+  </table>`;
+}
+
+let filterComp = '', filterEvent = '', filterStage = '';
+
+function filterBy(type, val, btn) {
+  if (type === 'comp') {
+    filterComp = val;
+    document.querySelectorAll('#comp-pills .fpill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  applyFilters();
+}
+
+function applyFilters() {
+  filterEvent = document.getElementById('ev-filter')?.value || '';
+  filterStage = document.getElementById('stage-filter')?.value || '';
+  if (!profileData) return;
+
+  let filtered = profileData.history;
+  if (filterComp)  filtered = filtered.filter(r => r.competition === filterComp);
+  if (filterEvent) filtered = filtered.filter(r => r.event === filterEvent);
+  if (filterStage) filtered = filtered.filter(r => r.stage === filterStage);
+
+  document.getElementById('hist-table-wrap').innerHTML = renderTable(filtered);
+  document.getElementById('hist-count').textContent = `${filtered.length} results`;
+}
+
+function esc(s){ return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+
+// ── Init: load from URL param if present ────────────────────────────────────
+const urlPanel = new URLSearchParams(location.search).get('panel');
+if (urlPanel) {
+  document.getElementById('search-inp').value = urlPanel;
+  doSearch();
+  setTimeout(() => loadProfile(urlPanel, null), 500);
+}
+</script>
+</body>
+</html>
