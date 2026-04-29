@@ -4,662 +4,830 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>{{comp.name}} — Operator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { DEFAULT:'#F4511E', dark:'#BF360C', light:'#FFF3F0' },
+      }
+    }
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  :root{--orange:#F4511E;--orange-l:#FFF3F0;--orange-d:#BF360C;--blue:#1565C0;--blue-l:#E3F2FD;
-    --green:#2E7D32;--green-l:#E8F5E9;--gold:#F9A825;--gold-l:#FFF8E1;
-    --purple:#6A1B9A;--purple-l:#F3E5F5;--red:#C62828;--red-l:#FFEBEE;
-    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;--g400:#BDBDBD;
-    --g500:#9E9E9E;--g600:#757575;--g700:#616161;--g800:#424242;--g900:#212121;
-    --sidebar:256px;--topbar:60px;--r:10px;}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh}
-  .topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar);background:#fff;
-    border-bottom:1px solid var(--g200);display:flex;align-items:center;padding:0 16px;
-    gap:10px;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-  .topbar a{color:var(--g500);font-size:13px;text-decoration:none;display:flex;align-items:center;gap:4px}
-  .topbar a:hover{color:var(--g900)}
-  .comp-name{font-size:15px;font-weight:700}.sep{color:var(--g300);margin:0 2px}
-  .sidebar{position:fixed;top:var(--topbar);left:0;bottom:0;width:var(--sidebar);
-    background:#fff;border-right:1px solid var(--g200);overflow-y:auto;z-index:50}
-  .sb-sec{padding:12px 10px 4px}
-  .sb-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-    color:var(--g400);padding:0 6px 6px}
-  .sb-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;
-    border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--g700);
-    transition:all .12s;margin-bottom:1px}
-  .sb-item:hover{background:var(--g100);color:var(--g900)}
-  .sb-item.active{background:var(--orange-l);color:var(--orange-d);font-weight:600}
-  .sb-item .cnt{font-size:11px;background:var(--g200);color:var(--g600);padding:1px 6px;border-radius:10px}
-  .sb-item.active .cnt{background:var(--orange);color:#fff}
-  .sb-div{height:1px;background:var(--g200);margin:6px 10px}
-  .main{margin-left:var(--sidebar);margin-top:var(--topbar);padding:20px;min-height:calc(100vh - var(--topbar))}
-  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;
-    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;
-    transition:all .15s;text-decoration:none;white-space:nowrap}
-  .btn-primary{background:var(--orange);color:#fff}.btn-primary:hover{background:var(--orange-d)}
-  .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.9}
-  .btn-green{background:var(--green);color:#fff}.btn-green:hover{opacity:.9}
-  .btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{opacity:.9}
-  .btn-outline{background:#fff;color:var(--g700);border:1px solid var(--g300)}.btn-outline:hover{background:var(--g50)}
-  .btn-sm{padding:5px 10px;font-size:12px}
-  .grp-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-  .grp-header h2{font-size:20px;font-weight:700}
-  .sk-badge{background:var(--orange-l);color:var(--orange-d);font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
-  .grp-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-  .ev-tabs{display:flex;gap:3px;margin-bottom:16px;border-bottom:2px solid var(--g200);padding-bottom:0;flex-wrap:wrap}
-  .ev-tab{padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;
-    color:var(--g500);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;
-    font-family:inherit;border-radius:6px 6px 0 0}
-  .ev-tab:hover{color:var(--g800);background:var(--g100)}
-  .ev-tab.active{color:var(--orange);border-bottom-color:var(--orange);background:var(--orange-l)}
-  .ev-tab.standings-tab.active{color:var(--gold);border-bottom-color:var(--gold);background:var(--gold-l)}
-  .stage-sec{margin-bottom:24px}
-  .stage-title{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;
-    letter-spacing:.04em;text-transform:uppercase;color:var(--g500);margin-bottom:10px}
-  .stage-title::after{content:'';flex:1;height:1px;background:var(--g200)}
-  .stage-title.ht{color:var(--blue)}.stage-title.sm{color:var(--green)}.stage-title.fn{color:#B8860B}
-  .heats-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
-  .hcard{background:#fff;border-radius:var(--r);box-shadow:0 1px 3px rgba(0,0,0,.07);
-    overflow:hidden;min-width:268px;flex:1;max-width:380px}
-  .hcard-head{padding:9px 14px;display:flex;align-items:center;justify-content:space-between}
-  .hcard-head.hh{background:var(--blue);color:#fff}
-  .hcard-head.sh{background:var(--green);color:#fff}
-  .hcard-head.fh{background:var(--gold);color:#fff}
-  .hcard-head h3{font-size:14px;font-weight:700}.sk-cnt{font-size:12px;opacity:.8}
-  table{width:100%;border-collapse:collapse}
-  th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
-    color:var(--g400);padding:6px 10px;text-align:left;border-bottom:1px solid var(--g100)}
-  td{padding:7px 10px;font-size:13px;border-bottom:1px solid var(--g100)}
-  tr:last-child td{border-bottom:none}
-  tr.r1{background:#FFFDE7}tr.r2{background:#FAFAFA}tr.r3{background:#FFF8F0}
-  .nm{font-weight:500}.pn,.cl{color:var(--g500);font-family:'DM Mono',monospace;font-size:12px}
-  .pl-input{width:50px;padding:4px 6px;border:1px solid var(--g300);border-radius:6px;
-    font-size:13px;font-family:'DM Mono',monospace;text-align:center;outline:none;font-weight:600;transition:border-color .15s}
-  .pl-input:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
-  .pl-dq{background:var(--red-l);border-color:var(--red);color:var(--red)}
-  .hcard-foot{padding:8px 10px;border-top:1px solid var(--g100);display:flex;align-items:center;gap:8px;background:var(--g50);flex-wrap:wrap}
-  .hint{font-size:11px;color:var(--g400);margin-left:auto}
-  .adv-bar{background:var(--blue-l);border:1px solid #BBDEFB;border-radius:var(--r);
-    padding:10px 14px;display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
-  .adv-bar.sm-bar{background:var(--green-l);border-color:#C8E6C9}
-  .adv-bar p{font-size:13px;color:var(--g700);flex:1}
-  .direct-notice{background:var(--purple-l);border:1px solid #CE93D8;border-radius:var(--r);
-    padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--purple)}
-  .pub-banner{background:linear-gradient(135deg,#1565C0,#1976D2);border-radius:var(--r);
-    padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:18px;color:#fff;flex-wrap:wrap}
-  .pub-url{font-family:'DM Mono',monospace;font-size:12px;background:rgba(255,255,255,.15);
-    padding:4px 10px;border-radius:6px;flex:1;word-break:break-all}
-  /* Standings table */
-  .standings-card{background:#fff;border-radius:var(--r);box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
-  .standings-head{padding:14px 18px;border-bottom:1px solid var(--g100);display:flex;align-items:center;gap:10px}
-  .standings-head h3{font-size:15px;font-weight:700}
-  .pts-legend{font-size:12px;color:var(--g500);margin-left:auto}
-  .pts-legend span{margin-left:10px}
-  .pos-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
-    justify-content:center;font-size:13px;font-weight:700}
-  .pos-1{background:var(--gold-l);color:#B8860B}
-  .pos-2{background:var(--g100);color:var(--g600)}
-  .pos-3{background:#EFEBE9;color:#8D6E63}
-  .pos-n{background:var(--g100);color:var(--g500);font-size:12px}
-  .pts-pill{background:var(--orange-l);color:var(--orange-d);font-weight:700;
-    padding:2px 10px;border-radius:20px;font-size:13px;font-family:'DM Mono',monospace}
-  .breakdown-cell{font-size:11px;color:var(--g500);font-family:'DM Mono',monospace}
-  /* Modal */
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
-  .modal-overlay.open{display:flex}
-  .modal{background:#fff;border-radius:14px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-  .modal-hdr{padding:18px 22px 12px;border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between}
-  .modal-hdr h3{font-size:17px;font-weight:700}
-  .mc{font-size:22px;cursor:pointer;color:var(--g400);background:none;border:none;line-height:1}.mc:hover{color:var(--g700)}
-  .modal-body{padding:18px 22px}
-  .modal-foot{padding:12px 22px;border-top:1px solid var(--g200);display:flex;gap:8px;justify-content:flex-end}
-  .form-grp{margin-bottom:14px}
-  .form-lbl{display:block;font-size:13px;font-weight:600;color:var(--g700);margin-bottom:5px}
-  .form-inp,.form-sel{width:100%;padding:8px 12px;border:1px solid var(--g300);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
-  .form-inp:focus,.form-sel:focus{border-color:var(--orange)}
-  .xfer-list{border:1px solid var(--g300);border-radius:8px;max-height:220px;overflow-y:auto}
-  .xfer-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--g100);cursor:pointer}
-  .xfer-item:last-child{border-bottom:none}
-  .xfer-item:hover{background:var(--g50)}
-  .xfer-item input{accent-color:var(--orange);width:16px;height:16px}
-  .xfer-nm{font-weight:500;font-size:13px}
-  .xfer-meta{font-size:11px;color:var(--g400);font-family:'DM Mono',monospace}
-  .radio-grp{display:flex;flex-direction:column;gap:8px}
-  .radio-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
-    border:1px solid var(--g200);border-radius:8px;cursor:pointer;transition:all .12s}
-  .radio-item:hover{border-color:var(--orange);background:var(--orange-l)}
-  .radio-item input{accent-color:var(--orange);margin-top:2px}
-  .rl-lbl{font-weight:600;font-size:13px}.rl-desc{font-size:12px;color:var(--g500);margin-top:2px}
-  .upload-area{border:2px dashed var(--g300);border-radius:var(--r);padding:18px;text-align:center;cursor:pointer;transition:all .2s;background:#fff}
-  .upload-area:hover{border-color:var(--orange);background:var(--orange-l)}
-  #toast{position:fixed;bottom:22px;right:22px;background:var(--g900);color:#fff;padding:10px 16px;
-    border-radius:8px;font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);
-    transition:all .2s;pointer-events:none;max-width:300px}
-  #toast.show{opacity:1;transform:translateY(0)}
-  #toast.success{background:var(--green)}
-  #toast.error{background:var(--red)}
+  body { font-family: 'DM Sans', sans-serif; }
+  code, .mono { font-family: 'DM Mono', monospace; }
+  .sortable-ghost  { opacity: .4; }
+  .sortable-chosen { box-shadow: 0 0 0 2px #F4511E; border-radius: 8px; }
+  .drag-handle { cursor: grab; }
+  .drag-handle:active { cursor: grabbing; }
+  /* Thin scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 </style>
 </head>
-<body>
-<div class="topbar">
-  <a href="/">← Competitions</a>
-  <span class="sep">/</span>
-  <span class="comp-name">{{comp.name}}</span>
-  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-    <label class="btn btn-outline btn-sm" style="cursor:pointer">
-      📋 Individual Master <input type="file" id="up-ind" accept=".xlsx,.xls" style="display:none">
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+<!-- ── Top bar ── -->
+<header class="fixed top-0 inset-x-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4 gap-3 shadow-sm">
+  <a href="/" class="text-gray-400 hover:text-gray-700 text-sm flex items-center gap-1">← Competitions</a>
+  <span class="text-gray-300">/</span>
+  <span class="font-bold text-gray-900 text-sm truncate max-w-xs">{{comp.name}}</span>
+  <div class="ml-auto flex items-center gap-2">
+    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+      📋 Individual Master
+      <input type="file" id="up-ind" accept=".xlsx,.xls" class="hidden">
     </label>
-    <label class="btn btn-outline btn-sm" style="cursor:pointer">
-      🔄 Relay Master <input type="file" id="up-rel" accept=".xlsx,.xls" style="display:none">
+    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+      🔄 Relay Master
+      <input type="file" id="up-rel" accept=".xlsx,.xls" class="hidden">
     </label>
-    <a href="/registry" class="btn btn-outline btn-sm">🗂 Registry</a>
-    <a href="/athletes" class="btn btn-outline btn-sm">⛸️ Athletes</a>
-    <a href="/public/{{comp.id}}" target="_blank" class="btn btn-blue btn-sm">👁 Public ↗</a>
+    <a href="/registry" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">🗂 Registry</a>
+    <a href="/athletes" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">⛸️ Athletes</a>
+    <a href="/public/{{comp.id}}" target="_blank"
+       class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">👁 Public ↗</a>
   </div>
-</div>
+</header>
 
-<div class="sidebar" id="sidebar">
-  <div class="sb-sec">
-    <div class="sb-lbl">Race Groups</div>
-    <div id="grp-list"><div style="padding:14px;font-size:13px;color:var(--g400)">Load master sheet →</div></div>
-  </div>
-  <div class="sb-div"></div>
-  <div class="sb-sec">
-    <div class="sb-lbl">Relay Events</div>
-    <div id="relay-list"></div>
-  </div>
-</div>
+<!-- ── Layout ── -->
+<div class="flex pt-14 min-h-screen">
 
-<div class="main" id="main">
-  <div id="welcome">
-    <div class="pub-banner">
-      <span>📡 Public URL:</span>
-      <span class="pub-url" id="pub-url"></span>
-      <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="copyPub()">Copy</button>
+  <!-- Sidebar -->
+  <aside class="fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
+    <div class="px-3 pt-4 pb-2">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
+      <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
     </div>
-    <p style="font-size:15px;color:var(--g600);margin-bottom:20px">Load master sheets above to begin.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:660px">
-      <div class="upload-area" onclick="document.getElementById('up-ind').click()">
-        <div style="font-size:28px;margin-bottom:8px">📋</div>
-        <div style="font-weight:600;color:var(--g700)">Individual Master Sheet</div>
-        <div style="font-size:12px;color:var(--g400);margin-top:4px">Auto-seeds heats per selected events</div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-4">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Relay Events</p>
+      <div id="relay-list"></div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="ml-60 flex-1 p-6" id="main">
+
+    <!-- Welcome / Public URL banner -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 flex items-center gap-3 mb-6 flex-wrap">
+      <span class="text-white text-sm font-semibold">📡 Public URL for parents:</span>
+      <code class="flex-1 bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg mono" id="pub-url"></code>
+      <button onclick="copyPub()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-lg transition">Copy</button>
+    </div>
+
+    <!-- Upload prompt (shown when no data loaded) -->
+    <div id="welcome" class="grid grid-cols-2 gap-4 max-w-2xl">
+      <label class="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-brand hover:bg-brand-light transition" onclick="document.getElementById('up-ind').click()">
+        <div class="text-3xl mb-2">📋</div>
+        <div class="font-semibold text-gray-700">Individual Master Sheet</div>
+        <div class="text-xs text-gray-400 mt-1">Auto-seeds heats from registry</div>
+      </label>
+      <label class="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-brand hover:bg-brand-light transition" onclick="document.getElementById('up-rel').click()">
+        <div class="text-3xl mb-2">🔄</div>
+        <div class="font-semibold text-gray-700">Relay Master Sheet</div>
+        <div class="text-xs text-gray-400 mt-1">Heat/semi/final structure</div>
+      </label>
+    </div>
+
+    <!-- Group view (shown after data loads) -->
+    <div id="grp-view" class="hidden"></div>
+
+  </main>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast" class="fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
+
+<!-- ── Drag & Drop Heat Editor Modal ── -->
+<div id="dd-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+    <!-- Modal header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold" id="dd-title">Edit Heats</h2>
+        <p class="text-sm text-gray-500 mt-0.5">Drag skaters between heats to rearrange. Changes save when you click Save.</p>
       </div>
-      <div class="upload-area" onclick="document.getElementById('up-rel').click()">
-        <div style="font-size:28px;margin-bottom:8px">🔄</div>
-        <div style="font-weight:600;color:var(--g700)">Relay Master Sheet</div>
-        <div style="font-size:12px;color:var(--g400);margin-top:4px">Full heat/semi/final structure for relay teams</div>
+      <button onclick="closeDDModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <!-- Modal toolbar -->
+    <div class="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50">
+      <button onclick="ddAddHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">+ Add Heat</button>
+      <button onclick="ddRemoveLastHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">− Remove Last Heat</button>
+      <div class="flex-1"></div>
+      <span class="text-xs text-gray-400" id="dd-unassigned-count"></span>
+    </div>
+    <!-- Heat columns -->
+    <div class="flex-1 overflow-auto p-6">
+      <div class="flex gap-4 min-h-64" id="dd-columns"></div>
+    </div>
+    <!-- Modal footer -->
+    <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+      <button onclick="closeDDModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+      <button onclick="saveDDModal()" class="px-5 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">💾 Save Heat Arrangement</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Transfer Modal ── -->
+<div id="xfer-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">↔ Transfer Skater</h2>
+      <button onclick="closeModal('xfer-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">From group</label>
+        <div id="xfer-from" class="font-semibold text-brand"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Select skater(s) — ⌘/Ctrl for multi</label>
+        <div id="xfer-sk-list" class="border border-gray-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Move to group</label>
+        <select id="xfer-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"></select>
       </div>
     </div>
-  </div>
-  <div id="grp-view" style="display:none"></div>
-</div>
-
-<div id="toast"></div>
-
-<!-- Transfer modal -->
-<div class="modal-overlay" id="xfer-modal">
-  <div class="modal">
-    <div class="modal-hdr"><h3>↔ Transfer Skater</h3><button class="mc" onclick="closeM('xfer-modal')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grp"><label class="form-lbl">From group</label>
-        <div id="xfer-from" style="font-weight:600;color:var(--orange);font-size:14px"></div></div>
-      <div class="form-grp"><label class="form-lbl">Select skater(s)</label>
-        <div class="xfer-list" id="xfer-sk-list"></div></div>
-      <div class="form-grp"><label class="form-lbl">Move to group</label>
-        <select class="form-sel" id="xfer-to"></select></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-outline" onclick="closeM('xfer-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="doTransfer()">↔ Transfer & Re-seed</button>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('xfer-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doTransfer()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">↔ Transfer & Re-seed</button>
     </div>
   </div>
 </div>
 
-<!-- Add event modal -->
-<div class="modal-overlay" id="addEv-modal">
-  <div class="modal">
-    <div class="modal-hdr"><h3>+ Add Event</h3><button class="mc" onclick="closeM('addEv-modal')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grp"><label class="form-lbl">Event name</label>
-        <input class="form-inp" id="ev-name-inp" placeholder="e.g. 300M Sprint"></div>
-      <div class="form-grp"><label class="form-lbl">Type</label>
-        <div class="radio-grp">
-          <label class="radio-item"><input type="radio" name="evtype" value="heat_based" checked>
-            <div><div class="rl-lbl">Heats / Semis / Final</div><div class="rl-desc">Auto-seeds based on roster</div></div></label>
-          <label class="radio-item"><input type="radio" name="evtype" value="direct_final">
-            <div><div class="rl-lbl">Direct Final</div><div class="rl-desc">Open / Elimination — no heats</div></div></label>
-        </div></div>
-      <div class="form-grp">
-        <label class="form-lbl" style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" id="ev-points" style="accent-color:var(--orange);width:16px;height:16px">
-          Count toward group overall standings (30/20/10 pts)
+<!-- ── Add Event Modal ── -->
+<div id="addEv-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add Event</h2>
+      <button onclick="closeModal('addEv-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Event name</label>
+        <input id="ev-name-inp" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. 300M Sprint">
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400">Type</label>
+        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-light transition">
+          <input type="radio" name="evtype" value="heat_based" checked class="mt-0.5 accent-brand">
+          <div><div class="font-semibold text-sm">Heats / Semis / Final</div><div class="text-xs text-gray-400">Auto-seeds based on roster</div></div>
+        </label>
+        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-light transition">
+          <input type="radio" name="evtype" value="direct_final" class="mt-0.5 accent-brand">
+          <div><div class="font-semibold text-sm">Direct Final</div><div class="text-xs text-gray-400">Open / Elimination — no heats</div></div>
         </label>
       </div>
+      <label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
+        <input type="checkbox" id="ev-points" class="accent-brand w-4 h-4">
+        Count toward group overall standings (30/20/10/5 pts)
+      </label>
     </div>
-    <div class="modal-foot">
-      <button class="btn btn-outline" onclick="closeM('addEv-modal')">Cancel</button>
-      <button class="btn btn-green" onclick="doAddEvent()">Create Event</button>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('addEv-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddEvent()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700">Create Event</button>
     </div>
   </div>
 </div>
 
 <script>
-const COMP_ID={{comp.id}};
-let curGroup=null, curEvent=null, allGroups={};
+const COMP_ID = {{comp.id}};
+let curGroup = null, curEvent = null, allGroups = {};
 
-function toast(msg,type=''){
-  const t=document.getElementById('toast');t.textContent=msg;
-  t.className='show'+(type?' '+type:'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3200);
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  const colors = {success:'bg-green-600', error:'bg-red-600', '':'bg-gray-900'};
+  t.className = `fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${colors[type]||colors['']}`;
+  t.textContent = msg;
+  t.style.opacity = '1'; t.style.transform = 'translateY(0)';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(8px)'; }, 3200);
 }
 
-const pubUrl=`${location.protocol}//${location.hostname}:${location.port}/public/${COMP_ID}`;
-document.getElementById('pub-url').textContent=pubUrl;
-function copyPub(){navigator.clipboard.writeText(pubUrl).then(()=>toast('✓ URL copied!','success'));}
+// ── Public URL ───────────────────────────────────────────────────────────────
+const pubUrl = `${location.protocol}//${location.hostname}:${location.port}/public/${COMP_ID}`;
+document.getElementById('pub-url').textContent = pubUrl;
+function copyPub() { navigator.clipboard.writeText(pubUrl).then(()=>toast('✓ URL copied!','success')); }
 
-// ── Upload ──
-document.getElementById('up-ind').addEventListener('change',async e=>{
-  const file=e.target.files[0];if(!file)return;
-  const fd=new FormData();fd.append('file',file);toast('Loading…');
-  const r=await fetch(`/api/upload/individual/${COMP_ID}`,{method:'POST',body:fd});
-  const d=await r.json();
-  if(d.ok){toast(`✓ ${d.skater_count} skaters loaded`,'success');await refreshGroups();if(d.groups.length)selectGroup(d.groups[0]);}
-  else {
-    if (d.missing && d.missing.length) {
-      const names = d.missing.map(a=>`${a.first} ${a.last} (#${a.panel})`).join(', ');
+// ── Upload ───────────────────────────────────────────────────────────────────
+document.getElementById('up-ind').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  toast('Loading…');
+  const r = await fetch(`/api/upload/individual/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ ${d.skater_count} skaters loaded`, 'success');
+    await refreshGroups();
+    if (d.groups.length) selectGroup(d.groups[0]);
+  } else {
+    if (d.missing?.length) {
       toast(`❌ ${d.missing_count} athletes not in registry`, 'error');
-      // Show detailed alert
-      const gv = document.getElementById('grp-view');
-      gv.style.display='block';
-      document.getElementById('welcome').style.display='none';
-      gv.innerHTML=`<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:12px;padding:20px 24px;max-width:700px">
-        <h3 style="color:#C62828;margin-bottom:8px">⚠️ Import blocked — ${d.missing_count} athlete(s) not in registry</h3>
-        <p style="font-size:13px;color:#C62828;margin-bottom:14px">
-          All athletes must be registered before importing an event sheet.
-          Go to <a href="/registry" style="color:#C62828;font-weight:600">🗂 Registry</a> to add them.
-        </p>
-        <div style="background:#fff;border-radius:8px;overflow:hidden;border:1px solid #FFCDD2">
-          ${d.missing.map(a=>`<div style="padding:8px 14px;border-bottom:1px solid #FFCDD2;font-size:13px;font-family:'DM Mono',monospace;color:#C62828">
-            ${a.first} ${a.last} &nbsp;·&nbsp; Panel #${a.panel} &nbsp;·&nbsp; ${a.club}
-          </div>`).join('')}
-        </div>
-      </div>`;
-    } else toast(d.error,'error');
+      showMissingAlert(d.missing);
+    } else toast(d.error, 'error');
   }
-  e.target.value='';
-});
-document.getElementById('up-rel').addEventListener('change',async e=>{
-  const file=e.target.files[0];if(!file)return;
-  const fd=new FormData();fd.append('file',file);toast('Loading relay…');
-  const r=await fetch(`/api/upload/relay/${COMP_ID}`,{method:'POST',body:fd});
-  const d=await r.json();
-  if(d.ok){toast('✓ Relay data loaded','success');refreshRelays();}
-  else {
-    if (d.missing && d.missing.length) {
-      const names = d.missing.map(a=>`${a.first} ${a.last} (#${a.panel})`).join(', ');
-      toast(`❌ ${d.missing_count} athletes not in registry`, 'error');
-      // Show detailed alert
-      const gv = document.getElementById('grp-view');
-      gv.style.display='block';
-      document.getElementById('welcome').style.display='none';
-      gv.innerHTML=`<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:12px;padding:20px 24px;max-width:700px">
-        <h3 style="color:#C62828;margin-bottom:8px">⚠️ Import blocked — ${d.missing_count} athlete(s) not in registry</h3>
-        <p style="font-size:13px;color:#C62828;margin-bottom:14px">
-          All athletes must be registered before importing an event sheet.
-          Go to <a href="/registry" style="color:#C62828;font-weight:600">🗂 Registry</a> to add them.
-        </p>
-        <div style="background:#fff;border-radius:8px;overflow:hidden;border:1px solid #FFCDD2">
-          ${d.missing.map(a=>`<div style="padding:8px 14px;border-bottom:1px solid #FFCDD2;font-size:13px;font-family:'DM Mono',monospace;color:#C62828">
-            ${a.first} ${a.last} &nbsp;·&nbsp; Panel #${a.panel} &nbsp;·&nbsp; ${a.club}
-          </div>`).join('')}
-        </div>
-      </div>`;
-    } else toast(d.error,'error');
-  }
-  e.target.value='';
+  e.target.value = '';
 });
 
-// ── Groups ──
-async function refreshGroups(){
-  const r=await fetch(`/api/${COMP_ID}/groups`);allGroups=await r.json();
-  const list=document.getElementById('grp-list');list.innerHTML='';
-  Object.entries(allGroups).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([g,info])=>{
-    const el=document.createElement('div');
-    el.className='sb-item'+(g===curGroup?' active':'');
-    el.innerHTML=`<span>${g}</span><span class="cnt">${info.skater_count}</span>`;
-    el.onclick=()=>selectGroup(g);list.appendChild(el);
-  });
-}
-async function refreshRelays(){
-  const r=await fetch(`/api/${COMP_ID}/relays`);const data=await r.json();
-  const list=document.getElementById('relay-list');list.innerHTML='';
-  Object.keys(data).forEach(ev=>{
-    const el=document.createElement('div');el.className='sb-item';
-    el.textContent=ev||'Relay';el.onclick=()=>showRelay(ev,data[ev]);list.appendChild(el);
-  });
+document.getElementById('up-rel').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await fetch(`/api/upload/relay/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Relay data loaded', 'success'); refreshRelays(); }
+  else toast(d.error, 'error');
+  e.target.value = '';
+});
+
+function showMissingAlert(missing) {
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  document.getElementById('grp-view').innerHTML = `
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-2xl">
+      <h3 class="text-red-700 font-bold text-base mb-2">⚠️ Import blocked — ${missing.length} athlete(s) not in registry</h3>
+      <p class="text-red-600 text-sm mb-4">All athletes must be registered before importing.
+        <a href="/registry" class="underline font-semibold">Go to Registry →</a></p>
+      <div class="bg-white border border-red-100 rounded-xl overflow-hidden">
+        ${missing.map(a=>`<div class="px-4 py-2.5 border-b border-red-50 last:border-0 text-sm mono text-red-700">
+          ${a.first} ${a.last} · Panel #${a.panel} · ${a.club}</div>`).join('')}
+      </div>
+    </div>`;
 }
 
-async function selectGroup(group){
-  curGroup=group;
-  document.querySelectorAll('#grp-list .sb-item').forEach(el=>
-    el.classList.toggle('active',el.querySelector('span').textContent===group));
-  const r=await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
-  const events=await r.json();renderGroup(group,events);
+// ── Groups ───────────────────────────────────────────────────────────────────
+async function refreshGroups() {
+  const r = await fetch(`/api/${COMP_ID}/groups`);
+  allGroups = await r.json();
+  const list = document.getElementById('grp-list');
+  const sorted = Object.entries(allGroups).sort((a,b)=>a[0].localeCompare(b[0]));
+  list.innerHTML = sorted.map(([g,info]) => `
+    <button onclick="selectGroup('${esc(g)}')"
+      class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 group-btn" data-group="${esc(g)}">
+      <span class="truncate">${g}</span>
+      <span class="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">${info.skater_count}</span>
+    </button>`).join('');
 }
 
-function renderGroup(group,events){
-  const info=allGroups[group]||{};
-  const evNames=Object.keys(events);
-  const hasPoints=Object.values(events).some(e=>e.points_event);
-  if(!curEvent||!events[curEvent])curEvent=evNames[0];
-  document.getElementById('welcome').style.display='none';
-  document.getElementById('grp-view').style.display='block';
-  const gv=document.getElementById('grp-view');
-  gv.innerHTML=`
-    <div class="grp-header">
-      <h2>${group}</h2>
-      <span class="sk-badge">${info.skater_count||0} skaters</span>
-      <div class="grp-actions">
-        <button class="btn btn-purple btn-sm" onclick="openXfer('${esc(group)}')">↔ Transfer</button>
-        <button class="btn btn-outline btn-sm" onclick="openAddEv('${esc(group)}')">+ Add Event</button>
+async function refreshRelays() {
+  const r = await fetch(`/api/${COMP_ID}/relays`);
+  const data = await r.json();
+  const list = document.getElementById('relay-list');
+  list.innerHTML = Object.keys(data).map(ev => `
+    <button onclick="showRelay('${esc(ev)}',${JSON.stringify(data[ev]).replace(/"/g,'&quot;')})"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
+  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+}
+
+// ── Group view ───────────────────────────────────────────────────────────────
+async function selectGroup(group) {
+  curGroup = group;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    const active = b.dataset.group === group;
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn ${
+      active ? 'bg-orange-50 text-brand font-semibold' : 'text-gray-700 hover:bg-gray-100'
+    }`;
+    b.querySelector('span:last-child').className = `ml-2 text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+      active ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'
+    }`;
+  });
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const events = await r.json();
+  renderGroupView(group, events);
+}
+
+function renderGroupView(group, events) {
+  const info = allGroups[group] || {};
+  const evNames = Object.keys(events);
+  const hasPoints = Object.values(events).some(e => e.points_event);
+  if (!curEvent || !events[curEvent]) curEvent = evNames[0];
+
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  const gv = document.getElementById('grp-view');
+
+  gv.innerHTML = `
+    <!-- Group header -->
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold text-gray-900">${group}</h2>
+      <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">${info.skater_count||0} skaters</span>
+      <div class="ml-auto flex gap-2">
+        <button onclick="openXfer('${esc(group)}')"
+          class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">↔ Transfer</button>
+        <button onclick="openAddEv('${esc(group)}')"
+          class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">+ Add Event</button>
       </div>
     </div>
-    <div class="ev-tabs" id="ev-tabs">
-      ${evNames.map(n=>`<button class="ev-tab${n===curEvent?' active':''}"
-        onclick="switchEv('${esc(group)}','${esc(n)}',this)">${n}</button>`).join('')}
-      ${hasPoints?`<button class="ev-tab standings-tab${curEvent==='__standings__'?' active':''}"
-        onclick="switchEv('${esc(group)}','__standings__',this)">🏆 Standings</button>`:''}
+    <!-- Event tabs -->
+    <div class="flex gap-1 border-b border-gray-200 mb-5 overflow-x-auto" id="ev-tabs">
+      ${evNames.map(n=>`
+        <button class="ev-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+          n===curEvent ? 'border-brand text-brand bg-orange-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
+        }" onclick="switchEv('${esc(group)}','${esc(n)}',this)">${n}</button>`).join('')}
+      ${hasPoints ? `<button class="ev-tab standings-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+        curEvent==='__standings__' ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
+      }" onclick="switchEv('${esc(group)}','__standings__',this)">🏆 Standings</button>` : ''}
     </div>
     <div id="ev-body"></div>`;
-  gv._events=events;
-  if(curEvent==='__standings__') loadStandings(group);
+
+  gv._events = events;
+  if (curEvent === '__standings__') loadStandings(group);
   else renderEvent(events[curEvent]);
 }
 
-function switchEv(group,name,btn){
-  curEvent=name;
-  document.querySelectorAll('.ev-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  if(name==='__standings__'){loadStandings(group);return;}
+function switchEv(group, name, btn) {
+  curEvent = name;
+  document.querySelectorAll('.ev-tab').forEach(b => {
+    const isStandings = b.classList.contains('standings-tab');
+    const active = b === btn;
+    b.className = `ev-tab ${isStandings?'standings-tab':''} px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+      active
+        ? (isStandings ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-brand text-brand bg-orange-50 rounded-t-lg')
+        : 'border-transparent text-gray-500 hover:text-gray-800'
+    }`;
+  });
+  if (name === '__standings__') { loadStandings(group); return; }
   renderEvent((document.getElementById('grp-view')._events||{})[name]);
 }
 
-// ── Standings ──
-async function loadStandings(group){
-  const r=await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
-  const d=await r.json();
-  const data=d.standings||[]; const tbEv=d.tiebreaker_event||'';
-  const body=document.getElementById('ev-body');
+// ── Render event ─────────────────────────────────────────────────────────────
+function renderEvent(ev) {
+  const body = document.getElementById('ev-body');
+  if (!ev) { body.innerHTML = ''; return; }
+  let html = '';
 
-  // Get points events for tiebreaker selector
-  const evs=document.getElementById('grp-view')._events||{};
-  const pointsEvs=Object.values(evs).filter(e=>e.points_event).map(e=>e.name);
-
-  // Tiebreaker control bar
-  const tbBar=`<div style="background:#fff;border-radius:10px;padding:12px 16px;
-    box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:13px;font-weight:600;color:var(--g700)">⚖️ Tiebreaker event:</span>
-    <select id="tb-select" style="padding:5px 10px;border:1px solid var(--g300);border-radius:7px;font-size:13px;font-family:inherit;outline:none">
-      <option value="">None selected</option>
-      ${pointsEvs.map(n=>`<option value="${esc(n)}"${n===tbEv?' selected':''}>${n}</option>`).join('')}
-    </select>
-    <button class="btn btn-outline btn-sm" onclick="saveTiebreaker()">Save</button>
-    <span style="font-size:12px;color:var(--g500)">Used to break ties when skaters have equal points</span>
-  </div>`;
-
-  if(!data.length){
-    body.innerHTML=tbBar+`<div style="text-align:center;padding:40px;color:var(--g400)">
-      <div style="font-size:36px;margin-bottom:10px">📊</div>
-      <p>No final results yet.</p></div>`;
-    return;
+  if (ev.type === 'direct_final') {
+    html += `<div class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">🏁 Direct Final — all skaters go straight to the final</div>`;
+    html += renderStage('Final', ev.finals, 'final', ev.id, 'individual');
+    body.innerHTML = html; return;
   }
 
-  const rows=data.map(row=>{
-    const pcls=row.position===1?'pos-1':row.position===2?'pos-2':row.position===3?'pos-3':'pos-n';
-    const posLabel=row.position;
-    const bd=Object.entries(row.breakdown||{}).map(([ev,info])=>{
-      const suffix=['st','nd','rd'][info.place-1]||'th';
-      const tbMark=(ev===tbEv)?' ⚖️':'';
-      return `${ev.replace(' Distance','')}: <strong>${info.pts}pts</strong> (${info.place}${suffix})${tbMark}`;
-    }).join(' · ');
-    const tbWarn=row.tb_needed
-      ? `<span style="font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 7px;border-radius:10px;font-weight:600;margin-left:6px">⚠️ Manual TB needed</span>`
-      : '';
-    return `<tr>
-      <td><div class="pos-badge ${pcls}">${posLabel}</div></td>
-      <td class="nm">${row.name}${tbWarn}</td>
-      <td class="pn">${row.panel}</td>
-      <td class="cl">${row.club}</td>
-      <td><span class="pts-pill">${row.points}</span></td>
-      <td class="breakdown-cell">${bd||'—'}</td>
+  if (ev.heats.length) {
+    html += stageHeader('Heats', 'blue', ev.id, 'Heat', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.heats.map(h=>hCard(h,'heat',ev.id,'individual')).join('')}</div>`;
+    html += advBar('blue', ev.id, 'heats', 'individual', 'Advance qualifiers from Heats →');
+  }
+  if (ev.semis.length) {
+    html += stageHeader('Semi-Finals', 'green', ev.id, 'Semi', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.semis.map(h=>hCard(h,'semi',ev.id,'individual')).join('')}</div>`;
+    html += advBar('green', ev.id, 'semis', 'individual', 'Advance top 3 from each Semi →');
+  }
+  if (ev.finals.length) {
+    html += stageHeader('Final', 'yellow', ev.id, 'Final', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.finals.map(h=>hCard(h,'final',ev.id,'individual')).join('')}</div>`;
+  }
+
+  html += `<div class="flex items-center gap-3 mt-2">
+    <button onclick="reseedEv(${ev.id},'individual')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🔄 Re-seed All Heats</button>
+    <span class="text-xs text-gray-400">Rebuilds from current roster · Saved results preserved</span>
+    ${ev.points_event ? '<span class="text-xs text-yellow-600 font-semibold bg-yellow-50 px-2 py-1 rounded-full">🏆 Counts toward standings</span>' : ''}
+  </div>`;
+  body.innerHTML = html;
+}
+
+function stageHeader(label, color, evId, stage, kind) {
+  const colors = {blue:'text-blue-600',green:'text-green-600',yellow:'text-yellow-600'};
+  const editStages = {'Heat':'Heat','Semi':'Semi','Final':'Final'};
+  return `<div class="flex items-center gap-3 mb-3 mt-5">
+    <span class="text-xs font-bold uppercase tracking-widest ${colors[color]||'text-gray-500'}">${label}</span>
+    <div class="flex-1 h-px bg-gray-200"></div>
+    <button onclick="openDDModal(${evId},'${stage}','${kind}')"
+      class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center gap-1">
+      ✏️ Edit ${label}
+    </button>
+  </div>`;
+}
+
+function renderStage(label, heats, color, evId, kind) {
+  return stageHeader(label,'yellow',evId,'Final',kind) +
+    `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,color,evId,kind)).join('')}</div>`;
+}
+
+function advBar(color, evId, from, kind, label) {
+  const bg = {blue:'bg-blue-50 border-blue-100', green:'bg-green-50 border-green-100'}[color];
+  const btn = {blue:'bg-blue-600 hover:bg-blue-700', green:'bg-green-600 hover:bg-green-700'}[color];
+  return `<div class="flex items-center gap-3 border ${bg} rounded-xl px-4 py-3 mb-5">
+    <p class="text-sm text-gray-600 flex-1">Save results, then advance qualifiers.</p>
+    <button onclick="advance(${evId},'${from}','${kind}')"
+      class="px-3 py-1.5 ${btn} text-white rounded-lg text-xs font-semibold transition">${label}</button>
+  </div>`;
+}
+
+// ── Heat card ─────────────────────────────────────────────────────────────────
+function hCard(heat, color, parentId, kind) {
+  const isRelay = kind === 'relay';
+  const items   = isRelay ? heat.teams : heat.skaters;
+  const label   = heat.stage === 'Final' ? 'Final' : `${heat.stage} ${heat.number}`;
+
+  const hdrs = {heat:'bg-blue-600', semi:'bg-green-600', final:'bg-yellow-500', direct:'bg-purple-600'};
+  const hdrBg = hdrs[color] || 'bg-gray-600';
+
+  if (!items?.length) return `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
+      <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+        <span class="text-white text-sm font-bold">${label}</span>
+        <span class="text-white/70 text-xs">0 skaters</span>
+      </div>
+      <div class="p-6 text-center text-gray-400 text-sm">Waiting for advancement</div>
+    </div>`;
+
+  const rows = items.map((s,i) => {
+    const pl = s.placement;
+    const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
+    const nameCell = isRelay ? `${s.club} <span class="text-gray-400 text-xs">[${s.color}]</span>` : s.full_name;
+    const idAttr   = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
+    return `<tr class="${rc}">
+      <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
+      <td class="px-3 py-2 text-sm font-medium">${nameCell}</td>
+      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
+        <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
+      <td class="px-3 py-2">
+        <input type="text" value="${pl||''}" placeholder="—"
+          class="w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
+          data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
+          onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
+          oninput="this.classList.toggle('bg-red-50',this.value.toUpperCase()==='DQ');this.classList.toggle('text-red-600',this.value.toUpperCase()==='DQ')">
+      </td>
     </tr>`;
   }).join('');
 
-  body.innerHTML=tbBar+`<div class="standings-card">
-    <div class="standings-head">
-      <h3>Overall Group Standings</h3>
-      <div class="pts-legend">
-        <span>1st=30</span><span>2nd=20</span><span>3rd=10</span><span>4th=5</span>
-      </div>
+  const colHdrs = isRelay
+    ? '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th><th class="px-3 py-2">Place</th>'
+    : '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Panel</th><th class="px-3 py-2 text-left">Club</th><th class="px-3 py-2">Place</th>';
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
+    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+      <span class="text-white text-sm font-bold">${label}</span>
+      <span class="text-white/70 text-xs">${items.length} skaters</span>
     </div>
-    <table><thead><tr><th>Pos</th><th>Name</th><th>Panel</th><th>Club</th><th>Points</th><th>Breakdown</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>
-    <p style="font-size:12px;color:var(--g400);margin-top:8px">
-      ⚖️ = tiebreaker event · ⚠️ = tied after tiebreaker, resolve manually
-    </p>`;
-}
-
-async function saveTiebreaker(){
-  const evName=document.getElementById('tb-select').value;
-  const r=await fetch(`/api/${COMP_ID}/tiebreaker`,{method:'POST',
-    headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:evName})});
-  const d=await r.json();
-  if(d.ok){toast('✓ Tiebreaker saved','success');loadStandings(curGroup);}
-  else toast(d.error,'error');
-}
-
-// ── Render event ──
-function renderEvent(ev){
-  const body=document.getElementById('ev-body');if(!ev){body.innerHTML='';return;}
-  let html='';
-  if(ev.type==='direct_final'){
-    html+=`<div class="direct-notice">🏁 <strong>Direct Final</strong> — all skaters go straight to the final.</div>`;
-    html+=renderStage('Final',ev.finals,'fh','fn',ev.id,'individual');
-    body.innerHTML=html;return;
-  }
-  if(ev.heats.length){
-    html+=`<div class="stage-sec"><div class="stage-title ht">Heats</div>
-    <div class="heats-row">${ev.heats.map(h=>hCard(h,'hh',ev.id,'individual')).join('')}</div>
-    <div class="adv-bar"><p>Save heat results, then advance qualifiers.</p>
-    <button class="btn btn-blue btn-sm" onclick="advance(${ev.id},'heats','individual')">▶ Advance from Heats</button></div></div>`;
-  }
-  if(ev.semis.length){
-    html+=`<div class="stage-sec"><div class="stage-title sm">Semi-Finals</div>
-    <div class="heats-row">${ev.semis.map(h=>hCard(h,'sh',ev.id,'individual')).join('')}</div>
-    <div class="adv-bar sm-bar"><p>Save semi results, advance top 3.</p>
-    <button class="btn btn-green btn-sm" onclick="advance(${ev.id},'semis','individual')">▶ Advance from Semis</button></div></div>`;
-  }
-  if(ev.finals.length){
-    html+=`<div class="stage-sec"><div class="stage-title fn">Final</div>
-    <div class="heats-row">${ev.finals.map(h=>hCard(h,'fh',ev.id,'individual')).join('')}</div></div>`;
-  }
-  html+=`<div style="margin-top:4px">
-    <button class="btn btn-outline btn-sm" onclick="reseedEv(${ev.id},'individual')">🔄 Re-seed Heats</button>
-    ${ev.points_event?'<span style="font-size:12px;color:var(--g400);margin-left:8px">🏆 Final results count toward group standings</span>':''}
+    <table class="w-full">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
+      <tbody class="divide-y divide-gray-50">${rows}</tbody>
+    </table>
+    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100">
+      <button onclick="saveCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
+      <button onclick="clearCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">✕ Clear</button>
+      <span class="text-xs text-gray-400 ml-auto">1–6 or DQ · ↵ save</span>
+    </div>
   </div>`;
-  body.innerHTML=html;
 }
 
-function renderStage(title,heats,hdrCls,titleCls,id,kind){
-  return `<div class="stage-sec"><div class="stage-title ${titleCls}">${title}</div>
-  <div class="heats-row">${heats.map(h=>hCard(h,hdrCls,id,kind)).join('')}</div></div>`;
-}
-
-function hCard(heat,hdrCls,parentId,kind){
-  const isRelay=(kind==='relay');
-  const items=isRelay?heat.teams:heat.skaters;
-  const label=heat.stage==='Final'?'Final':`${heat.stage} ${heat.number}`;
-  if(!items||!items.length) return `<div class="hcard">
-    <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sk-cnt">0</span></div>
-    <div style="padding:18px;text-align:center;color:var(--g400);font-size:13px">Waiting for advancement</div></div>`;
-
-  const rows=items.map((s,i)=>{
-    const pl=s.placement;const rc=pl=='1'?'r1':pl=='2'?'r2':pl=='3'?'r3':'';
-    const nameCell=isRelay?`${s.club} <span style="font-size:11px;color:var(--g400)">[${s.color}]</span>`:s.full_name;
-    const idAttr=isRelay?`data-team="${s.team_id}"`:(`data-panel="${s.panel}"`);
-    return `<tr class="${rc}"><td>${i+1}</td>
-      <td class="nm">${nameCell}</td>
-      ${!isRelay?`<td class="pn">${s.panel}</td><td class="cl">${s.club}</td>`:''}
-      <td><input class="pl-input${pl==='DQ'?' pl-dq':''}" type="text"
-        value="${pl||''}" placeholder="—"
-        data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
-        onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
-        oninput="this.classList.toggle('pl-dq',this.value.trim().toUpperCase()==='DQ')"></td></tr>`;
-  }).join('');
-
-  const cols=isRelay?'<th>#</th><th>Team</th><th>Place</th>':'<th>#</th><th>Name</th><th>Panel</th><th>Club</th><th>Place</th>';
-  return `<div class="hcard">
-    <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sk-cnt">${items.length}</span></div>
-    <table><thead><tr>${cols}</tr></thead><tbody>${rows}</tbody></table>
-    <div class="hcard-foot">
-      <button class="btn btn-primary btn-sm" onclick="saveCard(${heat.id},'${kind}')">💾 Save</button>
-      <button class="btn btn-outline btn-sm" onclick="clearCard(${heat.id},'${kind}')">✕ Clear</button>
-      <span class="hint">1–6 or DQ · ↵ to save</span>
-    </div></div>`;
-}
-
-async function saveCard(heatId,kind){
-  const inputs=document.querySelectorAll(`input[data-heatid="${heatId}"]`);
-  const results={};
-  inputs.forEach(inp=>{
-    const v=inp.value.trim();if(!v)return;
-    const key=kind==='relay'?inp.dataset.team:inp.dataset.panel;
-    results[key]=v;
+// ── Save results ──────────────────────────────────────────────────────────────
+async function saveCard(heatId, kind) {
+  const inputs = document.querySelectorAll(`input[data-heatid="${heatId}"]`);
+  const results = {};
+  inputs.forEach(inp => {
+    const v = inp.value.trim(); if (!v) return;
+    const key = kind==='relay' ? inp.dataset.team : inp.dataset.panel;
+    results[key] = v;
   });
-  const url=kind==='relay'?'/api/save_relay_results':'/api/save_results';
-  const payload=kind==='relay'?{relay_heat_id:heatId,results}:{heat_id:heatId,results};
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const d=await r.json();
-  if(d.ok)toast('✓ Saved','success');else toast(d.error,'error');
+  const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results} : {heat_id:heatId,results};
+  const r = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) toast('✓ Saved','success'); else toast(d.error,'error');
 }
 
-async function clearCard(heatId,kind){
-  const url=kind==='relay'?'/api/save_relay_results':'/api/save_results';
-  const payload=kind==='relay'?{relay_heat_id:heatId,results:{}}:{heat_id:heatId,results:{}};
+async function clearCard(heatId, kind) {
+  const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results:{}} : {heat_id:heatId,results:{}};
   await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  if(kind==='relay')refreshRelays();else selectGroup(curGroup);
+  if(kind==='relay') refreshRelays(); else selectGroup(curGroup);
 }
 
-async function advance(id,from,kind){
-  const url=kind==='relay'?'/api/advance_relay':'/api/advance';
-  const payload=kind==='relay'?{relay_event_id:id,from}:{event_id:id,from};
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const d=await r.json();
-  if(d.ok){toast('✓ '+d.message,'success');if(kind==='relay')refreshRelays();else selectGroup(curGroup);}
+// ── Advance / Reseed ──────────────────────────────────────────────────────────
+async function advance(id, from, kind) {
+  const url     = kind==='relay' ? '/api/advance_relay' : '/api/advance';
+  const payload = kind==='relay' ? {relay_event_id:id,from} : {event_id:id,from};
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) { toast('✓ '+d.message,'success'); kind==='relay'?refreshRelays():selectGroup(curGroup); }
   else toast(d.error||'Error','error');
 }
 
-async function reseedEv(id,kind){
-  if(!confirm('Re-seed heats from current roster? Saved results are kept.'))return;
-  const url=kind==='relay'?'/api/reseed_relay':'/api/reseed';
-  const payload=kind==='relay'?{relay_event_id:id}:{event_id:id};
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const d=await r.json();
-  if(d.ok){toast('✓ '+d.message,'success');if(kind==='relay')refreshRelays();else selectGroup(curGroup);}
+async function reseedEv(id, kind) {
+  if (!confirm('Re-seed heats from current roster?\nSaved results are preserved.')) return;
+  const url     = kind==='relay' ? '/api/reseed_relay' : '/api/reseed';
+  const payload = kind==='relay' ? {relay_event_id:id} : {event_id:id};
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) { toast('✓ '+d.message,'success'); kind==='relay'?refreshRelays():selectGroup(curGroup); }
   else toast(d.error,'error');
 }
 
-// ── Relay view ──
-function showRelay(evName,ev){
-  document.getElementById('welcome').style.display='none';
-  document.getElementById('grp-view').style.display='block';
-  const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#212121',
-    yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
-  let html=`<div class="grp-header"><h2>🔄 ${evName}</h2></div>`;
-  // Heats/Semis/Finals
-  if(ev.heats&&ev.heats.length){
-    html+=`<div class="stage-sec"><div class="stage-title ht">Heats</div>
-    <div class="heats-row">${ev.heats.map(h=>hCard(h,'hh',ev.id,'relay')).join('')}</div>
-    <div class="adv-bar"><p>Save heat results, then advance.</p>
-    <button class="btn btn-blue btn-sm" onclick="advance(${ev.id},'heats','relay')">▶ Advance from Heats</button></div></div>`;
+// ── Drag & Drop Heat Editor ───────────────────────────────────────────────────
+let ddEvId = null, ddStage = null, ddKind = null, ddSortables = [];
+
+function openDDModal(evId, stage, kind) {
+  ddEvId=evId; ddStage=stage; ddKind=kind;
+  const events = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(events).find(e=>e.id===evId);
+  if (!ev) return;
+  const stageKey = {Heat:'heats',Semi:'semis',Final:'finals'}[stage];
+  const heats = ev[stageKey] || [];
+  document.getElementById('dd-title').textContent = `Edit ${stage}s — ${ev.name}`;
+  buildDDColumns(heats, ev.skaters || []);
+  document.getElementById('dd-modal').classList.remove('hidden');
+}
+
+function buildDDColumns(heats, allSkaters) {
+  // Collect all assigned panels
+  const assigned = new Set(heats.flatMap(h => h.skaters.map(s=>s.panel)));
+  // Unassigned = in group but not in any heat
+  const unassigned = allSkaters.filter(s => !assigned.has(s.panel));
+
+  ddSortables.forEach(s => s.destroy());
+  ddSortables = [];
+
+  const cols = document.getElementById('dd-columns');
+  cols.innerHTML = '';
+
+  // Unassigned pool column
+  const poolCol = mkDDColumn('pool', '📋 Unassigned', unassigned, '#6B7280');
+  cols.appendChild(poolCol);
+
+  // Heat columns
+  heats.forEach((heat, i) => {
+    const col = mkDDColumn(`heat-${i}`, `${ddStage} ${heat.number}`, heat.skaters,
+      ddStage==='Heat'?'#1565C0':ddStage==='Semi'?'#2E7D32':'#F9A825');
+    cols.appendChild(col);
+  });
+
+  // Init SortableJS on each list
+  cols.querySelectorAll('.dd-list').forEach(list => {
+    ddSortables.push(Sortable.create(list, {
+      group: 'heats',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      handle: '.drag-handle',
+      onEnd: updateUnassignedCount,
+    }));
+  });
+  updateUnassignedCount();
+}
+
+function mkDDColumn(id, label, skaters, color) {
+  const div = document.createElement('div');
+  div.className = 'flex flex-col min-w-48 w-48 flex-shrink-0';
+  div.innerHTML = `
+    <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1" style="color:${color}">${label}</div>
+    <div class="dd-list flex-1 min-h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-2 space-y-1.5" data-col="${id}">
+      ${skaters.map(s=>`
+        <div class="bg-white rounded-lg border border-gray-100 shadow-sm px-3 py-2 flex items-center gap-2 cursor-default" data-panel="${s.panel}">
+          <span class="drag-handle text-gray-300 text-sm select-none">⠿</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">${s.full_name||s.name||''}</div>
+            <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club||''}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  return div;
+}
+
+function updateUnassignedCount() {
+  const pool = document.querySelector('.dd-list[data-col="pool"]');
+  const n = pool ? pool.children.length : 0;
+  document.getElementById('dd-unassigned-count').textContent = n > 0 ? `⚠️ ${n} unassigned` : '✓ All assigned';
+  document.getElementById('dd-unassigned-count').className = n > 0 ? 'text-xs text-orange-500 font-semibold' : 'text-xs text-green-600 font-semibold';
+}
+
+function ddAddHeat() {
+  const cols = document.getElementById('dd-columns');
+  const count = cols.querySelectorAll('.dd-list:not([data-col="pool"])').length + 1;
+  const col = mkDDColumn(`heat-${count-1}`, `${ddStage} ${count}`, [],
+    ddStage==='Heat'?'#1565C0':ddStage==='Semi'?'#2E7D32':'#F9A825');
+  cols.appendChild(col);
+  const list = col.querySelector('.dd-list');
+  ddSortables.push(Sortable.create(list, {group:'heats',animation:150,ghostClass:'sortable-ghost',chosenClass:'sortable-chosen',handle:'.drag-handle',onEnd:updateUnassignedCount}));
+}
+
+function ddRemoveLastHeat() {
+  const cols = document.getElementById('dd-columns');
+  const heatCols = [...cols.children].filter(c => !c.querySelector('[data-col="pool"]'));
+  if (heatCols.length <= 1) { toast('Need at least 1 heat','error'); return; }
+  const last = heatCols[heatCols.length-1];
+  // Move skaters back to pool
+  const pool = cols.querySelector('[data-col="pool"]');
+  [...last.querySelectorAll('[data-panel]')].forEach(card => pool.appendChild(card));
+  last.remove();
+  updateUnassignedCount();
+}
+
+async function saveDDModal() {
+  const cols = document.getElementById('dd-columns');
+  const heatCols = [...cols.querySelectorAll('.dd-list')].filter(l => l.dataset.col !== 'pool');
+  const heats = heatCols.map(col => ({
+    panels: [...col.querySelectorAll('[data-panel]')].map(c => c.dataset.panel)
+  }));
+  const r = await fetch('/api/arrange_heats', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({event_id: ddEvId, stage: ddStage, heats})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ Heat arrangement saved','success');
+    closeDDModal();
+    selectGroup(curGroup);
+  } else toast(d.error,'error');
+}
+
+function closeDDModal() {
+  document.getElementById('dd-modal').classList.add('hidden');
+  ddSortables.forEach(s => s.destroy());
+  ddSortables = [];
+}
+
+// ── Standings ─────────────────────────────────────────────────────────────────
+async function loadStandings(group) {
+  const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+  const d = await r.json();
+  const data = d.standings||[], tbEv = d.tiebreaker_event||'';
+  const body = document.getElementById('ev-body');
+  const evs  = document.getElementById('grp-view')._events||{};
+  const ptEvs= Object.values(evs).filter(e=>e.points_event).map(e=>e.name);
+
+  const tbBar = `<div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 mb-4 shadow-sm flex-wrap">
+    <span class="text-sm font-semibold text-gray-700">⚖️ Tiebreaker:</span>
+    <select id="tb-select" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-brand">
+      <option value="">None selected</option>
+      ${ptEvs.map(n=>`<option value="${esc(n)}"${n===tbEv?' selected':''}>${n}</option>`).join('')}
+    </select>
+    <button onclick="saveTiebreaker()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Save</button>
+    <span class="text-xs text-gray-400">Applied globally to all groups in this competition</span>
+  </div>`;
+
+  if (!data.length) {
+    body.innerHTML = tbBar + `<div class="text-center py-16 text-gray-400"><div class="text-4xl mb-3">📊</div><p>No final results yet</p></div>`;
+    return;
   }
-  if(ev.semis&&ev.semis.length){
-    html+=`<div class="stage-sec"><div class="stage-title sm">Semi-Finals</div>
-    <div class="heats-row">${ev.semis.map(h=>hCard(h,'sh',ev.id,'relay')).join('')}</div>
-    <div class="adv-bar sm-bar"><p>Advance top 3 from each semi.</p>
-    <button class="btn btn-green btn-sm" onclick="advance(${ev.id},'semis','relay')">▶ Advance from Semis</button></div></div>`;
-  }
-  if(ev.finals&&ev.finals.length){
-    html+=`<div class="stage-sec"><div class="stage-title fn">Final</div>
-    <div class="heats-row">${ev.finals.map(h=>hCard(h,'fh',ev.id,'relay')).join('')}</div></div>`;
-  }
-  // Teams list
-  const teamCards=(ev.teams||[]).map(t=>{
-    const c=COLORS[t.color?.toLowerCase()]||'#455A64';
-    const mems=(t.members||[]).filter(m=>m&&m!=='nan').map(m=>`<div style="font-size:13px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.85)">• ${m}</div>`).join('');
-    return `<div style="border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:10px">
-      <div style="background:${c};padding:9px 14px;font-weight:700;font-size:13px;color:#fff">${t.club} — ${t.color} bib</div>
-      <div style="background:${c};opacity:.85;padding:6px 14px 10px">${mems}</div></div>`;
+
+  const rows = data.map(row => {
+    const pos = row.position;
+    const posEl = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':`<span class="text-sm font-semibold text-gray-500">${pos}</span>`;
+    const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+      const s = ['st','nd','rd'][info.place-1]||'th';
+      return `<span class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${ev.replace(' Distance','')}: <strong>${info.pts}pts</strong> (${info.place}${s})${ev===tbEv?' ⚖️':''}</span>`;
+    }).join(' ');
+    const tbWarn = row.tb_needed
+      ? `<span class="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold">⚠️ TIE</span>` : '';
+    return `<tr class="hover:bg-gray-50 transition">
+      <td class="px-4 py-3 text-lg">${posEl}</td>
+      <td class="px-4 py-3 font-semibold text-sm">${row.name}${tbWarn}</td>
+      <td class="px-4 py-3 mono text-xs text-gray-400">${row.panel}</td>
+      <td class="px-4 py-3 text-sm text-gray-500">${row.club}</td>
+      <td class="px-4 py-3"><span class="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1 rounded-full mono">${row.points}</span></td>
+      <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${bd||'—'}</div></td>
+    </tr>`;
   }).join('');
-  if(teamCards){
-    html+=`<div style="margin-top:16px"><div class="stage-title">Teams</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">${teamCards}</div></div>`;
-  }
-  document.getElementById('grp-view').innerHTML=html;
+
+  body.innerHTML = tbBar + `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h3 class="font-bold text-sm">Overall Group Standings</h3>
+        <div class="flex gap-2 text-xs text-gray-400">
+          <span>1st=30</span><span>2nd=20</span><span>3rd=10</span><span>4th=5</span>
+        </div>
+      </div>
+      <table class="w-full">
+        <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <th class="px-4 py-2 text-left">Pos</th><th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Panel</th><th class="px-4 py-2 text-left">Club</th>
+          <th class="px-4 py-2 text-left">Points</th><th class="px-4 py-2 text-left">Breakdown</th>
+        </tr></thead>
+        <tbody class="divide-y divide-gray-50">${rows}</tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-400 mt-3">⚖️ = tiebreaker event · ⚠️ = tied, resolve manually</p>`;
 }
 
-// ── Transfer ──
-let xferGroup=null;
-async function openXfer(group){
-  xferGroup=group;document.getElementById('xfer-from').textContent=group;
-  const r=await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
-  const evs=await r.json();const firstEv=Object.values(evs)[0];
-  const seen=new Set();const skaters=[];
-  if(firstEv){[...firstEv.heats,...firstEv.semis,...firstEv.finals].forEach(h=>
-    h.skaters.forEach(s=>{if(!seen.has(s.panel)){seen.add(s.panel);skaters.push(s);}}));}
-  skaters.sort((a,b)=>a.last.localeCompare(b.last));
-  document.getElementById('xfer-sk-list').innerHTML=skaters.map(s=>`
-    <label class="xfer-item"><input type="checkbox" value="${s.panel}">
-    <div><div class="xfer-nm">${s.full_name}</div>
-    <div class="xfer-meta">#${s.panel} · ${s.club}</div></div></label>`).join('')
-    ||'<div style="padding:14px;color:var(--g400);font-size:13px">No skaters found</div>';
-  const others=Object.keys(allGroups).filter(g=>g!==group).sort();
-  document.getElementById('xfer-to').innerHTML=others.map(g=>`<option value="${esc(g)}">${g}</option>`).join('');
-  openM('xfer-modal');
+async function saveTiebreaker() {
+  const evName = document.getElementById('tb-select').value;
+  const r = await fetch(`/api/${COMP_ID}/tiebreaker`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:evName})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Tiebreaker saved','success'); loadStandings(curGroup); }
+  else toast(d.error,'error');
 }
-async function doTransfer(){
-  const panels=[...document.querySelectorAll('#xfer-sk-list input:checked')].map(c=>c.value);
-  if(!panels.length){toast('Select at least one skater','error');return;}
-  const toGroup=document.getElementById('xfer-to').value;
-  const r=await fetch('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+
+// ── Relay view ────────────────────────────────────────────────────────────────
+function showRelay(evName, ev) {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b=>b.className=b.className.replace('bg-orange-50 text-brand font-semibold','text-gray-700 hover:bg-gray-100'));
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#1a1a1a',yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
+  let html = `<div class="flex items-center gap-3 mb-5"><h2 class="text-xl font-bold">🔄 ${evName}</h2></div>`;
+
+  const mkSection = (title, color, heats, advFrom) => {
+    if (!heats?.length) return '';
+    let s = `<div class="flex items-center gap-3 mb-3 mt-5">
+      <span class="text-xs font-bold uppercase tracking-widest" style="color:${color}">${title}</span>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <button onclick="openDDModal(${ev.id},'${advFrom.replace('s','')}','relay')" class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">✏️ Edit ${title}</button>
+    </div>`;
+    s += `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,title.toLowerCase().replace('-',''),'relay',ev.id)).join('')}</div>`;
+    return s;
+  };
+
+  html += mkSection('Heats','#1565C0', ev.heats||[], 'heats');
+  if (ev.heats?.length) html += advBar('blue',ev.id,'heats','relay','Advance from Heats →');
+  html += mkSection('Semi-Finals','#2E7D32', ev.semis||[], 'semis');
+  if (ev.semis?.length) html += advBar('green',ev.id,'semis','relay','Advance from Semis →');
+  html += mkSection('Final','#F9A825', ev.finals||[], 'finals');
+
+  // Teams list
+  const teamCards = (ev.teams||[]).map(t => {
+    const c = COLORS[t.color?.toLowerCase()]||'#455A64';
+    const mems = (t.members||[]).filter(m=>m&&m!=='nan').map(m=>`<div class="text-sm py-1.5 border-b border-white/10 text-white/85">• ${m}</div>`).join('');
+    return `<div class="rounded-xl overflow-hidden shadow-sm">
+      <div class="px-4 py-3 font-bold text-sm text-white" style="background:${c}">${t.club} — ${t.color} bib</div>
+      <div class="px-4 py-2 pb-3" style="background:${c};opacity:.9">${mems}</div>
+    </div>`;
+  }).join('');
+  if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid grid-cols-auto gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
+
+  document.getElementById('grp-view').innerHTML = html;
+  document.getElementById('grp-view')._events = {[evName]: ev};
+}
+
+// ── Transfer modal ────────────────────────────────────────────────────────────
+let xferGroup = null;
+async function openXfer(group) {
+  xferGroup = group;
+  document.getElementById('xfer-from').textContent = group;
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const evs = await r.json();
+  const firstEv = Object.values(evs)[0];
+  const seen = new Set(), skaters = [];
+  if (firstEv) [...firstEv.heats,...firstEv.semis,...firstEv.finals].forEach(h=>
+    h.skaters.forEach(s=>{if(!seen.has(s.panel)){seen.add(s.panel);skaters.push(s);}}));
+  skaters.sort((a,b)=>a.last?.localeCompare(b.last));
+  document.getElementById('xfer-sk-list').innerHTML = skaters.map(s=>`
+    <label class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition">
+      <input type="checkbox" value="${s.panel}" class="accent-brand w-4 h-4">
+      <div>
+        <div class="text-sm font-semibold">${s.full_name}</div>
+        <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club}</div>
+      </div>
+    </label>`).join('') || '<p class="text-sm text-gray-400 px-4 py-3">No skaters</p>';
+  const others = Object.keys(allGroups).filter(g=>g!==group).sort();
+  document.getElementById('xfer-to').innerHTML = others.map(g=>`<option value="${esc(g)}">${g}</option>`).join('');
+  openModal('xfer-modal');
+}
+
+async function doTransfer() {
+  const panels = [...document.querySelectorAll('#xfer-sk-list input:checked')].map(c=>c.value);
+  if (!panels.length) { toast('Select at least one skater','error'); return; }
+  const toGroup = document.getElementById('xfer-to').value;
+  const r = await fetch('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({comp_id:COMP_ID,panels,to_group:toGroup})});
-  const d=await r.json();
-  if(d.ok){closeM('xfer-modal');toast(`✓ ${panels.length} skater(s) moved`,'success');await refreshGroups();selectGroup(curGroup);}
+  const d = await r.json();
+  if (d.ok) { closeModal('xfer-modal'); toast(`✓ ${panels.length} skater(s) moved`,'success'); await refreshGroups(); selectGroup(curGroup); }
   else toast(d.error,'error');
 }
 
-// ── Add event ──
-let addEvGroup=null;
-function openAddEv(group){addEvGroup=group;document.getElementById('ev-name-inp').value='';openM('addEv-modal');}
-async function doAddEvent(){
-  const name=document.getElementById('ev-name-inp').value.trim();
-  if(!name){toast('Enter event name','error');return;}
-  const type=document.querySelector('input[name="evtype"]:checked').value;
-  const pts=document.getElementById('ev-points').checked?1:0;
-  const r=await fetch('/api/add_event',{method:'POST',headers:{'Content-Type':'application/json'},
+// ── Add event modal ───────────────────────────────────────────────────────────
+let addEvGroup = null;
+function openAddEv(group) {
+  addEvGroup = group;
+  document.getElementById('ev-name-inp').value = '';
+  document.getElementById('ev-points').checked = false;
+  document.querySelector('input[name="evtype"][value="heat_based"]').checked = true;
+  openModal('addEv-modal');
+}
+
+async function doAddEvent() {
+  const name = document.getElementById('ev-name-inp').value.trim();
+  if (!name) { toast('Enter event name','error'); return; }
+  const type = document.querySelector('input[name="evtype"]:checked').value;
+  const pts  = document.getElementById('ev-points').checked ? 1 : 0;
+  const r = await fetch('/api/add_event',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({comp_id:COMP_ID,group:addEvGroup,name,type,points_event:pts})});
-  const d=await r.json();
-  if(d.ok){closeM('addEv-modal');curEvent=name;toast('✓ Created','success');selectGroup(curGroup);}
+  const d = await r.json();
+  if (d.ok) { closeModal('addEv-modal'); curEvent=name; toast('✓ Created','success'); selectGroup(curGroup); }
   else toast(d.error,'error');
 }
 
-function openM(id){document.getElementById(id).classList.add('open');}
-function closeM(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.modal-overlay').forEach(m=>
-  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
-function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.querySelectorAll('[id$="-modal"]').forEach(m =>
+  m.addEventListener('click', e => { if (e.target===m) m.classList.add('hidden'); }));
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
-refreshGroups().then(()=>{const gs=Object.keys(allGroups);if(gs.length)selectGroup(gs[0]);});
+// ── Init ──────────────────────────────────────────────────────────────────────
+refreshGroups().then(() => {
+  const gs = Object.keys(allGroups);
+  if (gs.length) selectGroup(gs[0]);
+});
 refreshRelays();
 </script>
 </body>
