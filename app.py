@@ -109,23 +109,66 @@ def parse_individual(filepath):
 
 
 def parse_relay(filepath):
+    """
+    Parse relay master sheet. Handles two formats:
+    Format A (old): sheet name contains 'relay', event name in col0 (e.g. 'Final — Juvenile 3 Mix')
+    Format B (Roseville): sheet name = 'Sheet1', col0='FINAL', event name in col1
+                          col0=club, col1=member name, col0 blank for 2nd member
+    """
     df = pd.read_excel(filepath, sheet_name=None, header=None, engine='openpyxl')
     teams = []
     for sname, ws in df.items():
-        if "relay" not in sname.lower(): continue
         cur_event = None; cur_team = None
         for i, row in ws.iterrows():
-            col0  = str(row.get(0,"")).strip()
-            name  = str(row.get(2,"")).strip()
-            club  = str(row.get(1,"")).strip()
-            color = str(row.get(5,"")).strip()
-            if col0 and "Final" in col0:
+            col0 = _clean(row.get(0,""))
+            col1 = _clean(row.get(1,""))
+            col2 = _clean(row.get(2,""))
+            col5 = _clean(row.get(5,""))
+
+            # ── Event header detection ──────────────────────────────────────
+            # Format B: col0 == 'FINAL', event name in col1
+            if col0.upper() == "FINAL" and col1:
+                cur_event = col1; cur_team = None; continue
+            # Format A: col0 contains 'Final', event name is col0 itself
+            if "Final" in col0 and col0.upper() != "FINAL" and not col1:
                 cur_event = col0; cur_team = None; continue
-            if club not in ("nan","NaN","") and name not in ("nan","NaN",""):
-                cur_team = {"event_name":cur_event,"club":club,"color":color,"members":[name]}
+
+            # Skip meta rows (e.g. 'XX', '2 PERSON RELAY')
+            if col0 in ("XX","") and col1 and not cur_event:
+                continue
+
+            # ── Team / member rows ──────────────────────────────────────────
+            # Format B: col0=club, col1=member1 name  (col2 empty)
+            # Format B continued: col0 empty, col1=member2 name
+            # Format A: col0=club, col1=member1, col2=member2, col5=color
+
+            # Determine which column holds the member name
+            # Format B uses col1 for names; Format A uses col1 and col2
+            if col0 and col0 not in ("nan","FINAL","XX") and col1:
+                # New team
+                club  = col0
+                name  = col1
+                color = col5 if col5 else ""
+                cur_team = {"event_name": cur_event, "club": club,
+                            "color": color, "members": [name]}
                 teams.append(cur_team)
-            elif name not in ("nan","NaN","") and cur_team:
-                cur_team["members"].append(name)
+                # Format A: second member may be in col2
+                if col2:
+                    cur_team["members"].append(col2)
+            elif not col0 and col1 and cur_team:
+                # Continuation row — additional member
+                cur_team["members"].append(col1)
+                if col2:
+                    cur_team["members"].append(col2)
+
+    # Deduplicate members per team
+    for t in teams:
+        seen = set(); deduped = []
+        for m in t["members"]:
+            if m and m not in seen:
+                seen.add(m); deduped.append(m)
+        t["members"] = deduped
+
     return teams
 
 
