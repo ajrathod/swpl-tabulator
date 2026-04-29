@@ -3,167 +3,682 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>PacWest Racing — Competitions</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<title>PacWest Inline Racing — Race Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{--orange:#F4511E;--orange-l:#FFF3F0;--orange-d:#BF360C;--blue:#1565C0;--blue-l:#E3F2FD;
-    --green:#2E7D32;--green-l:#E8F5E9;--red:#C62828;--red-l:#FFEBEE;
-    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;--g400:#BDBDBD;
-    --g500:#9E9E9E;--g600:#757575;--g700:#616161;--g800:#424242;--g900:#212121;}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh}
-  .topbar{background:#fff;border-bottom:1px solid var(--g200);padding:0 24px;height:60px;
-    display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-  .brand{font-size:17px;font-weight:700}.sub{font-size:13px;color:var(--g500)}
-  .page{max-width:960px;margin:40px auto;padding:0 20px}
-  h1{font-size:26px;font-weight:700;margin-bottom:6px}
-  .subtitle{color:var(--g500);font-size:15px;margin-bottom:32px}
-  .sec-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g400);margin-bottom:12px}
-  .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:40px}
-  .comp-card{background:#fff;border-radius:12px;border:1px solid var(--g200);padding:18px 20px;
-    transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-  .comp-card:hover{border-color:var(--orange);box-shadow:0 4px 16px rgba(244,81,30,.1);transform:translateY(-1px)}
-  .comp-name{font-size:16px;font-weight:700;margin-bottom:4px}
-  .comp-meta{font-size:12px;color:var(--g500);display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
-  .comp-actions{display:flex;gap:8px;margin-top:14px}
-  .badge{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
-  .badge-indoor{background:var(--blue-l);color:var(--blue)}
-  .badge-outdoor{background:var(--green-l);color:var(--green)}
-  .new-card{background:#fff;border-radius:12px;border:2px dashed var(--g300);padding:28px 20px;
-    text-align:center;cursor:pointer;transition:all .15s}
-  .new-card:hover{border-color:var(--orange);background:var(--orange-l)}
-  .nc-icon{font-size:28px;margin-bottom:8px}
-  .nc-title{font-size:15px;font-weight:600;color:var(--g700)}
-  .nc-sub{font-size:13px;color:var(--g400);margin-top:4px}
-  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;
-    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;
-    transition:all .15s;text-decoration:none;white-space:nowrap}
-  .btn-primary{background:var(--orange);color:#fff}.btn-primary:hover{background:var(--orange-d)}
-  .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.9}
-  .btn-outline{background:#fff;color:var(--g700);border:1px solid var(--g300)}.btn-outline:hover{background:var(--g50)}
-  .btn-danger{background:#fff;color:var(--red);border:1px solid #FFCDD2}.btn-danger:hover{background:var(--red-l)}
-  .btn-sm{padding:5px 10px;font-size:12px}
-  /* Wizard modal */
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
-  .modal-overlay.open{display:flex}
-  .modal{background:#fff;border-radius:14px;width:640px;max-width:96vw;max-height:92vh;
-    overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-  .modal-head{padding:18px 24px 12px;border-bottom:1px solid var(--g200);
-    display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-  .modal-head h3{font-size:17px;font-weight:700}
-  .mc{font-size:22px;cursor:pointer;color:var(--g400);background:none;border:none;line-height:1}
-  .mc:hover{color:var(--g700)}
-  /* Step indicator */
-  .steps{display:flex;align-items:center;gap:0;padding:10px 24px;border-bottom:1px solid var(--g200);flex-shrink:0}
-  .step{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--g400)}
-  .step.active{color:var(--orange)}
-  .step.done{color:var(--green)}
-  .step-num{width:22px;height:22px;border-radius:50%;border:2px solid currentColor;
-    display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
-  .step-sep{flex:1;height:1px;background:var(--g200);margin:0 8px}
-  .modal-body{padding:20px 24px;overflow-y:auto;flex:1}
-  .modal-foot{padding:12px 24px;border-top:1px solid var(--g200);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
-  /* Form */
-  .form-grp{margin-bottom:14px}
-  .form-lbl{display:block;font-size:13px;font-weight:600;color:var(--g700);margin-bottom:5px}
-  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .form-inp,.form-sel{width:100%;padding:9px 12px;border:1px solid var(--g300);border-radius:8px;
-    font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
-  .form-inp:focus,.form-sel:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
-  /* Event checklist */
-  .ev-section{margin-bottom:20px}
-  .ev-section-title{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
-    color:var(--g500);margin-bottom:8px;display:flex;align-items:center;gap:8px}
-  .ev-section-title::after{content:'';flex:1;height:1px;background:var(--g200)}
-  .ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px}
-  .ev-check{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
-    border:1px solid var(--g200);cursor:pointer;transition:all .12s;font-size:13px;font-weight:500}
-  .ev-check:hover{border-color:var(--orange);background:var(--orange-l)}
-  .ev-check input{accent-color:var(--orange);width:15px;height:15px;flex-shrink:0}
-  .ev-check.checked{border-color:var(--orange);background:var(--orange-l);color:var(--orange-d)}
-  .ev-check.relay-check.checked{border-color:var(--blue);background:var(--blue-l);color:var(--blue)}
-  .ev-check.relay-check input{accent-color:var(--blue)}
-  .select-all-row{display:flex;gap:8px;margin-bottom:8px}
-  .sa-btn{font-size:11px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:inherit;
-    border:1px solid var(--g300);background:#fff;color:var(--g600);font-weight:600}
-  .sa-btn:hover{background:var(--g50)}
-  /* Toast */
-  #toast{position:fixed;bottom:20px;right:20px;background:var(--g900);color:#fff;padding:10px 16px;
-    border-radius:8px;font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);
-    transition:all .2s;pointer-events:none}
-  #toast.show{opacity:1;transform:translateY(0)}
-  #toast.success{background:var(--green)}
-  #toast.error{background:var(--red)}
+:root {
+  --orange: #F4511E;
+  --orange-dim: #BF360C;
+  --orange-glow: rgba(244,81,30,.18);
+  --ink: #0A0A0F;
+  --ink-2: #12121A;
+  --ink-3: #1C1C28;
+  --surface: #FFFFFF;
+  --surface-2: #F7F7F9;
+  --border: #E8E8EE;
+  --muted: #8888A0;
+  --text: #1A1A2E;
+  --blue: #1565C0;
+  --green: #2E7D32;
+  --red: #C62828;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface-2);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Nav ───────────────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center;
+  padding: 0 32px; height: 58px;
+  background: #1E2330;
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 800;
+  letter-spacing: .03em; color: #fff;
+  text-decoration: none;
+}
+.nav-logo .slash { color: var(--orange); margin: 0 2px; }
+.nav-links { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.nav-link {
+  padding: 6px 14px; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,.65);
+  text-decoration: none; transition: all .15s;
+  border: 1px solid transparent;
+}
+.nav-link:hover { color: #fff; background: rgba(255,255,255,.07); }
+.nav-link.primary {
+  background: var(--orange); color: #fff;
+  border-color: var(--orange);
+}
+.nav-link.primary:hover { background: var(--orange-dim); }
+
+/* ── Hero ──────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  min-height: 480px;
+  display: flex; align-items: center;
+  background: var(--ink);
+  overflow: hidden;
+}
+
+/* Animated background grid */
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(244,81,30,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244,81,30,.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: grid-drift 20s linear infinite;
+}
+@keyframes grid-drift { from { transform: translateY(0); } to { transform: translateY(48px); } }
+
+/* Diagonal speed band */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -60px; right: -80px;
+  width: 520px; height: 700px;
+  background: linear-gradient(135deg, transparent 30%, rgba(244,81,30,.08) 50%, transparent 70%);
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+.hero-inner {
+  position: relative; z-index: 2;
+  max-width: 1100px; margin: 0 auto;
+  padding: 72px 40px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 60px;
+  align-items: center;
+  width: 100%;
+}
+
+.hero-kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 20px;
+}
+.hero-kicker::before {
+  content: '';
+  width: 24px; height: 2px;
+  background: var(--orange);
+  display: inline-block;
+}
+
+.hero-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(52px, 7vw, 88px);
+  font-weight: 900;
+  line-height: .95;
+  color: #fff;
+  letter-spacing: -.01em;
+  margin-bottom: 22px;
+}
+.hero-title .accent {
+  color: var(--orange);
+  display: block;
+}
+
+.hero-desc {
+  font-size: 16px; line-height: 1.65;
+  color: rgba(255,255,255,.55);
+  max-width: 440px;
+  margin-bottom: 36px;
+}
+
+.hero-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 28px;
+  background: var(--orange);
+  color: #fff; font-size: 14px; font-weight: 700;
+  border-radius: 10px; text-decoration: none;
+  transition: all .2s;
+  box-shadow: 0 8px 32px rgba(244,81,30,.3);
+}
+.hero-cta:hover {
+  background: var(--orange-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(244,81,30,.4);
+}
+
+/* Skater SVG panel */
+.hero-visual {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.hero-visual svg {
+  width: 100%; max-width: 400px;
+  filter: drop-shadow(0 0 40px rgba(244,81,30,.25));
+  animation: float 4s ease-in-out infinite;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0px); }
+  50%      { transform: translateY(-12px); }
+}
+
+/* Stats strip */
+.hero-stats {
+  display: flex; gap: 32px;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.stat-item { }
+.stat-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px; font-weight: 800;
+  color: #fff; letter-spacing: -.01em;
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: rgba(255,255,255,.4);
+  margin-top: 3px;
+}
+
+/* Feature pills */
+.feature-pills {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 32px;
+}
+.fpill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.7);
+  font-size: 12px; font-weight: 600;
+}
+
+/* ── Competitions section ───────────────────────────────────── */
+.page {
+  max-width: 1100px; margin: 0 auto;
+  padding: 48px 40px 80px;
+}
+
+.section-header {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 20px;
+}
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 28px; font-weight: 800;
+  letter-spacing: .01em; color: var(--text);
+}
+.section-count {
+  font-size: 12px; font-weight: 700;
+  color: var(--muted); letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* Comp grid */
+.comp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.comp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  transition: all .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  cursor: default;
+}
+.comp-card:hover {
+  border-color: var(--orange);
+  box-shadow: 0 4px 24px rgba(244,81,30,.1);
+  transform: translateY(-2px);
+}
+.comp-card-top {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.comp-card-top::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: var(--orange);
+  border-radius: 14px 14px 0 0;
+}
+.comp-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 800;
+  color: var(--text); letter-spacing: .01em;
+  margin-bottom: 6px; line-height: 1.1;
+}
+.comp-meta {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  font-size: 12px; color: var(--muted);
+}
+.comp-meta span { display: flex; align-items: center; gap: 3px; }
+.comp-badge {
+  display: inline-flex; padding: 2px 9px;
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.badge-indoor  { background: #E3F2FD; color: #1565C0; }
+.badge-outdoor { background: #E8F5E9; color: #2E7D32; }
+.comp-card-bottom {
+  padding: 12px 16px;
+  display: flex; gap: 8px;
+  background: var(--surface-2);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; border: none;
+  transition: all .15s; text-decoration: none;
+  letter-spacing: .01em;
+}
+.btn-primary { background: var(--orange); color: #fff; }
+.btn-primary:hover { background: var(--orange-dim); }
+.btn-outline {
+  background: var(--surface); color: #555;
+  border: 1px solid var(--border);
+}
+.btn-outline:hover { background: var(--border); }
+.btn-danger {
+  background: var(--surface); color: var(--red);
+  border: 1px solid #FFCDD2;
+  margin-left: auto;
+}
+.btn-danger:hover { background: #FFEBEE; }
+
+/* New card */
+.new-card {
+  border: 2px dashed var(--border); border-radius: 14px;
+  padding: 40px 20px; text-align: center;
+  cursor: pointer; transition: all .2s;
+  background: var(--surface);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 160px;
+}
+.new-card:hover { border-color: var(--orange); background: #FFF7F5; }
+.new-card-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--orange-glow); border: 1px solid rgba(244,81,30,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 10px;
+}
+.new-card-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.new-card-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* Empty state */
+.empty-state {
+  grid-column: 1/-1;
+  text-align: center; padding: 56px 20px;
+  color: var(--muted);
+}
+.empty-state .big { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* ── Modals ─────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 200;
+  align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 18px;
+  width: 640px; max-width: 96vw; max-height: 92vh;
+  overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0,0,0,.25);
+  border: 1px solid var(--border);
+}
+.modal-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.modal-head h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px; font-weight: 800; letter-spacing: .01em;
+}
+.mc {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-size: 16px; cursor: pointer; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.mc:hover { background: var(--border); color: var(--text); }
+
+/* Steps */
+.steps {
+  display: flex; align-items: center;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  flex-shrink: 0; gap: 0;
+}
+.step {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.step.active { color: var(--orange); }
+.step.done { color: var(--green); }
+.step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; flex-shrink: 0;
+}
+.step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 10px; }
+
+.modal-body { padding: 22px 24px; overflow-y: auto; flex: 1; }
+.modal-foot {
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  display: flex; gap: 10px; justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Form elements */
+.form-grp { margin-bottom: 16px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-lbl {
+  display: block; font-size: 11px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.form-inp, .form-sel {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 14px; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color .15s;
+  background: var(--surface); color: var(--text);
+}
+.form-inp:focus, .form-sel:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-glow);
+}
+
+/* Event checklist */
+.ev-section { margin-bottom: 22px; }
+.ev-section-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.ev-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.ev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.ev-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 9px;
+  border: 1.5px solid var(--border);
+  cursor: pointer; transition: all .12s;
+  font-size: 13px; font-weight: 500;
+}
+.ev-check:hover { border-color: var(--orange); background: #FFF7F5; }
+.ev-check.checked { border-color: var(--orange); background: #FFF7F5; color: var(--orange-dim); }
+.ev-check.relay-check.checked { border-color: var(--blue); background: #E3F2FD; color: var(--blue); }
+.ev-check.relay-check input { accent-color: var(--blue); }
+.ev-check input { accent-color: var(--orange); width: 15px; height: 15px; flex-shrink: 0; }
+.select-all-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.sa-btn {
+  font-size: 11px; padding: 3px 8px; border-radius: 6px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); font-weight: 600;
+  transition: all .12s;
+}
+.sa-btn:hover { background: var(--border); }
+
+/* Tiebreaker step */
+.tb-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 10px;
+  border: 1.5px solid var(--border); cursor: pointer;
+  transition: all .15s; margin-bottom: 8px;
+}
+.tb-option:hover { border-color: var(--orange); background: #FFF7F5; }
+.tb-option.selected { border-color: var(--orange); background: #FFF7F5; }
+.tb-option input { accent-color: var(--orange); width: 16px; height: 16px; flex-shrink: 0; }
+.tb-option-label { font-size: 14px; font-weight: 600; }
+.tb-option-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 22px; right: 22px; z-index: 999;
+  padding: 12px 18px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; color: #fff;
+  background: var(--ink); max-width: 300px;
+  opacity: 0; transform: translateY(8px);
+  transition: all .2s; pointer-events: none;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.success { background: var(--green); }
+#toast.error   { background: var(--red); }
+
+/* Stagger animations */
+.comp-card, .new-card {
+  animation: card-in .4s ease both;
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.comp-card:nth-child(1) { animation-delay: .05s; }
+.comp-card:nth-child(2) { animation-delay: .10s; }
+.comp-card:nth-child(3) { animation-delay: .15s; }
+.comp-card:nth-child(4) { animation-delay: .20s; }
+.comp-card:nth-child(5) { animation-delay: .25s; }
+.comp-card:nth-child(6) { animation-delay: .30s; }
+.new-card { animation-delay: .35s; }
+
+@media (max-width: 768px) {
+  .hero-inner { grid-template-columns: 1fr; gap: 32px; }
+  .hero-visual { display: none; }
+  .hero-inner { padding: 48px 24px; }
+  .page { padding: 32px 20px 60px; }
+  .nav { padding: 0 20px; }
+}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <span style="font-size:22px">⛸️</span>
-  <span class="brand">PacWest Inline Racing</span>
-  <span class="sub">Race Manager</span>
-  <div style="margin-left:auto">
-    <a href="/registry" class="btn btn-outline btn-sm">🗂 Registry</a>
-    <a href="/athletes" class="btn btn-outline btn-sm">⛸️ Athletes</a>
-  </div>
-</div>
 
-<div class="page">
-  <h1>Competitions</h1>
-  <p class="subtitle">Select a competition to manage, or create a new one.</p>
-  <div class="sec-title">Your Competitions</div>
-  <div class="comp-grid" id="comp-grid">
+<!-- Nav -->
+<nav class="nav">
+  <a href="/" class="nav-logo">PACWEST<span class="slash">/</span>RACING</a>
+  <div class="nav-links">
+    <a href="/registry" class="nav-link">🗂 Registry</a>
+    <a href="/athletes" class="nav-link">⛸️ Athletes</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-kicker">Inline Speed Skating</div>
+      <h1 class="hero-title">
+        Race
+        <span class="accent">Manager.</span>
+      </h1>
+      <p class="hero-desc">
+        Manage competitions, seed heats automatically, track live results and standings — built for PacWest meet operators.
+      </p>
+      <div class="feature-pills">
+        <span class="fpill">⚡ Auto Heat Seeding</span>
+        <span class="fpill">🏆 Live Standings</span>
+        <span class="fpill">📡 Public Results</span>
+        <span class="fpill">🔄 Relay Events</span>
+        <span class="fpill">🗂 Athlete Registry</span>
+      </div>
+      <a href="#competitions" class="hero-cta">View Competitions ↓</a>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-num">30</div>
+          <div class="stat-label">pts · 1st place</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">7</div>
+          <div class="stat-label">max per heat</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">∞</div>
+          <div class="stat-label">competitions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skater SVG -->
+    <div class="hero-visual">
+      <svg viewBox="0 0 400 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer track oval -->
+        <ellipse cx="200" cy="320" rx="180" ry="40" stroke="rgba(244,81,30,.15)" stroke-width="1.5" stroke-dasharray="10 6"/>
+        <ellipse cx="200" cy="310" rx="150" ry="32" stroke="rgba(244,81,30,.1)" stroke-width="1" stroke-dasharray="8 5"/>
+
+        <!-- Glow behind skater -->
+        <ellipse cx="210" cy="310" rx="90" ry="20" fill="rgba(244,81,30,.12)"/>
+
+        <!-- Speed lines -->
+        <line x1="80"  y1="180" x2="20"  y2="195" stroke="rgba(244,81,30,.5)" stroke-width="2"   stroke-linecap="round"/>
+        <line x1="90"  y1="195" x2="15"  y2="212" stroke="rgba(244,81,30,.3)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="95"  y1="210" x2="30"  y2="228" stroke="rgba(244,81,30,.18)"stroke-width="1"   stroke-linecap="round"/>
+        <line x1="100" y1="225" x2="45"  y2="238" stroke="rgba(244,81,30,.1)" stroke-width="1"   stroke-linecap="round"/>
+
+        <!-- Shadow on ground -->
+        <ellipse cx="225" cy="318" rx="65" ry="10" fill="rgba(0,0,0,.25)"/>
+
+        <!-- ── Lead skater ── -->
+        <!-- Rear blade + boot -->
+        <rect x="145" y="296" width="52" height="7" rx="3.5" fill="#FF8A65" opacity=".9"/>
+        <rect x="152" y="285" width="34" height="14" rx="4" fill="#1A237E"/>
+        <!-- Rear leg -->
+        <path d="M175 248 L165 280 L185 285" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+        <!-- Front blade + boot -->
+        <rect x="220" y="282" width="56" height="7" rx="3.5" fill="#FF8A65" opacity=".9"/>
+        <rect x="224" y="270" width="36" height="14" rx="4" fill="#1A237E"/>
+        <!-- Front leg -->
+        <path d="M210 240 L230 268 L248 272" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+        <!-- Skinsuit body - aerodynamic crouch -->
+        <path d="M165 200 Q180 175 210 168 Q245 162 268 175 Q280 185 272 210 Q262 232 240 248 Q215 258 190 252 Q162 240 158 220 Z" fill="white"/>
+        <!-- Skinsuit stripe -->
+        <path d="M195 170 Q228 165 255 178 Q262 183 258 192 Q230 185 200 182 Z" fill="var(--orange)" opacity=".9"/>
+
+        <!-- Back arm (trailing) -->
+        <path d="M175 210 Q155 230 140 252" stroke="white" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <circle cx="138" cy="255" r="7" fill="white"/>
+
+        <!-- Front arm (forward reach) -->
+        <path d="M255 195 Q285 185 310 178" stroke="white" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <circle cx="313" cy="177" r="7" fill="white"/>
+
+        <!-- Neck -->
+        <rect x="198" y="155" width="18" height="18" rx="4" fill="white"/>
+
+        <!-- Helmet -->
+        <ellipse cx="207" cy="148" rx="28" ry="22" fill="var(--orange)"/>
+        <!-- Helmet visor -->
+        <path d="M182 155 Q190 165 232 160 L228 148 Q200 145 182 155Z" fill="rgba(0,0,0,.6)"/>
+        <!-- Helmet vent lines -->
+        <line x1="193" y1="132" x2="192" y2="145" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
+        <line x1="200" y1="129" x2="200" y2="143" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
+        <line x1="207" y1="128" x2="208" y2="142" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
+
+        <!-- Motion dots -->
+        <circle cx="75"  cy="200" r="3" fill="var(--orange)" opacity=".7"/>
+        <circle cx="60"  cy="210" r="2" fill="var(--orange)" opacity=".45"/>
+        <circle cx="48"  cy="220" r="1.5" fill="var(--orange)" opacity=".25"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Competitions -->
+<div class="page" id="competitions">
+  <div class="section-header">
+    <h2 class="section-title">Competitions</h2>
+    <span class="section-count">{{ competitions|length }} total</span>
+  </div>
+
+  <div class="comp-grid">
     {% for c in competitions %}
     <div class="comp-card" id="card-{{c.id}}">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div class="comp-name">{{c.name}}</div>
-        <span class="badge badge-{{c.type}}">{{c.type}}</span>
+      <div class="comp-card-top">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <div class="comp-name">{{c.name}}</div>
+          <span class="comp-badge badge-{{c.type}}">{{c.type}}</span>
+        </div>
+        <div class="comp-meta">
+          {% if c.venue %}<span>📍 {{c.venue}}</span>{% endif %}
+          {% if c.date  %}<span>📅 {{c.date}}</span>{% endif %}
+          <span>🕐 {{c.created_at}}</span>
+        </div>
       </div>
-      <div class="comp-meta">
-        {% if c.venue %}<span>📍 {{c.venue}}</span>{% endif %}
-        {% if c.date  %}<span>📅 {{c.date}}</span>{% endif %}
-        <span>🕐 {{c.created_at}}</span>
-      </div>
-      <div class="comp-actions">
-        <a href="/comp/{{c.id}}" class="btn btn-primary btn-sm">🎛 Manage</a>
-        <a href="/public/{{c.id}}" target="_blank" class="btn btn-outline btn-sm">👁 Public</a>
-        <button class="btn btn-outline btn-sm" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑</button>
+      <div class="comp-card-bottom">
+        <a href="/comp/{{c.id}}" class="btn btn-primary">🎛 Manage</a>
+        <a href="/public/{{c.id}}" target="_blank" class="btn btn-outline">👁 Public</a>
+        <button class="btn btn-outline" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
+        <button class="btn btn-danger" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑</button>
       </div>
     </div>
     {% else %}
-    <div style="grid-column:1/-1;padding:40px 0;text-align:center;color:var(--g400)">
-      <div style="font-size:48px;margin-bottom:12px">🏁</div>
+    <div class="empty-state">
+      <div class="big">🏁</div>
       <p>No competitions yet. Create your first one!</p>
     </div>
     {% endfor %}
+
     <div class="new-card" onclick="openWizard()">
-      <div class="nc-icon">➕</div>
-      <div class="nc-title">New Competition</div>
-      <div class="nc-sub">April 2026 Meet, Regionals, etc.</div>
+      <div class="new-card-icon">➕</div>
+      <div class="new-card-title">New Competition</div>
+      <div class="new-card-sub">April 2026 Meet, Regionals…</div>
     </div>
   </div>
 </div>
 
-<!-- Wizard modal (2 steps) -->
+<!-- Wizard modal -->
 <div class="modal-overlay" id="wizard-modal">
   <div class="modal">
     <div class="modal-head">
       <h3 id="wiz-title">New Competition</h3>
       <button class="mc" onclick="closeWizard()">×</button>
     </div>
-    <!-- Steps -->
     <div class="steps">
-      <div class="step active" id="step-1-ind">
-        <div class="step-num">1</div><span>Details</span>
-      </div>
+      <div class="step active" id="step-1-ind"><div class="step-num">1</div><span>Details</span></div>
       <div class="step-sep"></div>
-      <div class="step" id="step-2-ind">
-        <div class="step-num">2</div><span>Events</span>
-      </div>
+      <div class="step" id="step-2-ind"><div class="step-num">2</div><span>Events</span></div>
       <div class="step-sep"></div>
-      <div class="step" id="step-3-ind">
-        <div class="step-num">3</div><span>Tiebreaker</span>
-      </div>
+      <div class="step" id="step-3-ind"><div class="step-num">3</div><span>Tiebreaker</span></div>
     </div>
     <div class="modal-body" id="wiz-body"></div>
     <div class="modal-foot" id="wiz-foot"></div>
@@ -179,22 +694,15 @@ function toast(msg,type=''){
   const t=document.getElementById('toast');t.textContent=msg;
   t.className='show'+(type?' '+type:'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3200);
 }
-
 function setSteps(active){
   ['step-1-ind','step-2-ind','step-3-ind'].forEach((id,i)=>{
-    const el=document.getElementById(id);
-    const n=i+1;
+    const el=document.getElementById(id);const n=i+1;
     el.className=n<active?'step done':n===active?'step active':'step';
   });
 }
-
 async function loadTemplates(){
-  if(!allTemplates.length){
-    const r=await fetch('/api/event_templates');
-    allTemplates=await r.json();
-  }
+  if(!allTemplates.length){const r=await fetch('/api/event_templates');allTemplates=await r.json();}
 }
-
 async function openWizard(){
   wizStep=1;wizCompId=null;
   await loadTemplates();
@@ -202,30 +710,18 @@ async function openWizard(){
   document.getElementById('wizard-modal').classList.add('open');
   renderStep1();
 }
-
 async function editEvents(compId,compName){
-  await loadTemplates();
-  wizCompId=compId;
+  await loadTemplates();wizCompId=compId;
   document.getElementById('wiz-title').textContent=compName+' — Settings';
-  const [evR,compR]=await Promise.all([
-    fetch(`/api/${compId}/comp_events`),
-    fetch('/api/competitions')
-  ]);
-  const current=await evR.json();
-  const comps=await compR.json();
+  const [evR,compR]=await Promise.all([fetch(`/api/${compId}/comp_events`),fetch('/api/competitions')]);
+  const current=await evR.json();const comps=await compR.json();
   const comp=comps.find(c=>c.id===compId)||{};
   const selected=new Set(current.map(e=>e.name));
   document.getElementById('wizard-modal').classList.add('open');
-  setSteps(2);
-  renderStep2(selected,comp.tiebreaker_event||'');
+  setSteps(2);renderStep2(selected,comp.tiebreaker_event||'');
 }
+function closeWizard(){document.getElementById('wizard-modal').classList.remove('open');setSteps(1);}
 
-function closeWizard(){
-  document.getElementById('wizard-modal').classList.remove('open');
-  setSteps(1);
-}
-
-// ── Step 1: Details ──────────────────────────────────────────────────────────
 function renderStep1(){
   setSteps(1);
   document.getElementById('wiz-body').innerHTML=`
@@ -252,37 +748,30 @@ function renderStep1(){
 async function goStep2(){
   const name=document.getElementById('c-name').value.trim();
   if(!name){toast('Enter a competition name','error');return;}
-  const r=await fetch('/api/competitions',{method:'POST',
-    headers:{'Content-Type':'application/json'},
+  const r=await fetch('/api/competitions',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name,venue:document.getElementById('c-venue').value.trim(),
-      date:document.getElementById('c-date').value,
-      type:document.getElementById('c-type').value})});
+      date:document.getElementById('c-date').value,type:document.getElementById('c-type').value})});
   const d=await r.json();
   if(!d.id){toast(d.error||'Error','error');return;}
-  wizCompId=d.id;
-  renderStep2(new Set(['Short Distance','Medium Distance','Long Distance']),'');
+  wizCompId=d.id;renderStep2(new Set(['Short Distance','Medium Distance','Long Distance']),'');
 }
 
-// ── Step 2: Events ───────────────────────────────────────────────────────────
-function renderStep2(selected=new Set(), currentTb=''){
+function renderStep2(selected=new Set(),currentTb=''){
   setSteps(2);
   const ind=allTemplates.filter(t=>t.category==='individual');
   const rel=allTemplates.filter(t=>t.category==='relay');
-
   function checkboxes(list,cls=''){
     return list.map(t=>`
       <label class="ev-check ${cls} ${selected.has(t.name)?'checked':''}">
         <input type="checkbox" ${selected.has(t.name)?'checked':''}
           onchange="this.closest('.ev-check').classList.toggle('checked',this.checked)">
         ${t.name}
-        ${t.points_event?'<span style="margin-left:auto;font-size:10px;opacity:.6">pts</span>':''}
+        ${t.points_event?'<span style="margin-left:auto;font-size:10px;color:var(--orange);font-weight:700">PTS</span>':''}
       </label>`).join('');
   }
-
   document.getElementById('wiz-body').innerHTML=`
-    <p style="font-size:13px;color:var(--g600);margin-bottom:16px">
-      Select which events this competition will run.
-      Distance events (marked <strong>pts</strong>) count toward group overall standings.
+    <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5">
+      Select events for this competition. Distance events marked <strong style="color:var(--orange)">PTS</strong> count toward group overall standings (30/20/10/5 pts per final).
     </p>
     <div class="ev-section">
       <div class="ev-section-title">Individual Events</div>
@@ -300,10 +789,7 @@ function renderStep2(selected=new Set(), currentTb=''){
       </div>
       <div class="ev-grid" id="rel-checks">${checkboxes(rel,'relay-check')}</div>
     </div>`;
-
-  // Store currentTb for step 3
   document.getElementById('wiz-body').dataset.currentTb=currentTb;
-
   document.getElementById('wiz-foot').innerHTML=`
     <button class="btn btn-outline" onclick="closeWizard()">Cancel</button>
     <button class="btn btn-primary" onclick="goStep3()">Next: Set Tiebreaker →</button>`;
@@ -312,95 +798,53 @@ function renderStep2(selected=new Set(), currentTb=''){
 function selectAll(group,val){
   const container=document.getElementById(group==='ind'?'ind-checks':'rel-checks');
   container.querySelectorAll('.ev-check').forEach(label=>{
-    label.querySelector('input').checked=val;
-    label.classList.toggle('checked',val);
+    label.querySelector('input').checked=val;label.classList.toggle('checked',val);
   });
 }
 
-// ── Step 3: Tiebreaker ───────────────────────────────────────────────────────
 async function goStep3(){
   const checked=getCheckedEvents();
   if(!checked.length){toast('Select at least one event','error');return;}
-
-  // Save events first
-  const r=await fetch(`/api/${wizCompId}/comp_events`,{method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({events:checked})});
-  const d=await r.json();
-  if(!d.ok){toast(d.error||'Error','error');return;}
-
+  const r=await fetch(`/api/${wizCompId}/comp_events`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({events:checked})});
+  const d=await r.json();if(!d.ok){toast(d.error||'Error','error');return;}
   const currentTb=document.getElementById('wiz-body').dataset.currentTb||'';
-  // Only points events can be tiebreaker
   const pointsEvs=allTemplates.filter(t=>t.points_event&&checked.includes(t.name)).map(t=>t.name);
-  renderStep3(pointsEvs, currentTb);
+  renderStep3(pointsEvs,currentTb);
 }
 
-function renderStep3(pointsEvs, currentTb=''){
+function renderStep3(pointsEvs,currentTb=''){
   setSteps(3);
-  if(!pointsEvs.length){
-    // No points events selected — skip tiebreaker and go straight to comp
-    window.location=`/comp/${wizCompId}`;
-    return;
-  }
+  if(!pointsEvs.length){window.location=`/comp/${wizCompId}`;return;}
   document.getElementById('wiz-body').innerHTML=`
-    <div style="margin-bottom:20px">
-      <div style="font-size:24px;margin-bottom:8px">⚖️</div>
-      <h4 style="font-size:15px;font-weight:700;margin-bottom:6px">Tiebreaker Race</h4>
-      <p style="font-size:13px;color:var(--g600);line-height:1.5">
-        When two skaters finish with equal overall points, the tiebreaker race determines who ranks higher.
-        Whoever placed better in the tiebreaker race gets the higher position.
-        If still tied after the tiebreaker, the operator resolves it manually.
-      </p>
+    <div style="margin-bottom:22px">
+      <div style="font-size:32px;margin-bottom:10px">⚖️</div>
+      <h4 style="font-size:17px;font-weight:700;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.01em">Tiebreaker Race</h4>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">When two skaters finish with equal overall points, whoever placed better in the tiebreaker race ranks higher. If still tied, the operator resolves manually.</p>
     </div>
-    <div class="form-grp">
-      <label class="form-lbl">Select the tiebreaker event *</label>
-      <div style="display:flex;flex-direction:column;gap:8px" id="tb-radio-group">
-        ${pointsEvs.map(ev=>`
-          <label style="display:flex;align-items:center;gap:12px;padding:12px 14px;
-            border:1px solid var(--g200);border-radius:9px;cursor:pointer;
-            transition:all .12s;font-size:14px;font-weight:500"
-            onmouseover="this.style.borderColor='var(--orange)';this.style.background='var(--orange-l)'"
-            onmouseout="syncTbStyle(this)">
-            <input type="radio" name="tb-ev" value="${ev}" ${ev===currentTb?'checked':''}
-              style="accent-color:var(--orange);width:17px;height:17px"
-              onchange="syncAllTbStyles()">
-            ${ev}
-            ${ev===currentTb?'<span style="margin-left:auto;font-size:11px;background:var(--orange-l);color:var(--orange-d);padding:2px 8px;border-radius:10px;font-weight:600">Current</span>':''}
-          </label>`).join('')}
-      </div>
-    </div>
-    <p style="font-size:12px;color:var(--g400);margin-top:8px">
-      This applies to all race groups in this competition. You can change it later from the Standings tab.
-    </p>`;
-
-  // Pre-select first if nothing selected
+    <div id="tb-radio-group">
+      ${pointsEvs.map(ev=>`
+        <label class="tb-option ${ev===currentTb?'selected':''}">
+          <input type="radio" name="tb-ev" value="${ev}" ${ev===currentTb?'checked':''}
+            onchange="document.querySelectorAll('.tb-option').forEach(l=>l.classList.remove('selected'));this.closest('.tb-option').classList.add('selected')">
+          <div>
+            <div class="tb-option-label">${ev}</div>
+            <div class="tb-option-desc">Use ${ev} final placement as tiebreaker</div>
+          </div>
+        </label>`).join('')}
+    </div>`;
   const radios=document.querySelectorAll('input[name="tb-ev"]');
-  if(![...radios].some(r=>r.checked)) radios[0].checked=true;
-  syncAllTbStyles();
-
+  if(![...radios].some(r=>r.checked)){radios[0].checked=true;radios[0].closest('.tb-option').classList.add('selected');}
   document.getElementById('wiz-foot').innerHTML=`
     <button class="btn btn-outline" onclick="backToStep2()">← Back</button>
     <button class="btn btn-primary" onclick="saveTiebreakerAndFinish()">✓ Save & Open Competition</button>`;
 }
 
-function syncTbStyle(label){
-  const checked=label.querySelector('input').checked;
-  label.style.borderColor=checked?'var(--orange)':'var(--g200)';
-  label.style.background=checked?'var(--orange-l)':'';
-}
-function syncAllTbStyles(){
-  document.querySelectorAll('#tb-radio-group label').forEach(syncTbStyle);
-}
-
 function backToStep2(){
-  // Reload step 2 with current selections
-  const r2=document.getElementById('wiz-body');
-  renderStep2(new Set(), ''); // will re-fetch — simplest approach
-  // Re-check previously saved events
+  renderStep2(new Set(),'');
   fetch(`/api/${wizCompId}/comp_events`).then(r=>r.json()).then(evs=>{
     const sel=new Set(evs.map(e=>e.name));
     document.querySelectorAll('.ev-check input').forEach(cb=>{
-      if(sel.has(cb.closest('.ev-check').textContent.trim().replace(/pts$/,'').trim())){
+      if(sel.has(cb.closest('.ev-check').textContent.trim().replace(/PTS$/,'').trim())){
         cb.checked=true;cb.closest('.ev-check').classList.add('checked');
       }
     });
@@ -410,9 +854,7 @@ function backToStep2(){
 async function saveTiebreakerAndFinish(){
   const sel=document.querySelector('input[name="tb-ev"]:checked');
   if(!sel){toast('Please select a tiebreaker event','error');return;}
-  const r=await fetch(`/api/${wizCompId}/tiebreaker`,{method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({event_name:sel.value})});
+  const r=await fetch(`/api/${wizCompId}/tiebreaker`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:sel.value})});
   const d=await r.json();
   if(d.ok){closeWizard();window.location=`/comp/${wizCompId}`;}
   else toast(d.error||'Error','error');
@@ -420,7 +862,7 @@ async function saveTiebreakerAndFinish(){
 
 function getCheckedEvents(){
   return [...document.querySelectorAll('.ev-check input:checked')]
-    .map(cb=>cb.closest('.ev-check').textContent.trim().replace(/pts$/,'').trim());
+    .map(cb=>cb.closest('.ev-check').textContent.trim().replace(/PTS$/,'').trim());
 }
 
 async function deleteComp(id,name){

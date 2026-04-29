@@ -4,101 +4,346 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>{{comp.name}} — Live Results</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --orange:#F4511E;--orange-l:#FFF3F0;
-    --blue:#1565C0;--blue-l:#E3F2FD;
-    --green:#2E7D32;--green-l:#E8F5E9;
-    --gold:#F9A825;--gold-l:#FFF8E1;
-    --red:#C62828;--red-l:#FFEBEE;
-    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;
-    --g400:#BDBDBD;--g500:#9E9E9E;--g600:#757575;--g700:#616161;--g900:#212121;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh;padding-bottom:56px}
-  /* Header */
-  .header{background:var(--orange);color:#fff;padding:14px 14px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-  .header-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-  .h-logo{font-size:22px}
-  .h-title{font-size:16px;font-weight:700;flex:1}
-  .h-comp{font-size:11px;opacity:.8}
-  .live{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600}
-  .live::before{content:'';width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1.5s infinite}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-  /* Group tabs */
-  .gtabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-  .gtabs::-webkit-scrollbar{display:none}
-  .gtab{flex-shrink:0;padding:8px 12px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit;background:none;border-top:none;border-left:none;border-right:none;transition:all .15s}
-  .gtab:hover{color:#fff}
-  .gtab.active{color:#fff;border-bottom-color:#fff}
-  /* Content */
-  .content{padding:12px 12px;max-width:680px;margin:0 auto}
-  /* Event pills */
-  .epills{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:14px;padding:2px 0}
-  .epills::-webkit-scrollbar{display:none}
-  .epill{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:var(--g200);color:var(--g600);border:none;font-family:inherit;transition:all .15s}
-  .epill.active{background:var(--orange);color:#fff}
-  /* Stage label */
-  .slbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:8px;margin:14px 0 8px}
-  .slbl::after{content:'';flex:1;height:1px;background:var(--g200)}
-  .slbl.ht{color:var(--blue)}.slbl.sm{color:var(--green)}.slbl.fn{color:#B8860B}
-  /* Heat card */
-  .hcard{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;margin-bottom:10px}
-  .hcard-head{padding:9px 14px;display:flex;align-items:center;justify-content:space-between}
-  .hcard-head.hh{background:var(--blue);color:#fff}
-  .hcard-head.sh{background:var(--green);color:#fff}
-  .hcard-head.fh{background:var(--gold);color:#fff}
-  .hcard-head h3{font-size:13px;font-weight:700}
-  .hcard-head .sc{font-size:11px;opacity:.8}
-  /* Skater row */
-  .sk-row{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--g100);gap:10px}
-  .sk-row:last-child{border-bottom:none}
-  .sk-row.r1{background:var(--gold-l)}.sk-row.r2{background:var(--g50)}.sk-row.r3{background:#FFF8F0}
-  .rank-circle{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
-  .rank-circle.p1{background:var(--gold-l)}.rank-circle.p2{background:var(--g100)}.rank-circle.p3{background:#FFF3E0}
-  .rank-circle.pn{background:var(--g100);font-size:13px;font-weight:700;color:var(--g500)}
-  .sk-info{flex:1;min-width:0}
-  .sk-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sk-meta{font-size:11px;color:var(--g400);margin-top:1px;font-family:'DM Mono',monospace}
-  .sk-pl{text-align:right;flex-shrink:0}
-  .pl-medal{font-size:22px}
-  .pl-num{font-size:18px;font-weight:700;color:var(--g700);font-family:'DM Mono',monospace}
-  .pl-dq{font-size:12px;font-weight:700;color:var(--red);background:var(--red-l);padding:2px 7px;border-radius:10px}
-  .pl-wait{font-size:12px;color:var(--g400)}
-  /* Waiting */
-  .waiting{background:#fff;border-radius:12px;padding:28px;text-align:center;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-  .waiting .wi{font-size:32px;margin-bottom:8px}
-  .waiting p{font-size:13px;color:var(--g400)}
-  /* Qual banner */
-  .qual-banner{background:var(--green-l);border-radius:8px;padding:8px 14px;margin-bottom:8px;font-size:12px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:6px}
-  /* Direct pill */
-  .direct-pill{display:inline-flex;align-items:center;gap:4px;background:var(--blue-l);color:var(--blue);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;margin-bottom:10px}
-  /* Refresh bar */
-  .rbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--g200);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--g500);z-index:99}
-  .rbar button{font-size:12px;color:var(--orange);background:none;border:none;font-weight:600;cursor:pointer;font-family:inherit}
-  /* No data */
-  .nodata{text-align:center;padding:60px 20px;color:var(--g400)}
-  .nodata .ni{font-size:48px;margin-bottom:12px}
+:root {
+  --orange: #F4511E;
+  --orange-dim: #BF360C;
+  --ink: #0A0A0F;
+  --ink-2: #13131C;
+  --ink-3: #1E1E2C;
+  --surface: rgba(255,255,255,.06);
+  --border: rgba(255,255,255,.1);
+  --text: #FFFFFF;
+  --text-dim: rgba(255,255,255,.55);
+  --text-faint: rgba(255,255,255,.3);
+  --blue: #4FC3F7;
+  --green: #81C784;
+  --gold: #FFD54F;
+  --silver: #B0BEC5;
+  --bronze: #FFAB91;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--ink);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 56px;
+  overflow-x: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.header {
+  background: #1E2330;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.header-top {
+  display: flex; align-items: center;
+  padding: 12px 16px 10px; gap: 10px;
+}
+.header-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 17px; font-weight: 800;
+  letter-spacing: .04em; color: var(--text);
+  line-height: 1;
+}
+.header-logo .slash { color: var(--orange); }
+.header-comp {
+  font-size: 12px; color: var(--text-dim);
+  margin-top: 1px; line-height: 1;
+}
+.live-pill {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(244,81,30,.15);
+  border: 1px solid rgba(244,81,30,.3);
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; color: var(--orange);
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--orange);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .4; transform: scale(.75); }
+}
+
+/* ── Group tabs ───────────────────────────────────────────── */
+.group-tabs {
+  display: flex; overflow-x: auto; gap: 2px;
+  padding: 0 12px 0; scrollbar-width: none;
+}
+.group-tabs::-webkit-scrollbar { display: none; }
+.gtab {
+  flex-shrink: 0; padding: 8px 14px;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .03em;
+  color: var(--text-dim); border: none;
+  background: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  border-bottom: 2px solid transparent;
+  transition: all .15s; white-space: nowrap;
+  margin-bottom: -1px;
+}
+.gtab:hover { color: var(--text); }
+.gtab.active {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
+}
+
+/* ── Content ──────────────────────────────────────────────── */
+.content { padding: 14px 12px; max-width: 640px; margin: 0 auto; }
+
+/* ── Event pills ──────────────────────────────────────────── */
+.epills {
+  display: flex; overflow-x: auto; gap: 6px;
+  margin-bottom: 16px; padding: 2px 0;
+  scrollbar-width: none;
+}
+.epills::-webkit-scrollbar { display: none; }
+.epill {
+  flex-shrink: 0; padding: 6px 14px;
+  border-radius: 20px; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  transition: all .15s;
+  letter-spacing: .02em;
+}
+.epill:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+.epill.active {
+  background: var(--orange); color: #fff;
+  border-color: var(--orange);
+}
+
+/* ── Stage label ──────────────────────────────────────────── */
+.slbl {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-faint); margin: 18px 0 10px;
+}
+.slbl::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.slbl.ht { color: var(--blue); }
+.slbl.sm { color: var(--green); }
+.slbl.fn { color: var(--gold); }
+
+/* ── Heat card ────────────────────────────────────────────── */
+.hcard {
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+  margin-bottom: 10px;
+}
+.hcard-head {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+}
+.hcard-head.hh { background: rgba(79,195,247,.12); border-bottom: 1px solid rgba(79,195,247,.15); }
+.hcard-head.sh { background: rgba(129,199,132,.12); border-bottom: 1px solid rgba(129,199,132,.15); }
+.hcard-head.fh { background: rgba(255,213,79,.12);  border-bottom: 1px solid rgba(255,213,79,.15); }
+.hcard-head h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px; font-weight: 800;
+  letter-spacing: .04em;
+}
+.hcard-head.hh h3 { color: var(--blue); }
+.hcard-head.sh h3 { color: var(--green); }
+.hcard-head.fh h3 { color: var(--gold); }
+.hcard-head .sc { font-size: 11px; color: var(--text-faint); font-weight: 600; }
+
+/* ── Skater row ───────────────────────────────────────────── */
+.sk-row {
+  display: flex; align-items: center;
+  padding: 11px 16px; gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .1s;
+}
+.sk-row:last-child { border-bottom: none; }
+.sk-row.r1 { background: rgba(255,213,79,.05); }
+.sk-row.r2 { background: rgba(176,190,197,.03); }
+.sk-row.r3 { background: rgba(255,171,145,.04); }
+
+/* Rank number (no medals) */
+.rank-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px; font-weight: 900;
+  width: 32px; text-align: center; flex-shrink: 0;
+  line-height: 1;
+}
+.rank-num.r1 { color: var(--gold); }
+.rank-num.r2 { color: var(--silver); }
+.rank-num.r3 { color: var(--bronze); }
+.rank-num.rn { color: var(--text-faint); font-size: 16px; }
+
+.sk-info { flex: 1; min-width: 0; }
+.sk-name {
+  font-size: 15px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text);
+}
+.sk-meta {
+  font-size: 11px; color: var(--text-faint);
+  margin-top: 2px; font-family: 'DM Mono', monospace;
+}
+
+/* Placement display (right side) */
+.sk-place { text-align: right; flex-shrink: 0; }
+.place-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 28px; font-weight: 900;
+  line-height: 1;
+}
+.place-num.p1 { color: var(--gold); }
+.place-num.p2 { color: var(--silver); }
+.place-num.p3 { color: var(--bronze); }
+.place-num.pn { color: var(--text-dim); }
+.place-dq {
+  font-size: 11px; font-weight: 800;
+  color: #EF5350;
+  background: rgba(239,83,80,.15);
+  padding: 3px 8px; border-radius: 8px;
+  letter-spacing: .06em;
+}
+.place-wait { font-size: 18px; color: var(--text-faint); font-weight: 700; }
+
+/* ── Standings card ───────────────────────────────────────── */
+.standings-card {
+  background: var(--ink-2); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; margin-bottom: 10px;
+}
+.standings-head {
+  padding: 12px 16px;
+  background: rgba(255,213,79,.1);
+  border-bottom: 1px solid rgba(255,213,79,.15);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.standings-head h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px; font-weight: 800;
+  color: var(--gold); letter-spacing: .04em;
+}
+.standings-pts-key {
+  font-size: 10px; font-weight: 700;
+  color: var(--text-faint); letter-spacing: .06em;
+}
+
+.standings-row {
+  display: flex; align-items: center;
+  padding: 12px 16px; gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.standings-row:last-child { border-bottom: none; }
+.standings-row.r1 { background: rgba(255,213,79,.04); }
+.standings-row.r2 { background: rgba(176,190,197,.02); }
+.standings-row.r3 { background: rgba(255,171,145,.03); }
+.st-pos {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 24px; font-weight: 900;
+  width: 32px; text-align: center; flex-shrink: 0;
+}
+.st-pos.p1 { color: var(--gold); }
+.st-pos.p2 { color: var(--silver); }
+.st-pos.p3 { color: var(--bronze); }
+.st-pos.pn { color: var(--text-faint); font-size: 16px; }
+.st-info { flex: 1; min-width: 0; }
+.st-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.st-breakdown { font-size: 10px; color: var(--text-faint); margin-top: 2px; font-family: 'DM Mono', monospace; }
+.st-pts {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 26px; font-weight: 900;
+  color: var(--orange);
+}
+.st-pts-label { font-size: 9px; color: var(--text-faint); font-weight: 700; text-align: right; }
+.tie-badge {
+  font-size: 9px; font-weight: 800;
+  background: rgba(255,152,0,.2); color: #FFB74D;
+  padding: 2px 6px; border-radius: 6px;
+  margin-left: 5px; letter-spacing: .05em;
+}
+
+/* ── Waiting / empty states ───────────────────────────────── */
+.waiting {
+  background: var(--ink-2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 32px;
+  text-align: center; margin-bottom: 10px;
+}
+.waiting .wi { font-size: 30px; margin-bottom: 8px; }
+.waiting p { font-size: 13px; color: var(--text-faint); }
+
+.qual-banner {
+  background: rgba(129,199,132,.1);
+  border: 1px solid rgba(129,199,132,.2);
+  border-radius: 10px; padding: 9px 14px;
+  margin-bottom: 10px;
+  font-size: 12px; font-weight: 700;
+  color: var(--green);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.direct-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(179,136,255,.12);
+  border: 1px solid rgba(179,136,255,.2);
+  color: #CE93D8; border-radius: 20px;
+  padding: 4px 12px; font-size: 11px; font-weight: 700;
+  margin-bottom: 12px; letter-spacing: .04em;
+}
+
+/* ── Footer refresh bar ───────────────────────────────────── */
+.rbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--ink-2);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: var(--text-faint); z-index: 99;
+}
+.rbar button {
+  font-size: 12px; font-weight: 700;
+  color: var(--orange); background: none;
+  border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Result reveal animation */
+@keyframes result-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.sk-row, .standings-row {
+  animation: result-in .25s ease both;
+}
 </style>
 </head>
 <body>
+
 <div class="header">
   <div class="header-top">
-    <span class="h-logo">⛸️</span>
-    <div style="flex:1">
-      <div class="h-title">Live Results</div>
-      <div class="h-comp">{{comp.name}}{% if comp.venue %} · {{comp.venue}}{% endif %}</div>
+    <div>
+      <div class="header-logo">PACWEST<span class="slash">/</span>RACING</div>
+      <div class="header-comp">{{comp.name}}{% if comp.venue %} · {{comp.venue}}{% endif %}</div>
     </div>
-    <span class="live">LIVE</span>
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
   </div>
-  <div class="gtabs" id="gtabs">
-    <div style="padding:10px;font-size:12px;color:rgba(255,255,255,.6)">Loading…</div>
+  <div class="group-tabs" id="gtabs">
+    <div style="padding:10px 14px;font-size:12px;color:var(--text-faint)">Loading…</div>
   </div>
 </div>
 
 <div class="content" id="content">
-  <div class="nodata"><div class="ni">🏁</div><p>Waiting for competition data…</p></div>
+  <div class="waiting" style="margin-top:20px">
+    <div class="wi">🏁</div>
+    <p>Waiting for competition data…</p>
+  </div>
 </div>
 
 <div class="rbar">
@@ -107,158 +352,180 @@
 </div>
 
 <script>
-const COMP_ID={{comp.id}};
-let curGroup=null, curEvent=null, allGroups={}, timer=null;
+const COMP_ID = {{comp.id}};
+let curGroup = null, curEvent = null, allGroups = {}, timer = null;
 
-async function init(){
-  const r=await fetch(`/api/${COMP_ID}/groups`);
-  allGroups=await r.json();
-  const groups=Object.keys(allGroups).sort();
-  const tabs=document.getElementById('gtabs');
-  if(!groups.length){tabs.innerHTML='<div style="padding:10px;font-size:12px;color:rgba(255,255,255,.6)">No data yet</div>';return;}
-  tabs.innerHTML=groups.map(g=>`<button class="gtab" onclick="selGroup('${esc(g)}')">${g}</button>`).join('');
+async function init() {
+  const r = await fetch(`/api/${COMP_ID}/groups`);
+  allGroups = await r.json();
+  const groups = Object.keys(allGroups).sort();
+  const tabs = document.getElementById('gtabs');
+  if (!groups.length) {
+    tabs.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--text-faint)">No data yet</div>';
+    return;
+  }
+  tabs.innerHTML = groups.map(g =>
+    `<button class="gtab" onclick="selGroup('${esc(g)}')">${g}</button>`
+  ).join('');
   selGroup(groups[0]);
-  timer=setInterval(()=>{if(curGroup)loadGroup(curGroup);},10000);
+  timer = setInterval(() => { if (curGroup) loadGroup(curGroup); }, 10000);
 }
 
-function selGroup(g){
-  curGroup=g;
-  document.querySelectorAll('.gtab').forEach(b=>b.classList.toggle('active',b.textContent===g));
+function selGroup(g) {
+  curGroup = g;
+  document.querySelectorAll('.gtab').forEach(b =>
+    b.classList.toggle('active', b.textContent === g));
   loadGroup(g);
 }
 
-async function loadGroup(group){
-  if(!group) return;
-  const r=await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
-  const events=await r.json();
-  const names=Object.keys(events);
-  const hasPoints=Object.values(events).some(e=>e.points_event);
-  if(!curEvent||(!events[curEvent]&&curEvent!=='__standings__')) curEvent=names[0];
-  const c=document.getElementById('content');
-
-  const pills=names.map(n=>`<button class="epill${n===curEvent?' active':''}" onclick="switchEv('${esc(n)}',this)">${n}</button>`).join('');
-  const standingsPill=hasPoints?`<button class="epill${curEvent==='__standings__'?' active':''}" onclick="switchEv('__standings__',this)">🏆 Standings</button>`:'';
-  c.innerHTML=`<div class="epills">${pills}${standingsPill}</div><div id="ev-body"></div>`;
-  c._events=events;
-
-  if(curEvent==='__standings__') await loadStandings(group);
+async function loadGroup(group) {
+  if (!group) return;
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const events = await r.json();
+  const names = Object.keys(events);
+  const hasPoints = Object.values(events).some(e => e.points_event);
+  if (!curEvent || (!events[curEvent] && curEvent !== '__standings__')) curEvent = names[0];
+  const c = document.getElementById('content');
+  const standingsPill = hasPoints
+    ? `<button class="epill${curEvent==='__standings__'?' active':''}" onclick="switchEv('__standings__',this)">🏆 Standings</button>` : '';
+  c.innerHTML = `
+    <div class="epills">
+      ${names.map(n=>`<button class="epill${n===curEvent?' active':''}" onclick="switchEv('${esc(n)}',this)">${n}</button>`).join('')}
+      ${standingsPill}
+    </div>
+    <div id="ev-body"></div>`;
+  c._events = events;
+  if (curEvent === '__standings__') loadStandings(group);
   else renderEv(events[curEvent]);
-
-  document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('last-upd').textContent =
+    'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
-async function switchEv(name,btn){
-  curEvent=name;
-  document.querySelectorAll('.epill').forEach(b=>b.classList.remove('active'));
+function switchEv(name, btn) {
+  curEvent = name;
+  document.querySelectorAll('.epill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if(name==='__standings__'){await loadStandings(curGroup);return;}
+  if (name === '__standings__') { loadStandings(curGroup); return; }
   renderEv((document.getElementById('content')._events||{})[name]);
 }
 
-// ── Standings (public) ──────────────────────────────────────────────────────
-async function loadStandings(group){
-  const body=document.getElementById('ev-body');
-  body.innerHTML=`<div style="text-align:center;padding:30px;color:var(--g400)">Loading…</div>`;
-  const r=await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
-  const d=await r.json();
-  const data=d.standings||[];
-  const tbEv=d.tiebreaker_event||'';
-
-  if(!data.length){
-    body.innerHTML=`<div class="waiting"><div class="wi">📊</div><p>No results yet</p></div>`;
-    return;
+// ── Standings ──────────────────────────────────────────────
+async function loadStandings(group) {
+  const body = document.getElementById('ev-body');
+  body.innerHTML = '<div class="waiting"><div class="wi">⏳</div><p>Loading standings…</p></div>';
+  const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+  const d = await r.json();
+  const data = d.standings || [], tbEv = d.tiebreaker_event || '';
+  if (!data.length) {
+    body.innerHTML = '<div class="waiting"><div class="wi">📊</div><p>No results yet</p></div>'; return;
   }
-
-  const rows=data.map(row=>{
-    const pcls=row.position===1?'p1':row.position===2?'p2':row.position===3?'p3':'pn';
-    const bd=Object.entries(row.breakdown||{}).map(([ev,info])=>{
-      const suffix=['st','nd','rd'][info.place-1]||'th';
-      return `${ev.replace(' Distance','')}: ${info.pts}pts`;
-    }).join(' · ');
-    const tbWarn=row.tb_needed
-      ?`<span style="font-size:10px;background:#FFF3E0;color:#E65100;padding:1px 6px;border-radius:8px;margin-left:4px">TIE</span>`
-      :'';
-    return `<div class="sk-row${row.position<=3?' r'+row.position:''}">
-      <div class="rank-circle ${pcls}"><span>${row.position}</span></div>
-      <div class="sk-info">
-        <div class="sk-name">${row.name}${tbWarn}</div>
-        <div class="sk-meta">#${row.panel} · ${row.club}</div>
-        ${bd?`<div class="sk-meta" style="margin-top:2px">${bd}</div>`:''}
+  const rows = data.map(row => {
+    const pos = row.position;
+    const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    const rc   = pos===1?'r1':pos===2?'r2':pos===3?'r3':'';
+    const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+      const s = ['st','nd','rd'][info.place-1]||'th';
+      return `${ev.replace(' Distance','')}: ${info.pts}pts (${info.place}${s})${ev===tbEv?' ⚖':''}`
+    }).join('  ·  ');
+    const tie = row.tb_needed ? '<span class="tie-badge">TIE</span>' : '';
+    return `<div class="standings-row ${rc}">
+      <div class="st-pos ${pcls}">${pos}</div>
+      <div class="st-info">
+        <div class="st-name">${row.name}${tie}</div>
+        ${bd ? `<div class="st-breakdown">${bd}</div>` : ''}
       </div>
-      <div class="sk-pl"><span style="font-size:17px;font-weight:700;color:var(--g700);font-family:'DM Mono',monospace">${row.points}<span style="font-size:11px;font-weight:500;color:var(--g400)">pts</span></span></div>
+      <div>
+        <div class="st-pts">${row.points}</div>
+        <div class="st-pts-label">PTS</div>
+      </div>
+    </div>`;
+  }).join('');
+  body.innerHTML = `<div class="standings-card">
+    <div class="standings-head">
+      <h3>OVERALL STANDINGS</h3>
+      <div class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</div>
+    </div>
+    ${rows}
+  </div>
+  ${tbEv ? `<div style="font-size:11px;color:var(--text-faint);text-align:center;padding:6px">⚖ Tiebreaker: ${tbEv}</div>` : ''}`;
+}
+
+// ── Render event ───────────────────────────────────────────
+function renderEv(ev) {
+  const body = document.getElementById('ev-body');
+  if (!ev) { body.innerHTML = ''; return; }
+  let html = '';
+  if (ev.type === 'direct_final') {
+    html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
+    html += ev.finals.map(h => h.skaters.length ? hCard(h,'fh') : waiting('Not yet started')).join('');
+    body.innerHTML = html; return;
+  }
+  if (ev.heats.length) {
+    html += `<div class="slbl ht">Heats</div>`;
+    html += ev.heats.map(h => hCard(h,'hh')).join('');
+    const hasRes = ev.heats.some(h => h.skaters.some(s => s.placement));
+    const adv = ev.semis.some(h=>h.skaters.length) || ev.finals.some(h=>h.skaters.length);
+    if (hasRes && adv) html += `<div class="qual-banner">✓ Qualifiers advanced</div>`;
+  }
+  if (ev.semis.length) {
+    html += `<div class="slbl sm">Semi-Finals</div>`;
+    html += ev.semis.map(h => h.skaters.length ? hCard(h,'sh') : waiting('Waiting for heat results')).join('');
+  }
+  if (ev.finals.length) {
+    html += `<div class="slbl fn">Final</div>`;
+    html += ev.finals.map(h => h.skaters.length ? hCard(h,'fh') : waiting('Final lineup coming soon')).join('');
+  }
+  body.innerHTML = html;
+}
+
+function waiting(msg) {
+  return `<div class="waiting"><div class="wi">⏳</div><p>${msg}</p></div>`;
+}
+
+function hCard(heat, hdrCls) {
+  const label = heat.stage==='Final' ? 'FINAL' : `${heat.stage.toUpperCase()} ${heat.number}`;
+  const sorted = [...heat.skaters].sort((a,b) => {
+    const pa = /^\d+$/.test(a.placement) ? parseInt(a.placement) : 999;
+    const pb = /^\d+$/.test(b.placement) ? parseInt(b.placement) : 999;
+    return pa - pb;
+  });
+  const rows = sorted.map((s, i) => {
+    const pl = s.placement;
+    const num = parseInt(pl);
+    const ranked = !isNaN(num);
+    const rc = num===1?'r1':num===2?'r2':num===3?'r3':'';
+    const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+    // Display rank: placed position if result exists, else sequential index
+    const rankDisplay = ranked ? num : (i + 1);
+    const rankCls = ranked ? pcls : 'rn';
+    let plEl = '';
+    if (pl === 'DQ') {
+      plEl = `<div class="sk-place"><span class="place-dq">DQ</span></div>`;
+    } else if (ranked) {
+      plEl = `<div class="sk-place"><div class="place-num ${pcls}">${pl}</div></div>`;
+    } else {
+      plEl = `<div class="sk-place"><div class="place-wait">—</div></div>`;
+    }
+    return `<div class="sk-row ${rc}" style="animation-delay:${i*.04}s">
+      <div class="rank-num ${rankCls}">${rankDisplay}</div>
+      <div class="sk-info">
+        <div class="sk-name">${s.full_name}</div>
+        <div class="sk-meta">#${s.panel} · ${s.club}</div>
+      </div>
+      ${plEl}
     </div>`;
   }).join('');
 
-  body.innerHTML=`
-    <div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden;margin-bottom:10px">
-      <div style="padding:10px 14px;background:var(--gold);color:#fff;font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center">
-        <span>🏆 Overall Standings</span>
-        <span style="font-size:11px;opacity:.85">1st=30 · 2nd=20 · 3rd=10 · 4th=5</span>
-      </div>
-      ${rows}
-    </div>
-    ${tbEv?`<div style="font-size:11px;color:var(--g500);text-align:center;padding:4px">Tiebreaker: ${tbEv}</div>`:''}`;
-}
-
-function renderEv(ev){
-  const body=document.getElementById('ev-body');
-  if(!ev){body.innerHTML='';return;}
-  let html='';
-  if(ev.type==='direct_final'){
-    html+=`<div class="direct-pill">🏁 Direct Final</div>`;
-    html+=ev.finals.map(h=>h.skaters.length?hCard(h,'fh'):`<div class="waiting"><div class="wi">⏳</div><p>Not yet started</p></div>`).join('');
-    body.innerHTML=html;return;
-  }
-  if(ev.heats.length){
-    html+=`<div class="slbl ht">Heats</div>`;
-    html+=ev.heats.map(h=>hCard(h,'hh')).join('');
-    const hasRes=ev.heats.some(h=>h.skaters.some(s=>s.placement));
-    const advanced=ev.semis.some(h=>h.skaters.length)||ev.finals.some(h=>h.skaters.length);
-    if(hasRes&&advanced) html+=`<div class="qual-banner">✅ Qualifiers advanced</div>`;
-  }
-  if(ev.semis.length){
-    html+=`<div class="slbl sm">Semi-Finals</div>`;
-    html+=ev.semis.map(h=>h.skaters.length?hCard(h,'sh'):`<div class="waiting"><div class="wi">⏳</div><p>Waiting for heat results</p></div>`).join('');
-  }
-  if(ev.finals.length){
-    html+=`<div class="slbl fn">Final</div>`;
-    html+=ev.finals.map(h=>h.skaters.length?hCard(h,'fh'):`<div class="waiting"><div class="wi">🏆</div><p>Final lineup coming soon</p></div>`).join('');
-  }
-  body.innerHTML=html;
-}
-
-function hCard(heat,hdrCls){
-  const label=heat.stage==='Final'?'Final':`${heat.stage} ${heat.number}`;
-  const sorted=[...heat.skaters].sort((a,b)=>{
-    const pa=/^\d+$/.test(a.placement)?parseInt(a.placement):999;
-    const pb=/^\d+$/.test(b.placement)?parseInt(b.placement):999;
-    return pa-pb;
-  });
-  const rows=sorted.map((s,i)=>{
-    const pl=s.placement;
-    const num=parseInt(pl);
-    const ranked=!isNaN(num);
-    const rc=num===1?'r1':num===2?'r2':num===3?'r3':'';
-    const bcls=num===1?'p1':num===2?'p2':num===3?'p3':'pn';
-
-    // Plain number placement — no medals
-    let plEl='';
-    if(pl==='DQ')    plEl=`<div class="sk-pl"><span class="pl-dq">DQ</span></div>`;
-    else if(ranked)  plEl=`<div class="sk-pl"><span class="pl-num">${pl}</span></div>`;
-    else             plEl=`<div class="sk-pl"><span class="pl-wait">—</span></div>`;
-
-    return `<div class="sk-row ${rc}">
-      <div class="rank-circle ${bcls}"><span>${ranked?pl:i+1}</span></div>
-      <div class="sk-info"><div class="sk-name">${s.full_name}</div><div class="sk-meta">#${s.panel} · ${s.club}</div></div>
-      ${plEl}</div>`;
-  }).join('');
   return `<div class="hcard">
-    <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sc">${heat.skaters.length} skaters</span></div>
-    ${rows||'<div style="padding:16px;text-align:center;color:var(--g400);font-size:13px">Waiting for lineup</div>'}
+    <div class="hcard-head ${hdrCls}">
+      <h3>${label}</h3>
+      <span class="sc">${heat.skaters.length} SKATERS</span>
+    </div>
+    ${rows || '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px">Waiting for lineup</div>'}
   </div>`;
 }
 
-function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 init();
 </script>
 </body>
