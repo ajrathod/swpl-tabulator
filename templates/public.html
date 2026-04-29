@@ -348,27 +348,59 @@ body {
 
 <div class="rbar">
   <span id="last-upd">Auto-refreshes every 10s</span>
-  <button onclick="loadGroup(curGroup)">↻ Refresh</button>
+  <button onclick="autoRefresh()">↻ Refresh</button>
 </div>
 
 <script>
 const COMP_ID = {{comp.id}};
-let curGroup = null, curEvent = null, allGroups = {}, timer = null;
+let curGroup = null, curEvent = null, allGroups = {}, allRelays = {}, timer = null;
+const RELAY_PREFIX = '__relay__';
 
 async function init() {
-  const r = await fetch(`/api/${COMP_ID}/groups`);
-  allGroups = await r.json();
+  const [groupsR, relaysR] = await Promise.all([
+    fetch(`/api/${COMP_ID}/groups`),
+    fetch(`/api/${COMP_ID}/relays`),
+  ]);
+  allGroups = await groupsR.json();
+  allRelays = await relaysR.json();
+
   const groups = Object.keys(allGroups).sort();
+  const relayNames = Object.keys(allRelays).sort();
   const tabs = document.getElementById('gtabs');
-  if (!groups.length) {
+
+  if (!groups.length && !relayNames.length) {
     tabs.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--text-faint)">No data yet</div>';
     return;
   }
-  tabs.innerHTML = groups.map(g =>
+
+  // Individual group tabs
+  let tabHtml = groups.map(g =>
     `<button class="gtab" onclick="selGroup('${esc(g)}')">${g}</button>`
   ).join('');
-  selGroup(groups[0]);
-  timer = setInterval(() => { if (curGroup) loadGroup(curGroup); }, 10000);
+
+  // Relay section divider + relay tabs
+  if (relayNames.length) {
+    tabHtml += `<span style="display:inline-flex;align-items:center;padding:0 8px;color:var(--text-faint);font-size:11px;font-weight:700;letter-spacing:.06em;flex-shrink:0">· RELAYS ·</span>`;
+    tabHtml += relayNames.map(n =>
+      `<button class="gtab" onclick="selRelay('${esc(n)}')">🔄 ${n}</button>`
+    ).join('');
+  }
+
+  tabs.innerHTML = tabHtml;
+
+  if (groups.length) selGroup(groups[0]);
+  else if (relayNames.length) selRelay(relayNames[0]);
+
+  timer = setInterval(autoRefresh, 10000);
+}
+
+function autoRefresh() {
+  if (curGroup && !curGroup.startsWith(RELAY_PREFIX)) {
+    loadGroup(curGroup);
+  } else if (curGroup?.startsWith(RELAY_PREFIX)) {
+    const relayName = curGroup.slice(RELAY_PREFIX.length);
+    loadRelay(relayName);
+  }
 }
 
 function selGroup(g) {
@@ -376,6 +408,13 @@ function selGroup(g) {
   document.querySelectorAll('.gtab').forEach(b =>
     b.classList.toggle('active', b.textContent === g));
   loadGroup(g);
+}
+
+function selRelay(name) {
+  curGroup = RELAY_PREFIX + name;
+  document.querySelectorAll('.gtab').forEach(b =>
+    b.classList.toggle('active', b.textContent === `🔄 ${name}`));
+  loadRelay(name);
 }
 
 async function loadGroup(group) {
@@ -401,7 +440,99 @@ async function loadGroup(group) {
     'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
-function switchEv(name, btn) {
+async function loadRelay(name) {
+  const r = await fetch(`/api/${COMP_ID}/relays`);
+  allRelays = await r.json();
+  const ev = allRelays[name];
+  const c = document.getElementById('content');
+  c.innerHTML = `<div id="ev-body"></div>`;
+  renderRelayEvent(name, ev);
+  document.getElementById('last-upd').textContent =
+    'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function renderRelayEvent(evName, ev) {
+  const body = document.getElementById('ev-body');
+  if (!ev) { body.innerHTML = '<div class="waiting"><div class="wi">⏳</div><p>No relay data</p></div>'; return; }
+
+  const COLORS = {red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#222',
+    yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#546E7A'};
+
+  let html = '';
+
+  // Helper to render a relay heat card
+  const relayHCard = (heat, hdrCls) => {
+    const label = heat.stage==='Final' ? 'FINAL' : `${heat.stage.toUpperCase()} ${heat.number}`;
+    const sorted = [...(heat.teams||[])].sort((a,b) => {
+      const pa = /^\d+$/.test(a.placement) ? parseInt(a.placement) : 999;
+      const pb = /^\d+$/.test(b.placement) ? parseInt(b.placement) : 999;
+      return pa - pb;
+    });
+    if (!sorted.length) return `
+      <div class="hcard">
+        <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sc">0 TEAMS</span></div>
+        <div style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px">Waiting for lineup</div>
+      </div>`;
+
+    const rows = sorted.map((t, i) => {
+      const pl = t.placement;
+      const num = parseInt(pl);
+      const ranked = !isNaN(num);
+      const rc = num===1?'r1':num===2?'r2':num===3?'r3':'';
+      const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+      const rankDisplay = ranked ? num : (i+1);
+      const rankCls = ranked ? pcls : 'rn';
+      const bibColor = COLORS[t.color?.toLowerCase()] || '#546E7A';
+      const memberList = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
+      let plEl = '';
+      if (pl==='DQ')     plEl = `<div class="sk-place"><span class="place-dq">DQ</span></div>`;
+      else if (ranked)   plEl = `<div class="sk-place"><div class="place-num ${pcls}">${pl}</div></div>`;
+      else               plEl = `<div class="sk-place"><div class="place-wait">—</div></div>`;
+
+      return `<div class="sk-row ${rc}" style="animation-delay:${i*.04}s">
+        <div class="rank-num ${rankCls}">${rankDisplay}</div>
+        <div class="sk-info">
+          <div class="sk-name" style="display:flex;align-items:center;gap:8px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
+            ${t.club}
+          </div>
+          ${memberList ? `<div class="sk-meta">${memberList}</div>` : ''}
+        </div>
+        ${plEl}
+      </div>`;
+    }).join('');
+
+    return `<div class="hcard">
+      <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sc">${sorted.length} TEAMS</span></div>
+      ${rows}
+    </div>`;
+  };
+
+  // Heats
+  if (ev.heats?.length) {
+    html += `<div class="slbl ht">Heats</div>`;
+    html += ev.heats.map(h => relayHCard(h, 'hh')).join('');
+    const adv = ev.semis?.some(h=>h.teams?.length) || ev.finals?.some(h=>h.teams?.length);
+    if (adv) html += `<div class="qual-banner">✓ Qualifiers advanced</div>`;
+  }
+  // Semis
+  if (ev.semis?.length) {
+    html += `<div class="slbl sm">Semi-Finals</div>`;
+    html += ev.semis.map(h => h.teams?.length ? relayHCard(h,'sh') : waiting('Waiting for heat results')).join('');
+  }
+  // Finals
+  if (ev.finals?.length) {
+    html += `<div class="slbl fn">Final</div>`;
+    html += ev.finals.map(h => h.teams?.length ? relayHCard(h,'fh') : waiting('Final lineup coming soon')).join('');
+  }
+
+  if (!html) html = '<div class="waiting"><div class="wi">⏳</div><p>No results yet</p></div>';
+  body.innerHTML = html;
+}
+
+function waiting(msg) {
+  return `<div class="waiting"><div class="wi">⏳</div><p>${msg}</p></div>`;
+}
   curEvent = name;
   document.querySelectorAll('.epill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -476,10 +607,6 @@ function renderEv(ev) {
     html += ev.finals.map(h => h.skaters.length ? hCard(h,'fh') : waiting('Final lineup coming soon')).join('');
   }
   body.innerHTML = html;
-}
-
-function waiting(msg) {
-  return `<div class="waiting"><div class="wi">⏳</div><p>${msg}</p></div>`;
 }
 
 function hCard(heat, hdrCls) {
