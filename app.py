@@ -8,6 +8,7 @@ from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
+    AthleteRegistry,
 )
 from seeding import compute_stages, distribute
 
@@ -309,6 +310,190 @@ def athletes_page():
     return render_template("athletes.html", competitions=[c.to_dict() for c in comps])
 
 
+@app.route("/registry")
+def registry_page():
+    return render_template("registry.html")
+
+
+# ── Registry API ──────────────────────────────────────────────────────────────
+
+@app.route("/api/registry", methods=["GET"])
+def registry_list():
+    q = request.args.get("q","").strip()
+    session = db()
+    query = session.query(AthleteRegistry)
+    if q:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            AthleteRegistry.first.ilike(f"%{q}%"),
+            AthleteRegistry.last.ilike(f"%{q}%"),
+            AthleteRegistry.usars_no.ilike(f"%{q}%"),
+            AthleteRegistry.club.ilike(f"%{q}%"),
+        ))
+    athletes = query.order_by(AthleteRegistry.last, AthleteRegistry.first).limit(200).all()
+    total = session.query(AthleteRegistry).count()
+    session.close()
+    return jsonify({"athletes": [a.to_dict() for a in athletes], "total": total})
+
+
+@app.route("/api/registry", methods=["POST"])
+def registry_add():
+    """Add a single athlete to the registry."""
+    data = request.json
+    usars = (data.get("usars_no") or "").strip()
+    first = (data.get("first") or "").strip()
+    last  = (data.get("last")  or "").strip()
+    if not usars or not first or not last:
+        return jsonify({"error": "USARS No., First Name and Last Name are required"}), 400
+    session = db()
+    try:
+        existing = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+        if existing:
+            return jsonify({"error": f"USARS No. {usars} already exists ({existing.full_name})"}), 409
+        a = AthleteRegistry(
+            usars_no=usars, first=first, last=last,
+            gender=(data.get("gender") or "").strip(),
+            dob=(data.get("dob") or "").strip(),
+            club=(data.get("club") or "").strip(),
+        )
+        session.add(a); session.commit()
+        result = a.to_dict()
+        return jsonify({"ok": True, "athlete": result})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/registry/<int:athlete_id>", methods=["PUT"])
+def registry_update(athlete_id):
+    data = request.json
+    session = db()
+    try:
+        a = session.query(AthleteRegistry).get(athlete_id)
+        if not a: return jsonify({"error": "Not found"}), 404
+        for field in ("first","last","gender","dob","club"):
+            if field in data:
+                setattr(a, field, (data[field] or "").strip())
+        session.commit()
+        return jsonify({"ok": True, "athlete": a.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/registry/<int:athlete_id>", methods=["DELETE"])
+def registry_delete(athlete_id):
+    session = db()
+    try:
+        a = session.query(AthleteRegistry).get(athlete_id)
+        if a: session.delete(a); session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/registry/import", methods=["POST"])
+def registry_import():
+    """Bulk import athletes from Excel. Columns: USARS No, First, Last, Gender, DOB, Club."""
+    f = request.files.get("file")
+    if not f: return jsonify({"error": "No file"}), 400
+    path = f"/tmp/reg_{f.filename}"; f.save(path)
+    session = db()
+    try:
+        df = pd.read_excel(path, header=0, engine="openpyxl")
+        df.columns = [str(c).strip().lower() for c in df.columns]
+
+        # Flexible column detection
+        def find_col(candidates):
+            for c in candidates:
+                for col in df.columns:
+                    if c in col: return col
+            return None
+
+        usars_col  = find_col(["usars","membership"])
+        first_col  = find_col(["first"])
+        last_col   = find_col(["last"])
+        gender_col = find_col(["gender","m/f","sex"])
+        dob_col    = find_col(["dob","birth","born"])
+        club_col   = find_col(["club","team"])
+
+        if not usars_col or not first_col or not last_col:
+            return jsonify({"error":
+                "Could not find required columns. Need: USARS No., First, Last"}), 400
+
+        added = 0; updated = 0; errors = []
+        for _, row in df.iterrows():
+            usars = str(row.get(usars_col,"")).strip()
+            first = str(row.get(first_col,"")).strip()
+            last  = str(row.get(last_col, "")).strip()
+            if not usars or usars == "nan" or not first or first == "nan": continue
+            gender = str(row.get(gender_col,"")).strip() if gender_col else ""
+            dob    = str(row.get(dob_col,   "")).strip() if dob_col    else ""
+            club   = str(row.get(club_col,  "")).strip() if club_col   else ""
+            if dob == "nan": dob = ""
+            if gender == "nan": gender = ""
+            if club == "nan": club = ""
+
+            existing = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+            if existing:
+                existing.first=first; existing.last=last
+                if gender: existing.gender=gender
+                if dob:    existing.dob=dob
+                if club:   existing.club=club
+                updated += 1
+            else:
+                session.add(AthleteRegistry(
+                    usars_no=usars, first=first, last=last,
+                    gender=gender, dob=dob, club=club))
+                added += 1
+
+        session.commit()
+        return jsonify({"ok":True, "added":added, "updated":updated})
+    except Exception as e:
+        session.rollback(); return jsonify({"error":str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/registry/validate", methods=["POST"])
+def registry_validate():
+    """
+    Check a list of panel numbers against the registry using USARS No. as key.
+    Since event sheets may not have USARS, we match on panel + name combo,
+    or accept if operator has pre-mapped panels → USARS in the registry.
+    Returns missing athletes (in sheet but not in registry).
+    """
+    data = request.json
+    # Expect list of {panel, first, last, usars_no (optional)}
+    athletes = data.get("athletes", [])
+    session = db()
+    missing = []; found = []
+    for a in athletes:
+        usars = (a.get("usars_no") or "").strip()
+        first = (a.get("first") or "").strip().lower()
+        last  = (a.get("last")  or "").strip().lower()
+        match = None
+        if usars:
+            match = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+        if not match and first and last:
+            match = session.query(AthleteRegistry).filter(
+                AthleteRegistry.first.ilike(first),
+                AthleteRegistry.last.ilike(last)).first()
+        if match:
+            found.append({**a, "registry_id": match.id,
+                          "usars_no": match.usars_no,
+                          "gender": match.gender})
+        else:
+            missing.append(a)
+    session.close()
+    return jsonify({"found": found, "missing": missing,
+                    "can_proceed": len(missing) == 0})
+
+
 @app.route("/api/competitions", methods=["GET"])
 def list_competitions():
     session = db()
@@ -406,17 +591,56 @@ def upload_individual(comp_id):
         raw = parse_individual(path)
         if not raw: return jsonify({"error":"No skaters found"}), 400
 
-        # Deduplicate by panel
+        # ── Registry validation — block if any athlete not found ──────────────
+        session_check = db()
+        missing = []
+        for r in raw:
+            usars = r.get("usars_no","").strip()
+            first = r.get("first","").strip().lower()
+            last  = r.get("last","").strip().lower()
+            match = None
+            if usars:
+                match = session_check.query(AthleteRegistry).filter_by(usars_no=usars).first()
+            if not match:
+                match = session_check.query(AthleteRegistry).filter(
+                    AthleteRegistry.first.ilike(first),
+                    AthleteRegistry.last.ilike(last)).first()
+            if not match:
+                missing.append({"panel": r["panel"], "first": r["first"],
+                                 "last": r["last"], "club": r["club"]})
+        session_check.close()
+
+        if missing:
+            return jsonify({
+                "error": "Some athletes are not in the registry. "
+                         "Please add them first before importing.",
+                "missing": missing,
+                "missing_count": len(missing),
+            }), 422
+
+        # Deduplicate by panel, enrich gender/usars from registry
         seen = set(); panels_by_group = {}
+        reg_session = db()
         for r in raw:
             if r["panel"] in seen: continue
             seen.add(r["panel"])
+            usars = r.get("usars_no","").strip()
+            reg = None
+            if usars:
+                reg = reg_session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+            if not reg:
+                reg = reg_session.query(AthleteRegistry).filter(
+                    AthleteRegistry.first.ilike(r["first"].strip()),
+                    AthleteRegistry.last.ilike(r["last"].strip())).first()
+            gender  = (reg.gender  if reg else r.get("gender","")) or ""
+            usars_n = (reg.usars_no if reg else usars) or ""
             sk = Skater(competition_id=comp_id, panel=r["panel"],
-                        usars_no=r.get("usars_no",""),
-                        first=r["first"], last=r["last"], gender=r["gender"],
+                        usars_no=usars_n,
+                        first=r["first"], last=r["last"], gender=gender,
                         age=r["age"], club=r["club"], group_name=r["group"])
             session.add(sk)
             panels_by_group.setdefault(r["group"], []).append(r["panel"])
+        reg_session.close()
         session.flush()
 
         # Create one Event row per (group, enabled_individual_event)

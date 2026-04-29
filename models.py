@@ -65,6 +65,40 @@ INDIVIDUAL_EVENTS = [e for e in ALL_EVENT_TEMPLATES if e["category"] == "individ
 RELAY_EVENTS_LIST = [e for e in ALL_EVENT_TEMPLATES if e["category"] == "relay"]
 
 
+
+# ── Global Athlete Registry (independent of competitions) ─────────────────────
+
+class AthleteRegistry(Base):
+    """
+    One-time global entry per athlete. USARS No. is the primary unique key.
+    Used to validate athletes before they can be added to a competition.
+    """
+    __tablename__ = "athlete_registry"
+    id         = Column(Integer, primary_key=True)
+    usars_no   = Column(String(30), nullable=False, unique=True)
+    first      = Column(String(100), nullable=False)
+    last       = Column(String(100), nullable=False)
+    gender     = Column(String(5))
+    dob        = Column(String(20))     # YYYY-MM-DD
+    club       = Column(String(100))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def full_name(self):
+        return f"{self.first} {self.last}".strip()
+
+    def to_dict(self):
+        return {
+            "id": self.id, "usars_no": self.usars_no,
+            "first": self.first, "last": self.last,
+            "full_name": self.full_name,
+            "gender": self.gender or "", "dob": self.dob or "",
+            "club": self.club or "",
+            "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else "",
+        }
+
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class Competition(Base):
