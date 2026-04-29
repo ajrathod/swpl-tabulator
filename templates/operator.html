@@ -278,17 +278,24 @@ async function refreshGroups() {
 async function refreshRelays() {
   const r = await fetch(`/api/${COMP_ID}/relays`);
   const data = await r.json();
+  // Store relay data in a JS map — avoids HTML attribute encoding issues
+  window._relayData = data;
   const list = document.getElementById('relay-list');
   list.innerHTML = Object.keys(data).map(ev => `
-    <button onclick="showRelay('${esc(ev)}',${JSON.stringify(data[ev]).replace(/"/g,'&quot;')})"
+    <button onclick="showRelayByName('${esc(ev)}')"
       class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
   ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
 
-  // If a relay event is currently shown, refresh it too
+  // If a relay event is currently shown, refresh it
   const curRelayName = document.getElementById('grp-view')._curRelayName;
   if (curRelayName && data[curRelayName]) {
     showRelay(curRelayName, data[curRelayName]);
   }
+}
+
+function showRelayByName(evName) {
+  const data = window._relayData || {};
+  if (data[evName]) showRelay(evName, data[evName]);
 }
 
 // ── Group view ───────────────────────────────────────────────────────────────
@@ -506,7 +513,7 @@ async function clearCard(heatId, kind) {
   const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
   const payload = kind==='relay' ? {relay_heat_id:heatId,results:{}} : {heat_id:heatId,results:{}};
   await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  if(kind==='relay') refreshRelays(); else selectGroup(curGroup);
+  if(kind==='relay') refreshAndShowRelay(); else selectGroup(curGroup);
 }
 
 // ── Advance / Reseed ──────────────────────────────────────────────────────────
@@ -515,8 +522,25 @@ async function advance(id, from, kind) {
   const payload = kind==='relay' ? {relay_event_id:id,from} : {event_id:id,from};
   const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d = await r.json();
-  if (d.ok) { toast('✓ '+d.message,'success'); kind==='relay'?refreshRelays():selectGroup(curGroup); }
+  if (d.ok) { toast('✓ '+d.message,'success'); if(kind==='relay') refreshAndShowRelay(); else selectGroup(curGroup); }
   else toast(d.error||'Error','error');
+}
+
+async function refreshAndShowRelay() {
+  const r = await fetch(`/api/${COMP_ID}/relays`);
+  const data = await r.json();
+  window._relayData = data;
+  // Re-render sidebar
+  const list = document.getElementById('relay-list');
+  list.innerHTML = Object.keys(data).map(ev => `
+    <button onclick="showRelayByName('${esc(ev)}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
+  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+  // Re-render current relay view
+  const curRelayName = document.getElementById('grp-view')._curRelayName;
+  if (curRelayName && data[curRelayName]) {
+    showRelay(curRelayName, data[curRelayName]);
+  }
 }
 
 async function reseedEv(id, kind) {
@@ -525,8 +549,11 @@ async function reseedEv(id, kind) {
   const payload = kind==='relay' ? {relay_event_id:id} : {event_id:id};
   const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d = await r.json();
-  if (d.ok) { toast('✓ '+d.message,'success'); kind==='relay'?refreshRelays():selectGroup(curGroup); }
-  else toast(d.error,'error');
+  if (d.ok) {
+    toast('✓ '+d.message,'success');
+    if (kind==='relay') await refreshAndShowRelay();
+    else selectGroup(curGroup);
+  } else toast(d.error,'error');
 }
 
 // ── Drag & Drop Heat Editor ───────────────────────────────────────────────────
@@ -536,11 +563,32 @@ function openDDModal(evId, stage, kind) {
   ddEvId=evId; ddStage=stage; ddKind=kind;
   const events = document.getElementById('grp-view')._events || {};
   const ev = Object.values(events).find(e=>e.id===evId);
-  if (!ev) return;
+  if (!ev) { toast('Event data not found — try refreshing','error'); return; }
   const stageKey = {Heat:'heats',Semi:'semis',Final:'finals'}[stage];
   const heats = ev[stageKey] || [];
-  document.getElementById('dd-title').textContent = `Edit ${stage}s — ${ev.name}`;
-  buildDDColumns(heats, ev.skaters || []);
+  const evLabel = ev.name || Object.keys(events)[0] || '';
+  document.getElementById('dd-title').textContent = `Edit ${stage}s — ${evLabel}`;
+
+  if (kind === 'relay') {
+    // For relay: use teams as the participant pool
+    const allTeams = (ev.teams || []).map(t => ({
+      panel: String(t.team_id), // use team_id as unique key
+      full_name: `${t.club}`,
+      club: t.color || '',
+    }));
+    // Build relay heats with team_id as panel key
+    const relayHeats = heats.map(h => ({
+      ...h,
+      skaters: (h.teams||[]).map(t => ({
+        panel: String(t.team_id),
+        full_name: t.club,
+        club: t.color || '',
+      }))
+    }));
+    buildDDColumns(relayHeats, allTeams);
+  } else {
+    buildDDColumns(heats, ev.skaters || []);
+  }
   document.getElementById('dd-modal').classList.remove('hidden');
 }
 
@@ -731,6 +779,11 @@ function showRelay(evName, ev) {
   document.getElementById('grp-view').classList.remove('hidden');
   const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#1a1a1a',yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
 
+  // Store with consistent structure including name so openDDModal can find it
+  const evWithName = {...ev, name: evName};
+  document.getElementById('grp-view')._events = {[evName]: evWithName};
+  document.getElementById('grp-view')._curRelayName = evName;
+
   let html = `
     <div class="flex items-center gap-3 mb-5 flex-wrap">
       <h2 class="text-xl font-bold">🔄 ${evName}</h2>
@@ -743,14 +796,16 @@ function showRelay(evName, ev) {
       </div>
     </div>`;
 
-  const mkSection = (title, color, heats, advFrom) => {
+  const mkSection = (title, color, heats, stageKey) => {
     if (!heats?.length) return '';
+    const stageWord = stageKey.replace('s',''); // heats→heat, semis→semi, finals→final
+    const stageCap = stageWord.charAt(0).toUpperCase()+stageWord.slice(1);
     let s = `<div class="flex items-center gap-3 mb-3 mt-5">
       <span class="text-xs font-bold uppercase tracking-widest" style="color:${color}">${title}</span>
       <div class="flex-1 h-px bg-gray-200"></div>
-      <button onclick="openDDModal(${ev.id},'${advFrom.replace('s','')}','relay')" class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">✏️ Edit ${title}</button>
+      <button onclick="openDDModal(${ev.id},'${stageCap}','relay')" class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">✏️ Edit ${title}</button>
     </div>`;
-    s += `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,title.toLowerCase().replace('-',''),'relay',ev.id)).join('')}</div>`;
+    s += `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,title.toLowerCase().includes('semi')?'semi':title.toLowerCase().includes('final')?'final':'heat',ev.id,'relay')).join('')}</div>`;
     return s;
   };
 
@@ -772,8 +827,8 @@ function showRelay(evName, ev) {
   if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
 
   document.getElementById('grp-view').innerHTML = html;
-  document.getElementById('grp-view')._events = {[evName]: ev};
-  // Store current relay name so reseed can refresh this view
+  // Re-store after innerHTML wipe
+  document.getElementById('grp-view')._events = {[evName]: evWithName};
   document.getElementById('grp-view')._curRelayName = evName;
 }
 
