@@ -216,24 +216,36 @@ def _fill_heat(session, heat, ids, kind):
 
 
 def seed_relay_heats(session, relay_event, team_ids):
+    """
+    Relay seeding rules:
+    - Max 7 teams per heat
+    - Semis only if more than 6 teams qualify from heats
+    - Otherwise go straight from heats to final
+    """
     for h in list(relay_event.relay_heats): session.delete(h)
     session.flush()
     if not team_ids:
         rh = RelayHeat(relay_event_id=relay_event.id, stage="Final", number=1)
         session.add(rh); session.flush(); return
 
-    stages = compute_stages(len(team_ids))
+    # Relay uses max 7 per heat, semi only if >6 qualifiers
+    stages = compute_stages(len(team_ids), max_per=7, semi_threshold=6)
     heat_buckets = distribute(team_ids, stages["heats"]) if stages["heats"] else []
+
     for i, bucket in enumerate(heat_buckets):
         rh = RelayHeat(relay_event_id=relay_event.id, stage="Heat", number=i+1)
         session.add(rh); session.flush()
         for order, tid in enumerate(bucket):
             session.add(RelayHeatTeam(relay_heat_id=rh.id, team_id=tid, seed_order=order))
+
     for i in range(stages["semis"]):
         rh = RelayHeat(relay_event_id=relay_event.id, stage="Semi", number=i+1)
         session.add(rh); session.flush()
+
     rh_final = RelayHeat(relay_event_id=relay_event.id, stage="Final", number=1)
     session.add(rh_final); session.flush()
+
+    # If no heats (≤7 teams) go straight to final
     if not heat_buckets:
         for order, tid in enumerate(team_ids):
             session.add(RelayHeatTeam(relay_heat_id=rh_final.id, team_id=tid, seed_order=order))
