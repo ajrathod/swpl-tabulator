@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Athlete Registry — PacWest Racing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --orange:#F4511E;--orange-l:#FFF3F0;--orange-d:#BF360C;
+    --blue:#1565C0;--blue-l:#E3F2FD;--green:#2E7D32;--green-l:#E8F5E9;
+    --red:#C62828;--red-l:#FFEBEE;--gold:#F9A825;
+    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;
+    --g400:#BDBDBD;--g500:#9E9E9E;--g600:#757575;--g700:#616161;
+    --g800:#424242;--g900:#212121;--topbar:60px;--sidebar:280px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh}
+
+  /* ── Top bar ── */
+  .topbar{position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid var(--g200);
+    height:var(--topbar);display:flex;align-items:center;padding:0 20px;gap:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  .topbar a{color:var(--g500);font-size:13px;text-decoration:none}
+  .topbar a:hover{color:var(--g900)}
+  .sep{color:var(--g300);margin:0 4px}
+  .pg-title{font-size:15px;font-weight:700}
+  .topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  /* ── Layout ── */
+  .layout{display:flex;min-height:calc(100vh - var(--topbar))}
+  .sidebar{width:var(--sidebar);background:#fff;border-right:1px solid var(--g200);
+    display:flex;flex-direction:column;position:sticky;top:var(--topbar);
+    height:calc(100vh - var(--topbar));overflow:hidden}
+  .main{flex:1;padding:24px;overflow-y:auto}
+
+  /* ── Search panel ── */
+  .search-section{padding:14px 14px 10px;border-bottom:1px solid var(--g100)}
+  .search-box{position:relative}
+  .search-box input{width:100%;padding:8px 12px 8px 34px;border:1px solid var(--g300);
+    border-radius:8px;font-size:13px;font-family:inherit;outline:none}
+  .search-box input:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
+  .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+    color:var(--g400);font-size:14px;pointer-events:none}
+  .stats-row{display:flex;gap:12px;margin-top:10px}
+  .stat-chip{font-size:12px;color:var(--g500);background:var(--g100);
+    padding:3px 10px;border-radius:20px}
+  .stat-chip strong{color:var(--g800)}
+
+  /* ── Athlete list ── */
+  .athlete-list{flex:1;overflow-y:auto}
+  .ath-item{display:flex;align-items:center;gap:10px;padding:9px 14px;
+    border-bottom:1px solid var(--g100);cursor:pointer;transition:background .1s}
+  .ath-item:hover{background:var(--g50)}
+  .ath-item.active{background:var(--orange-l)}
+  .ath-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;color:#fff}
+  .ath-name{font-size:13px;font-weight:600;line-height:1.2}
+  .ath-meta{font-size:11px;color:var(--g400);font-family:'DM Mono',monospace;margin-top:1px}
+  .ath-gender{font-size:11px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:auto;flex-shrink:0}
+  .gender-M{background:var(--blue-l);color:var(--blue)}
+  .gender-F{background:#FCE4EC;color:#C2185B}
+
+  /* ── Main panel ── */
+  .welcome-state{display:flex;flex-direction:column;align-items:center;
+    justify-content:center;min-height:400px;color:var(--g400);text-align:center}
+  .welcome-state .wi{font-size:52px;margin-bottom:12px}
+
+  /* Profile card */
+  .profile-card{background:#fff;border-radius:12px;padding:20px 24px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:18px}
+  .profile-top{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+  .profile-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
+  .profile-name{font-size:20px;font-weight:700}
+  .profile-usars{font-size:12px;font-family:'DM Mono',monospace;color:var(--g500);margin-top:2px}
+  .profile-actions{margin-left:auto;display:flex;gap:8px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .detail-item label{font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--g400);display:block;margin-bottom:3px}
+  .detail-item .val{font-size:14px;font-weight:500;color:var(--g900)}
+
+  /* Edit form */
+  .edit-form{background:#fff;border-radius:12px;padding:20px 24px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:18px}
+  .edit-form h3{font-size:16px;font-weight:700;margin-bottom:16px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .form-grp{display:flex;flex-direction:column;gap:4px}
+  .form-grp.full{grid-column:1/-1}
+  .form-lbl{font-size:12px;font-weight:600;color:var(--g600)}
+  .form-inp,.form-sel{padding:8px 10px;border:1px solid var(--g300);border-radius:8px;
+    font-size:13px;font-family:inherit;outline:none;width:100%}
+  .form-inp:focus,.form-sel:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
+  .form-actions{display:flex;gap:8px;justify-content:flex-end}
+
+  /* Competition history */
+  .history-card{background:#fff;border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .history-head{padding:14px 18px;border-bottom:1px solid var(--g100);
+    display:flex;align-items:center;justify-content:space-between}
+  .history-head h3{font-size:14px;font-weight:700}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--g400);padding:7px 14px;text-align:left;border-bottom:1px solid var(--g100);background:var(--g50)}
+  td{padding:9px 14px;font-size:13px;border-bottom:1px solid var(--g100)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--g50)}
+  .place-pill{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700}
+  .p1{background:#FFF8E1;color:#B8860B}.p2{background:var(--g100);color:var(--g600)}
+  .p3{background:#EFEBE9;color:#8D6E63}.pn{background:var(--g100);color:var(--g500)}
+  .pdq{background:var(--red-l);color:var(--red)}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;
+    transition:all .15s;text-decoration:none;white-space:nowrap}
+  .btn-primary{background:var(--orange);color:#fff}.btn-primary:hover{background:var(--orange-d)}
+  .btn-green{background:var(--green);color:#fff}.btn-green:hover{opacity:.9}
+  .btn-outline{background:#fff;color:var(--g700);border:1px solid var(--g300)}.btn-outline:hover{background:var(--g50)}
+  .btn-danger{background:#fff;color:var(--red);border:1px solid #FFCDD2}.btn-danger:hover{background:var(--red-l)}
+  .btn-sm{padding:5px 10px;font-size:12px}
+
+  /* Import section */
+  .import-card{background:#fff;border-radius:12px;padding:20px 24px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:18px}
+  .import-card h3{font-size:15px;font-weight:700;margin-bottom:8px}
+  .import-card p{font-size:13px;color:var(--g500);margin-bottom:14px;line-height:1.5}
+  .upload-zone{border:2px dashed var(--g300);border-radius:10px;padding:20px;
+    text-align:center;cursor:pointer;transition:all .2s}
+  .upload-zone:hover{border-color:var(--orange);background:var(--orange-l)}
+  .col-tag{display:inline-flex;padding:2px 8px;border-radius:6px;font-size:11px;
+    font-weight:600;background:var(--blue-l);color:var(--blue);margin:2px}
+  .col-tag.opt{background:var(--g100);color:var(--g500)}
+
+  /* Missing athletes alert */
+  .missing-alert{background:var(--red-l);border:1px solid #FFCDD2;border-radius:10px;
+    padding:14px 16px;margin-top:12px}
+  .missing-alert h4{font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px}
+  .missing-item{font-size:12px;color:var(--red);padding:2px 0;font-family:'DM Mono',monospace}
+
+  /* Toast */
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--g900);color:#fff;
+    padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;
+    z-index:999;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none}
+  #toast.show{opacity:1;transform:translateY(0)}
+  #toast.success{background:var(--green)}
+  #toast.error{background:var(--red)}
+
+  .empty-list{padding:30px;text-align:center;color:var(--g400);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/">← Competitions</a>
+  <span class="sep">/</span>
+  <span class="pg-title">🗂 Athlete Registry</span>
+  <div class="topbar-actions">
+    <a href="/athletes" class="btn btn-outline btn-sm">📊 Athlete History</a>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Sidebar: search + list -->
+  <div class="sidebar">
+    <div class="search-section">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-inp" placeholder="Name, USARS No., or club…" oninput="doSearch()">
+      </div>
+      <div class="stats-row">
+        <span class="stat-chip" id="total-chip"><strong>0</strong> athletes</span>
+        <span class="stat-chip" id="shown-chip"></span>
+      </div>
+    </div>
+    <div class="athlete-list" id="ath-list">
+      <div class="empty-list">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main" id="main">
+
+    <!-- Import section (always visible at top) -->
+    <div class="import-card">
+      <h3>📥 Bulk Import Athletes</h3>
+      <p>Upload an Excel file to add or update multiple athletes at once. Existing athletes (matched by USARS No.) will be updated. New ones will be added.</p>
+      <p style="margin-bottom:10px">
+        Required columns:
+        <span class="col-tag">USARS No.</span>
+        <span class="col-tag">First</span>
+        <span class="col-tag">Last</span>
+        Optional:
+        <span class="col-tag opt">Gender</span>
+        <span class="col-tag opt">DOB</span>
+        <span class="col-tag opt">Club</span>
+      </p>
+      <label class="upload-zone" style="display:block">
+        <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none" onchange="doImport()">
+        <div style="font-size:24px;margin-bottom:6px">📂</div>
+        <div style="font-weight:600;color:var(--g700);font-size:14px">Click to upload Excel file</div>
+        <div style="font-size:12px;color:var(--g400);margin-top:3px">Columns auto-detected from header row</div>
+      </label>
+      <div id="import-result" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Add athlete form -->
+    <div class="edit-form" id="add-form">
+      <h3>➕ Add Single Athlete</h3>
+      <div class="form-grid">
+        <div class="form-grp">
+          <label class="form-lbl">USARS No. *</label>
+          <input class="form-inp" id="add-usars" placeholder="e.g. USR-12345">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Club</label>
+          <input class="form-inp" id="add-club" placeholder="e.g. PWR">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">First Name *</label>
+          <input class="form-inp" id="add-first" placeholder="First">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Last Name *</label>
+          <input class="form-inp" id="add-last" placeholder="Last">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Gender</label>
+          <select class="form-sel" id="add-gender">
+            <option value="">— Select —</option>
+            <option value="M">M — Male</option>
+            <option value="F">F — Female</option>
+          </select>
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Date of Birth</label>
+          <input class="form-inp" id="add-dob" type="date">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="addAthlete()">➕ Add to Registry</button>
+      </div>
+    </div>
+
+    <!-- Selected athlete profile / edit -->
+    <div id="profile-area" style="display:none"></div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const COLORS = ['#F4511E','#1565C0','#2E7D32','#6A1B9A','#F9A825','#00838F','#AD1457','#455A64'];
+let currentId = null;
+let allAthletes = [];
+let searchTimer = null;
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.className='show'+(type?' '+type:'');clearTimeout(t._t);
+  t._t=setTimeout(()=>t.className='',3200);
+}
+
+// ── Load athletes ────────────────────────────────────────────────────────────
+async function loadAthletes(q='') {
+  const params = q ? `?q=${encodeURIComponent(q)}` : '';
+  const r = await fetch('/api/registry'+params);
+  const d = await r.json();
+  allAthletes = d.athletes;
+  document.getElementById('total-chip').innerHTML = `<strong>${d.total}</strong> athletes`;
+  if (q) document.getElementById('shown-chip').textContent = `${d.athletes.length} shown`;
+  else document.getElementById('shown-chip').textContent = '';
+  renderList(d.athletes);
+}
+
+function renderList(athletes) {
+  const list = document.getElementById('ath-list');
+  if (!athletes.length) {
+    list.innerHTML = '<div class="empty-list">No athletes found</div>';
+    return;
+  }
+  list.innerHTML = athletes.map((a,i) => {
+    const initials = ((a.first||'')[0]||'') + ((a.last||'')[0]||'');
+    const color = COLORS[i % COLORS.length];
+    const gClass = a.gender ? `gender-${a.gender}` : '';
+    return `<div class="ath-item${a.id===currentId?' active':''}" onclick="selectAthlete(${a.id})">
+      <div class="ath-avatar" style="background:${color}">${initials.toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div class="ath-name">${a.full_name}</div>
+        <div class="ath-meta">${a.usars_no}${a.club?' · '+a.club:''}</div>
+      </div>
+      ${a.gender ? `<span class="ath-gender ${gClass}">${a.gender}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function doSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadAthletes(document.getElementById('search-inp').value.trim()), 250);
+}
+
+// ── Select / view athlete ────────────────────────────────────────────────────
+async function selectAthlete(id) {
+  currentId = id;
+  document.querySelectorAll('.ath-item').forEach(el =>
+    el.classList.toggle('active', parseInt(el.onclick.toString().match(/\d+/)?.[0]) === id));
+
+  const a = allAthletes.find(x => x.id === id);
+  if (!a) return;
+
+  // Also fetch history from athlete history API
+  const hr = await fetch(`/api/athlete/${a.panel||a.usars_no}`).catch(()=>null);
+  let history = [];
+  if (hr && hr.ok) {
+    const hd = await hr.json();
+    history = hd.history || [];
+  }
+
+  const color = COLORS[allAthletes.indexOf(a) % COLORS.length];
+  const initials = ((a.first||'')[0]||'') + ((a.last||'')[0]||'');
+  const area = document.getElementById('profile-area');
+  area.style.display = 'block';
+
+  const histRows = history.map(r => {
+    const pl = r.placement;
+    const num = parseInt(pl);
+    const cls = pl==='DQ'?'pdq':num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+    return `<tr>
+      <td>${r.competition}</td>
+      <td>${r.date||'—'}</td>
+      <td>${r.group}</td>
+      <td>${r.event}</td>
+      <td><span class="place-pill ${cls}">${pl||'—'}</span></td>
+    </tr>`;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar" style="background:${color}">${initials.toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="profile-name">${a.full_name}</div>
+          <div class="profile-usars">USARS: ${a.usars_no}</div>
+        </div>
+        <div class="profile-actions">
+          <button class="btn btn-outline btn-sm" onclick="startEdit(${a.id})">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAthlete(${a.id},'${esc(a.full_name)}')">🗑 Delete</button>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item"><label>Gender</label><div class="val">${a.gender||'—'}</div></div>
+        <div class="detail-item"><label>Club</label><div class="val">${a.club||'—'}</div></div>
+        <div class="detail-item"><label>Date of Birth</label><div class="val">${a.dob||'—'}</div></div>
+        <div class="detail-item"><label>Added</label><div class="val">${a.created_at||'—'}</div></div>
+      </div>
+    </div>
+
+    <div class="history-card">
+      <div class="history-head">
+        <h3>Competition History (Finals only)</h3>
+        <span style="font-size:12px;color:var(--g400)">${history.length} results</span>
+      </div>
+      ${history.length ? `
+        <table>
+          <thead><tr><th>Competition</th><th>Date</th><th>Group</th><th>Event</th><th>Place</th></tr></thead>
+          <tbody>${histRows}</tbody>
+        </table>` :
+        '<div style="padding:30px;text-align:center;color:var(--g400);font-size:13px">No competition results yet</div>'
+      }
+    </div>`;
+}
+
+// ── Edit athlete ─────────────────────────────────────────────────────────────
+function startEdit(id) {
+  const a = allAthletes.find(x => x.id === id);
+  if (!a) return;
+  const area = document.getElementById('profile-area');
+  area.innerHTML = `
+    <div class="edit-form">
+      <h3>✏️ Edit — ${a.full_name}</h3>
+      <div class="form-grid">
+        <div class="form-grp full">
+          <label class="form-lbl">USARS No. (cannot change)</label>
+          <input class="form-inp" value="${a.usars_no}" disabled style="background:var(--g100)">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">First Name *</label>
+          <input class="form-inp" id="edit-first" value="${a.first||''}">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Last Name *</label>
+          <input class="form-inp" id="edit-last" value="${a.last||''}">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Gender</label>
+          <select class="form-sel" id="edit-gender">
+            <option value="">— Select —</option>
+            <option value="M" ${a.gender==='M'?'selected':''}>M — Male</option>
+            <option value="F" ${a.gender==='F'?'selected':''}>F — Female</option>
+          </select>
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Club</label>
+          <input class="form-inp" id="edit-club" value="${a.club||''}">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Date of Birth</label>
+          <input class="form-inp" id="edit-dob" type="date" value="${a.dob||''}">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="selectAthlete(${id})">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEdit(${id})">💾 Save Changes</button>
+      </div>
+    </div>`;
+}
+
+async function saveEdit(id) {
+  const payload = {
+    first:  document.getElementById('edit-first').value.trim(),
+    last:   document.getElementById('edit-last').value.trim(),
+    gender: document.getElementById('edit-gender').value,
+    club:   document.getElementById('edit-club').value.trim(),
+    dob:    document.getElementById('edit-dob').value,
+  };
+  if (!payload.first || !payload.last) { toast('First and Last name required','error'); return; }
+  const r = await fetch(`/api/registry/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ Saved','success');
+    await loadAthletes(document.getElementById('search-inp').value.trim());
+    // Update local cache
+    const idx = allAthletes.findIndex(a=>a.id===id);
+    if (idx>=0) allAthletes[idx] = d.athlete;
+    selectAthlete(id);
+  } else toast(d.error,'error');
+}
+
+// ── Add athlete ──────────────────────────────────────────────────────────────
+async function addAthlete() {
+  const payload = {
+    usars_no: document.getElementById('add-usars').value.trim(),
+    first:    document.getElementById('add-first').value.trim(),
+    last:     document.getElementById('add-last').value.trim(),
+    gender:   document.getElementById('add-gender').value,
+    dob:      document.getElementById('add-dob').value,
+    club:     document.getElementById('add-club').value.trim(),
+  };
+  if (!payload.usars_no||!payload.first||!payload.last) {
+    toast('USARS No., First and Last are required','error'); return;
+  }
+  const r = await fetch('/api/registry', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ Athlete added','success');
+    ['add-usars','add-first','add-last','add-club','add-dob'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('add-gender').value='';
+    await loadAthletes();
+    currentId = d.athlete.id;
+    allAthletes.unshift(d.athlete);
+    selectAthlete(d.athlete.id);
+  } else toast(d.error,'error');
+}
+
+// ── Delete athlete ───────────────────────────────────────────────────────────
+async function deleteAthlete(id, name) {
+  if (!confirm(`Remove "${name}" from the registry?\n\nThis does not delete their competition history.`)) return;
+  const r = await fetch(`/api/registry/${id}`, {method:'DELETE'});
+  const d = await r.json();
+  if (d.ok) {
+    toast('Removed from registry','success');
+    currentId = null;
+    document.getElementById('profile-area').style.display='none';
+    await loadAthletes(document.getElementById('search-inp').value.trim());
+  } else toast(d.error,'error');
+}
+
+// ── Bulk import ──────────────────────────────────────────────────────────────
+async function doImport() {
+  const file = document.getElementById('import-file').files[0];
+  if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const resultEl = document.getElementById('import-result');
+  resultEl.innerHTML = '<div style="font-size:13px;color:var(--g500)">Importing…</div>';
+  const r = await fetch('/api/registry/import', {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ ${d.added} added, ${d.updated} updated`,'success');
+    resultEl.innerHTML = `<div style="background:var(--green-l);border:1px solid #C8E6C9;
+      border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green)">
+      ✓ Import complete — <strong>${d.added}</strong> new athletes added,
+      <strong>${d.updated}</strong> existing records updated.
+    </div>`;
+    await loadAthletes();
+  } else {
+    toast(d.error,'error');
+    resultEl.innerHTML = `<div class="missing-alert">
+      <h4>⚠️ Import failed</h4>
+      <div style="font-size:13px">${d.error}</div>
+    </div>`;
+  }
+  document.getElementById('import-file').value='';
+}
+
+function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadAthletes();
+</script>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PacWest Racing — Competitions</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#F4511E;--orange-l:#FFF3F0;--orange-d:#BF360C;--blue:#1565C0;--blue-l:#E3F2FD;
+    --green:#2E7D32;--green-l:#E8F5E9;--red:#C62828;--red-l:#FFEBEE;
+    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;--g400:#BDBDBD;
+    --g500:#9E9E9E;--g600:#757575;--g700:#616161;--g800:#424242;--g900:#212121;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--g100);color:var(--g900);min-height:100vh}
+  .topbar{background:#fff;border-bottom:1px solid var(--g200);padding:0 24px;height:60px;
+    display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+  .brand{font-size:17px;font-weight:700}.sub{font-size:13px;color:var(--g500)}
+  .page{max-width:960px;margin:40px auto;padding:0 20px}
+  h1{font-size:26px;font-weight:700;margin-bottom:6px}
+  .subtitle{color:var(--g500);font-size:15px;margin-bottom:32px}
+  .sec-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g400);margin-bottom:12px}
+  .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:40px}
+  .comp-card{background:#fff;border-radius:12px;border:1px solid var(--g200);padding:18px 20px;
+    transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .comp-card:hover{border-color:var(--orange);box-shadow:0 4px 16px rgba(244,81,30,.1);transform:translateY(-1px)}
+  .comp-name{font-size:16px;font-weight:700;margin-bottom:4px}
+  .comp-meta{font-size:12px;color:var(--g500);display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .comp-actions{display:flex;gap:8px;margin-top:14px}
+  .badge{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-indoor{background:var(--blue-l);color:var(--blue)}
+  .badge-outdoor{background:var(--green-l);color:var(--green)}
+  .new-card{background:#fff;border-radius:12px;border:2px dashed var(--g300);padding:28px 20px;
+    text-align:center;cursor:pointer;transition:all .15s}
+  .new-card:hover{border-color:var(--orange);background:var(--orange-l)}
+  .nc-icon{font-size:28px;margin-bottom:8px}
+  .nc-title{font-size:15px;font-weight:600;color:var(--g700)}
+  .nc-sub{font-size:13px;color:var(--g400);margin-top:4px}
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;
+    transition:all .15s;text-decoration:none;white-space:nowrap}
+  .btn-primary{background:var(--orange);color:#fff}.btn-primary:hover{background:var(--orange-d)}
+  .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.9}
+  .btn-outline{background:#fff;color:var(--g700);border:1px solid var(--g300)}.btn-outline:hover{background:var(--g50)}
+  .btn-danger{background:#fff;color:var(--red);border:1px solid #FFCDD2}.btn-danger:hover{background:var(--red-l)}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  /* Wizard modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:#fff;border-radius:14px;width:640px;max-width:96vw;max-height:92vh;
+    overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+  .modal-head{padding:18px 24px 12px;border-bottom:1px solid var(--g200);
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .modal-head h3{font-size:17px;font-weight:700}
+  .mc{font-size:22px;cursor:pointer;color:var(--g400);background:none;border:none;line-height:1}
+  .mc:hover{color:var(--g700)}
+  /* Step indicator */
+  .steps{display:flex;align-items:center;gap:0;padding:10px 24px;border-bottom:1px solid var(--g200);flex-shrink:0}
+  .step{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--g400)}
+  .step.active{color:var(--orange)}
+  .step.done{color:var(--green)}
+  .step-num{width:22px;height:22px;border-radius:50%;border:2px solid currentColor;
+    display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+  .step-sep{flex:1;height:1px;background:var(--g200);margin:0 8px}
+  .modal-body{padding:20px 24px;overflow-y:auto;flex:1}
+  .modal-foot{padding:12px 24px;border-top:1px solid var(--g200);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+  /* Form */
+  .form-grp{margin-bottom:14px}
+  .form-lbl{display:block;font-size:13px;font-weight:600;color:var(--g700);margin-bottom:5px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .form-inp,.form-sel{width:100%;padding:9px 12px;border:1px solid var(--g300);border-radius:8px;
+    font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
+  .form-inp:focus,.form-sel:focus{border-color:var(--orange);box-shadow:0 0 0 2px rgba(244,81,30,.1)}
+  /* Event checklist */
+  .ev-section{margin-bottom:20px}
+  .ev-section-title{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--g500);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .ev-section-title::after{content:'';flex:1;height:1px;background:var(--g200)}
+  .ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px}
+  .ev-check{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
+    border:1px solid var(--g200);cursor:pointer;transition:all .12s;font-size:13px;font-weight:500}
+  .ev-check:hover{border-color:var(--orange);background:var(--orange-l)}
+  .ev-check input{accent-color:var(--orange);width:15px;height:15px;flex-shrink:0}
+  .ev-check.checked{border-color:var(--orange);background:var(--orange-l);color:var(--orange-d)}
+  .ev-check.relay-check.checked{border-color:var(--blue);background:var(--blue-l);color:var(--blue)}
+  .ev-check.relay-check input{accent-color:var(--blue)}
+  .select-all-row{display:flex;gap:8px;margin-bottom:8px}
+  .sa-btn{font-size:11px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:inherit;
+    border:1px solid var(--g300);background:#fff;color:var(--g600);font-weight:600}
+  .sa-btn:hover{background:var(--g50)}
+  /* Toast */
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--g900);color:#fff;padding:10px 16px;
+    border-radius:8px;font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);
+    transition:all .2s;pointer-events:none}
+  #toast.show{opacity:1;transform:translateY(0)}
+  #toast.success{background:var(--green)}
+  #toast.error{background:var(--red)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span style="font-size:22px">⛸️</span>
+  <span class="brand">PacWest Inline Racing</span>
+  <span class="sub">Race Manager</span>
+  <div style="margin-left:auto">
+    <a href="/registry" class="btn btn-outline btn-sm">🗂 Registry</a>
+    <a href="/athletes" class="btn btn-outline btn-sm">⛸️ Athletes</a>
+  </div>
+</div>
+
+<div class="page">
+  <h1>Competitions</h1>
+  <p class="subtitle">Select a competition to manage, or create a new one.</p>
+  <div class="sec-title">Your Competitions</div>
+  <div class="comp-grid" id="comp-grid">
+    {% for c in competitions %}
+    <div class="comp-card" id="card-{{c.id}}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div class="comp-name">{{c.name}}</div>
+        <span class="badge badge-{{c.type}}">{{c.type}}</span>
+      </div>
+      <div class="comp-meta">
+        {% if c.venue %}<span>📍 {{c.venue}}</span>{% endif %}
+        {% if c.date  %}<span>📅 {{c.date}}</span>{% endif %}
+        <span>🕐 {{c.created_at}}</span>
+      </div>
+      <div class="comp-actions">
+        <a href="/comp/{{c.id}}" class="btn btn-primary btn-sm">🎛 Manage</a>
+        <a href="/public/{{c.id}}" target="_blank" class="btn btn-outline btn-sm">👁 Public</a>
+        <button class="btn btn-outline btn-sm" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑</button>
+      </div>
+    </div>
+    {% else %}
+    <div style="grid-column:1/-1;padding:40px 0;text-align:center;color:var(--g400)">
+      <div style="font-size:48px;margin-bottom:12px">🏁</div>
+      <p>No competitions yet. Create your first one!</p>
+    </div>
+    {% endfor %}
+    <div class="new-card" onclick="openWizard()">
+      <div class="nc-icon">➕</div>
+      <div class="nc-title">New Competition</div>
+      <div class="nc-sub">April 2026 Meet, Regionals, etc.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Wizard modal (2 steps) -->
+<div class="modal-overlay" id="wizard-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="wiz-title">New Competition</h3>
+      <button class="mc" onclick="closeWizard()">×</button>
+    </div>
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step active" id="step-1-ind">
+        <div class="step-num">1</div><span>Details</span>
+      </div>
+      <div class="step-sep"></div>
+      <div class="step" id="step-2-ind">
+        <div class="step-num">2</div><span>Events</span>
+      </div>
+      <div class="step-sep"></div>
+      <div class="step" id="step-3-ind">
+        <div class="step-num">3</div><span>Tiebreaker</span>
+      </div>
+    </div>
+    <div class="modal-body" id="wiz-body"></div>
+    <div class="modal-foot" id="wiz-foot"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let wizStep=1, wizCompId=null, allTemplates=[];
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.className='show'+(type?' '+type:'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3200);
+}
+
+function setSteps(active){
+  ['step-1-ind','step-2-ind','step-3-ind'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    const n=i+1;
+    el.className=n<active?'step done':n===active?'step active':'step';
+  });
+}
+
+async function loadTemplates(){
+  if(!allTemplates.length){
+    const r=await fetch('/api/event_templates');
+    allTemplates=await r.json();
+  }
+}
+
+async function openWizard(){
+  wizStep=1;wizCompId=null;
+  await loadTemplates();
+  document.getElementById('wiz-title').textContent='New Competition';
+  document.getElementById('wizard-modal').classList.add('open');
+  renderStep1();
+}
+
+async function editEvents(compId,compName){
+  await loadTemplates();
+  wizCompId=compId;
+  document.getElementById('wiz-title').textContent=compName+' — Settings';
+  const [evR,compR]=await Promise.all([
+    fetch(`/api/${compId}/comp_events`),
+    fetch('/api/competitions')
+  ]);
+  const current=await evR.json();
+  const comps=await compR.json();
+  const comp=comps.find(c=>c.id===compId)||{};
+  const selected=new Set(current.map(e=>e.name));
+  document.getElementById('wizard-modal').classList.add('open');
+  setSteps(2);
+  renderStep2(selected,comp.tiebreaker_event||'');
+}
+
+function closeWizard(){
+  document.getElementById('wizard-modal').classList.remove('open');
+  setSteps(1);
+}
+
+// ── Step 1: Details ──────────────────────────────────────────────────────────
+function renderStep1(){
+  setSteps(1);
+  document.getElementById('wiz-body').innerHTML=`
+    <div class="form-grp">
+      <label class="form-lbl">Competition name *</label>
+      <input class="form-inp" id="c-name" placeholder="e.g. PacWest April 2026">
+    </div>
+    <div class="form-row">
+      <div class="form-grp"><label class="form-lbl">Venue</label>
+        <input class="form-inp" id="c-venue" placeholder="e.g. San Jose Rink"></div>
+      <div class="form-grp"><label class="form-lbl">Date</label>
+        <input class="form-inp" id="c-date" type="date"></div>
+    </div>
+    <div class="form-grp"><label class="form-lbl">Type</label>
+      <select class="form-sel" id="c-type">
+        <option value="indoor">Indoor</option>
+        <option value="outdoor">Outdoor</option>
+      </select></div>`;
+  document.getElementById('wiz-foot').innerHTML=`
+    <button class="btn btn-outline" onclick="closeWizard()">Cancel</button>
+    <button class="btn btn-primary" onclick="goStep2()">Next: Select Events →</button>`;
+}
+
+async function goStep2(){
+  const name=document.getElementById('c-name').value.trim();
+  if(!name){toast('Enter a competition name','error');return;}
+  const r=await fetch('/api/competitions',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,venue:document.getElementById('c-venue').value.trim(),
+      date:document.getElementById('c-date').value,
+      type:document.getElementById('c-type').value})});
+  const d=await r.json();
+  if(!d.id){toast(d.error||'Error','error');return;}
+  wizCompId=d.id;
+  renderStep2(new Set(['Short Distance','Medium Distance','Long Distance']),'');
+}
+
+// ── Step 2: Events ───────────────────────────────────────────────────────────
+function renderStep2(selected=new Set(), currentTb=''){
+  setSteps(2);
+  const ind=allTemplates.filter(t=>t.category==='individual');
+  const rel=allTemplates.filter(t=>t.category==='relay');
+
+  function checkboxes(list,cls=''){
+    return list.map(t=>`
+      <label class="ev-check ${cls} ${selected.has(t.name)?'checked':''}">
+        <input type="checkbox" ${selected.has(t.name)?'checked':''}
+          onchange="this.closest('.ev-check').classList.toggle('checked',this.checked)">
+        ${t.name}
+        ${t.points_event?'<span style="margin-left:auto;font-size:10px;opacity:.6">pts</span>':''}
+      </label>`).join('');
+  }
+
+  document.getElementById('wiz-body').innerHTML=`
+    <p style="font-size:13px;color:var(--g600);margin-bottom:16px">
+      Select which events this competition will run.
+      Distance events (marked <strong>pts</strong>) count toward group overall standings.
+    </p>
+    <div class="ev-section">
+      <div class="ev-section-title">Individual Events</div>
+      <div class="select-all-row">
+        <button class="sa-btn" onclick="selectAll('ind',true)">Select all</button>
+        <button class="sa-btn" onclick="selectAll('ind',false)">Clear</button>
+      </div>
+      <div class="ev-grid" id="ind-checks">${checkboxes(ind)}</div>
+    </div>
+    <div class="ev-section">
+      <div class="ev-section-title">Relay Events</div>
+      <div class="select-all-row">
+        <button class="sa-btn" onclick="selectAll('rel',true)">Select all</button>
+        <button class="sa-btn" onclick="selectAll('rel',false)">Clear</button>
+      </div>
+      <div class="ev-grid" id="rel-checks">${checkboxes(rel,'relay-check')}</div>
+    </div>`;
+
+  // Store currentTb for step 3
+  document.getElementById('wiz-body').dataset.currentTb=currentTb;
+
+  document.getElementById('wiz-foot').innerHTML=`
+    <button class="btn btn-outline" onclick="closeWizard()">Cancel</button>
+    <button class="btn btn-primary" onclick="goStep3()">Next: Set Tiebreaker →</button>`;
+}
+
+function selectAll(group,val){
+  const container=document.getElementById(group==='ind'?'ind-checks':'rel-checks');
+  container.querySelectorAll('.ev-check').forEach(label=>{
+    label.querySelector('input').checked=val;
+    label.classList.toggle('checked',val);
+  });
+}
+
+// ── Step 3: Tiebreaker ───────────────────────────────────────────────────────
+async function goStep3(){
+  const checked=getCheckedEvents();
+  if(!checked.length){toast('Select at least one event','error');return;}
+
+  // Save events first
+  const r=await fetch(`/api/${wizCompId}/comp_events`,{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({events:checked})});
+  const d=await r.json();
+  if(!d.ok){toast(d.error||'Error','error');return;}
+
+  const currentTb=document.getElementById('wiz-body').dataset.currentTb||'';
+  // Only points events can be tiebreaker
+  const pointsEvs=allTemplates.filter(t=>t.points_event&&checked.includes(t.name)).map(t=>t.name);
+  renderStep3(pointsEvs, currentTb);
+}
+
+function renderStep3(pointsEvs, currentTb=''){
+  setSteps(3);
+  if(!pointsEvs.length){
+    // No points events selected — skip tiebreaker and go straight to comp
+    window.location=`/comp/${wizCompId}`;
+    return;
+  }
+  document.getElementById('wiz-body').innerHTML=`
+    <div style="margin-bottom:20px">
+      <div style="font-size:24px;margin-bottom:8px">⚖️</div>
+      <h4 style="font-size:15px;font-weight:700;margin-bottom:6px">Tiebreaker Race</h4>
+      <p style="font-size:13px;color:var(--g600);line-height:1.5">
+        When two skaters finish with equal overall points, the tiebreaker race determines who ranks higher.
+        Whoever placed better in the tiebreaker race gets the higher position.
+        If still tied after the tiebreaker, the operator resolves it manually.
+      </p>
+    </div>
+    <div class="form-grp">
+      <label class="form-lbl">Select the tiebreaker event *</label>
+      <div style="display:flex;flex-direction:column;gap:8px" id="tb-radio-group">
+        ${pointsEvs.map(ev=>`
+          <label style="display:flex;align-items:center;gap:12px;padding:12px 14px;
+            border:1px solid var(--g200);border-radius:9px;cursor:pointer;
+            transition:all .12s;font-size:14px;font-weight:500"
+            onmouseover="this.style.borderColor='var(--orange)';this.style.background='var(--orange-l)'"
+            onmouseout="syncTbStyle(this)">
+            <input type="radio" name="tb-ev" value="${ev}" ${ev===currentTb?'checked':''}
+              style="accent-color:var(--orange);width:17px;height:17px"
+              onchange="syncAllTbStyles()">
+            ${ev}
+            ${ev===currentTb?'<span style="margin-left:auto;font-size:11px;background:var(--orange-l);color:var(--orange-d);padding:2px 8px;border-radius:10px;font-weight:600">Current</span>':''}
+          </label>`).join('')}
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--g400);margin-top:8px">
+      This applies to all race groups in this competition. You can change it later from the Standings tab.
+    </p>`;
+
+  // Pre-select first if nothing selected
+  const radios=document.querySelectorAll('input[name="tb-ev"]');
+  if(![...radios].some(r=>r.checked)) radios[0].checked=true;
+  syncAllTbStyles();
+
+  document.getElementById('wiz-foot').innerHTML=`
+    <button class="btn btn-outline" onclick="backToStep2()">← Back</button>
+    <button class="btn btn-primary" onclick="saveTiebreakerAndFinish()">✓ Save & Open Competition</button>`;
+}
+
+function syncTbStyle(label){
+  const checked=label.querySelector('input').checked;
+  label.style.borderColor=checked?'var(--orange)':'var(--g200)';
+  label.style.background=checked?'var(--orange-l)':'';
+}
+function syncAllTbStyles(){
+  document.querySelectorAll('#tb-radio-group label').forEach(syncTbStyle);
+}
+
+function backToStep2(){
+  // Reload step 2 with current selections
+  const r2=document.getElementById('wiz-body');
+  renderStep2(new Set(), ''); // will re-fetch — simplest approach
+  // Re-check previously saved events
+  fetch(`/api/${wizCompId}/comp_events`).then(r=>r.json()).then(evs=>{
+    const sel=new Set(evs.map(e=>e.name));
+    document.querySelectorAll('.ev-check input').forEach(cb=>{
+      if(sel.has(cb.closest('.ev-check').textContent.trim().replace(/pts$/,'').trim())){
+        cb.checked=true;cb.closest('.ev-check').classList.add('checked');
+      }
+    });
+  });
+}
+
+async function saveTiebreakerAndFinish(){
+  const sel=document.querySelector('input[name="tb-ev"]:checked');
+  if(!sel){toast('Please select a tiebreaker event','error');return;}
+  const r=await fetch(`/api/${wizCompId}/tiebreaker`,{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({event_name:sel.value})});
+  const d=await r.json();
+  if(d.ok){closeWizard();window.location=`/comp/${wizCompId}`;}
+  else toast(d.error||'Error','error');
+}
+
+function getCheckedEvents(){
+  return [...document.querySelectorAll('.ev-check input:checked')]
+    .map(cb=>cb.closest('.ev-check').textContent.trim().replace(/pts$/,'').trim());
+}
+
+async function deleteComp(id,name){
+  if(!confirm(`Delete "${name}" and all its data?\nThis cannot be undone.`)) return;
+  const r=await fetch('/api/competitions/'+id,{method:'DELETE'});
+  const d=await r.json();
+  if(d.ok){document.getElementById('card-'+id)?.remove();toast('Deleted','success');}
+  else toast('Error','error');
+}
+
+document.getElementById('wizard-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('wizard-modal')) closeWizard();
+});
+</script>
+</body>
+</html>
