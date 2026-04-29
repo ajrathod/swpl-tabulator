@@ -153,6 +153,7 @@
     <label class="btn btn-outline btn-sm" style="cursor:pointer">
       🔄 Relay Master <input type="file" id="up-rel" accept=".xlsx,.xls" style="display:none">
     </label>
+    <a href="/registry" class="btn btn-outline btn-sm">🗂 Registry</a>
     <a href="/athletes" class="btn btn-outline btn-sm">⛸️ Athletes</a>
     <a href="/public/{{comp.id}}" target="_blank" class="btn btn-blue btn-sm">👁 Public ↗</a>
   </div>
@@ -263,7 +264,28 @@ document.getElementById('up-ind').addEventListener('change',async e=>{
   const r=await fetch(`/api/upload/individual/${COMP_ID}`,{method:'POST',body:fd});
   const d=await r.json();
   if(d.ok){toast(`✓ ${d.skater_count} skaters loaded`,'success');await refreshGroups();if(d.groups.length)selectGroup(d.groups[0]);}
-  else toast(d.error,'error');
+  else {
+    if (d.missing && d.missing.length) {
+      const names = d.missing.map(a=>`${a.first} ${a.last} (#${a.panel})`).join(', ');
+      toast(`❌ ${d.missing_count} athletes not in registry`, 'error');
+      // Show detailed alert
+      const gv = document.getElementById('grp-view');
+      gv.style.display='block';
+      document.getElementById('welcome').style.display='none';
+      gv.innerHTML=`<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:12px;padding:20px 24px;max-width:700px">
+        <h3 style="color:#C62828;margin-bottom:8px">⚠️ Import blocked — ${d.missing_count} athlete(s) not in registry</h3>
+        <p style="font-size:13px;color:#C62828;margin-bottom:14px">
+          All athletes must be registered before importing an event sheet.
+          Go to <a href="/registry" style="color:#C62828;font-weight:600">🗂 Registry</a> to add them.
+        </p>
+        <div style="background:#fff;border-radius:8px;overflow:hidden;border:1px solid #FFCDD2">
+          ${d.missing.map(a=>`<div style="padding:8px 14px;border-bottom:1px solid #FFCDD2;font-size:13px;font-family:'DM Mono',monospace;color:#C62828">
+            ${a.first} ${a.last} &nbsp;·&nbsp; Panel #${a.panel} &nbsp;·&nbsp; ${a.club}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    } else toast(d.error,'error');
+  }
   e.target.value='';
 });
 document.getElementById('up-rel').addEventListener('change',async e=>{
@@ -272,7 +294,28 @@ document.getElementById('up-rel').addEventListener('change',async e=>{
   const r=await fetch(`/api/upload/relay/${COMP_ID}`,{method:'POST',body:fd});
   const d=await r.json();
   if(d.ok){toast('✓ Relay data loaded','success');refreshRelays();}
-  else toast(d.error,'error');
+  else {
+    if (d.missing && d.missing.length) {
+      const names = d.missing.map(a=>`${a.first} ${a.last} (#${a.panel})`).join(', ');
+      toast(`❌ ${d.missing_count} athletes not in registry`, 'error');
+      // Show detailed alert
+      const gv = document.getElementById('grp-view');
+      gv.style.display='block';
+      document.getElementById('welcome').style.display='none';
+      gv.innerHTML=`<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:12px;padding:20px 24px;max-width:700px">
+        <h3 style="color:#C62828;margin-bottom:8px">⚠️ Import blocked — ${d.missing_count} athlete(s) not in registry</h3>
+        <p style="font-size:13px;color:#C62828;margin-bottom:14px">
+          All athletes must be registered before importing an event sheet.
+          Go to <a href="/registry" style="color:#C62828;font-weight:600">🗂 Registry</a> to add them.
+        </p>
+        <div style="background:#fff;border-radius:8px;overflow:hidden;border:1px solid #FFCDD2">
+          ${d.missing.map(a=>`<div style="padding:8px 14px;border-bottom:1px solid #FFCDD2;font-size:13px;font-family:'DM Mono',monospace;color:#C62828">
+            ${a.first} ${a.last} &nbsp;·&nbsp; Panel #${a.panel} &nbsp;·&nbsp; ${a.club}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    } else toast(d.error,'error');
+  }
   e.target.value='';
 });
 
