@@ -453,11 +453,26 @@ function hCard(heat, color, parentId, kind) {
   const rows = items.map((s,i) => {
     const pl = s.placement;
     const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
-    const nameCell = isRelay ? `${s.club} <span class="text-gray-400 text-xs">[${s.color}]</span>` : s.full_name;
-    const idAttr   = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
+    const idAttr = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
+
+    let nameCell = '';
+    if (isRelay) {
+      const RBIB = {red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#212121',
+        yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#9E9E9E'};
+      const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
+      const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').slice(0,3).join(', ');
+      nameCell = `<div class="font-semibold text-sm">${s.club}
+        <span class="inline-flex items-center gap-1 ml-1.5 text-xs font-normal text-gray-400">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>${s.color||'—'}
+        </span></div>
+        ${memberStr ? `<div class="text-xs text-gray-400 mt-0.5">${memberStr}</div>` : ''}`;
+    } else {
+      nameCell = `<span class="font-medium text-sm">${s.full_name}</span>`;
+    }
+
     return `<tr class="${rc}">
       <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
-      <td class="px-3 py-2 text-sm font-medium">${nameCell}</td>
+      <td class="px-3 py-2">${nameCell}</td>
       ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
         <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
       <td class="px-3 py-2">
