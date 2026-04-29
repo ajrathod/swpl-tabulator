@@ -283,6 +283,12 @@ async function refreshRelays() {
     <button onclick="showRelay('${esc(ev)}',${JSON.stringify(data[ev]).replace(/"/g,'&quot;')})"
       class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
   ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+
+  // If a relay event is currently shown, refresh it too
+  const curRelayName = document.getElementById('grp-view')._curRelayName;
+  if (curRelayName && data[curRelayName]) {
+    showRelay(curRelayName, data[curRelayName]);
+  }
 }
 
 // ── Group view ───────────────────────────────────────────────────────────────
@@ -724,7 +730,18 @@ function showRelay(evName, ev) {
   document.getElementById('welcome').classList.add('hidden');
   document.getElementById('grp-view').classList.remove('hidden');
   const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#1a1a1a',yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
-  let html = `<div class="flex items-center gap-3 mb-5"><h2 class="text-xl font-bold">🔄 ${evName}</h2></div>`;
+
+  let html = `
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold">🔄 ${evName}</h2>
+      <span class="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full">${(ev.teams||[]).length} teams</span>
+      <div class="ml-auto flex gap-2">
+        <button onclick="reseedEv(${ev.id},'relay')"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
+          🔄 Re-seed All Heats
+        </button>
+      </div>
+    </div>`;
 
   const mkSection = (title, color, heats, advFrom) => {
     if (!heats?.length) return '';
@@ -752,10 +769,12 @@ function showRelay(evName, ev) {
       <div class="px-4 py-2 pb-3" style="background:${c};opacity:.9">${mems}</div>
     </div>`;
   }).join('');
-  if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid grid-cols-auto gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
+  if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
 
   document.getElementById('grp-view').innerHTML = html;
   document.getElementById('grp-view')._events = {[evName]: ev};
+  // Store current relay name so reseed can refresh this view
+  document.getElementById('grp-view')._curRelayName = evName;
 }
 
 // ── Transfer modal ────────────────────────────────────────────────────────────
