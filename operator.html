@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{comp.name}} — Operator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { DEFAULT:'#F4511E', dark:'#BF360C', light:'#FFF3F0' },
+      }
+    }
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'DM Sans', sans-serif; }
+  code, .mono { font-family: 'DM Mono', monospace; }
+  .sortable-ghost  { opacity: .4; }
+  .sortable-chosen { box-shadow: 0 0 0 2px #F4511E; border-radius: 8px; }
+  .drag-handle { cursor: grab; }
+  .drag-handle:active { cursor: grabbing; }
+  /* Thin scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+<!-- ── Top bar ── -->
+<header class="fixed top-0 inset-x-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4 gap-3 shadow-sm">
+  <a href="/" class="text-gray-400 hover:text-gray-700 text-sm flex items-center gap-1">← Competitions</a>
+  <span class="text-gray-300">/</span>
+  <span class="font-bold text-gray-900 text-sm truncate max-w-xs">{{comp.name}}</span>
+  <div class="ml-auto flex items-center gap-2">
+    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+      📋 Individual Master
+      <input type="file" id="up-ind" accept=".xlsx,.xls" class="hidden">
+    </label>
+    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+      🔄 Relay Master
+      <input type="file" id="up-rel" accept=".xlsx,.xls" class="hidden">
+    </label>
+    <a href="/registry" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">🗂 Registry</a>
+    <a href="/athletes" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">⛸️ Athletes</a>
+    <a href="/public/{{comp.id}}" target="_blank"
+       class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">👁 Public ↗</a>
+  </div>
+</header>
+
+<!-- ── Layout ── -->
+<div class="flex pt-14 min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
+    <div class="px-3 pt-4 pb-2">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
+      <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-4">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Relay Events</p>
+      <div id="relay-list"></div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="ml-60 flex-1 p-6" id="main">
+
+    <!-- Welcome / Public URL banner -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 flex items-center gap-3 mb-6 flex-wrap">
+      <span class="text-white text-sm font-semibold">📡 Public URL for parents:</span>
+      <code class="flex-1 bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg mono" id="pub-url"></code>
+      <button onclick="copyPub()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-lg transition">Copy</button>
+    </div>
+
+    <!-- Upload prompt (shown when no data loaded) -->
+    <div id="welcome" class="grid grid-cols-2 gap-4 max-w-2xl">
+      <label class="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-brand hover:bg-brand-light transition" onclick="document.getElementById('up-ind').click()">
+        <div class="text-3xl mb-2">📋</div>
+        <div class="font-semibold text-gray-700">Individual Master Sheet</div>
+        <div class="text-xs text-gray-400 mt-1">Auto-seeds heats from registry</div>
+      </label>
+      <label class="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-brand hover:bg-brand-light transition" onclick="document.getElementById('up-rel').click()">
+        <div class="text-3xl mb-2">🔄</div>
+        <div class="font-semibold text-gray-700">Relay Master Sheet</div>
+        <div class="text-xs text-gray-400 mt-1">Heat/semi/final structure</div>
+      </label>
+    </div>
+
+    <!-- Group view (shown after data loads) -->
+    <div id="grp-view" class="hidden"></div>
+
+  </main>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast" class="fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
+
+<!-- ── Drag & Drop Heat Editor Modal ── -->
+<div id="dd-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+    <!-- Modal header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold" id="dd-title">Edit Heats</h2>
+        <p class="text-sm text-gray-500 mt-0.5">Drag skaters between heats to rearrange. Changes save when you click Save.</p>
+      </div>
+      <button onclick="closeDDModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <!-- Modal toolbar -->
+    <div class="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50">
+      <button onclick="ddAddHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">+ Add Heat</button>
+      <button onclick="ddRemoveLastHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">− Remove Last Heat</button>
+      <div class="flex-1"></div>
+      <span class="text-xs text-gray-400" id="dd-unassigned-count"></span>
+    </div>
+    <!-- Heat columns -->
+    <div class="flex-1 overflow-auto p-6">
+      <div class="flex gap-4 min-h-64" id="dd-columns"></div>
+    </div>
+    <!-- Modal footer -->
+    <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+      <button onclick="closeDDModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+      <button onclick="saveDDModal()" class="px-5 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">💾 Save Heat Arrangement</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Transfer Modal ── -->
+<div id="xfer-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">↔ Transfer Skater</h2>
+      <button onclick="closeModal('xfer-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">From group</label>
+        <div id="xfer-from" class="font-semibold text-brand"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Select skater(s) — ⌘/Ctrl for multi</label>
+        <div id="xfer-sk-list" class="border border-gray-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Move to group</label>
+        <select id="xfer-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"></select>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('xfer-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doTransfer()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">↔ Transfer & Re-seed</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Event Modal ── -->
+<div id="addEv-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add Event</h2>
+      <button onclick="closeModal('addEv-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Event name</label>
+        <input id="ev-name-inp" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. 300M Sprint">
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400">Type</label>
+        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-light transition">
+          <input type="radio" name="evtype" value="heat_based" checked class="mt-0.5 accent-brand">
+          <div><div class="font-semibold text-sm">Heats / Semis / Final</div><div class="text-xs text-gray-400">Auto-seeds based on roster</div></div>
+        </label>
+        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-light transition">
+          <input type="radio" name="evtype" value="direct_final" class="mt-0.5 accent-brand">
+          <div><div class="font-semibold text-sm">Direct Final</div><div class="text-xs text-gray-400">Open / Elimination — no heats</div></div>
+        </label>
+      </div>
+      <label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
+        <input type="checkbox" id="ev-points" class="accent-brand w-4 h-4">
+        Count toward group overall standings (30/20/10/5 pts)
+      </label>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('addEv-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddEvent()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700">Create Event</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COMP_ID = {{comp.id}};
+let curGroup = null, curEvent = null, allGroups = {};
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  const colors = {success:'bg-green-600', error:'bg-red-600', '':'bg-gray-900'};
+  t.className = `fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${colors[type]||colors['']}`;
+  t.textContent = msg;
+  t.style.opacity = '1'; t.style.transform = 'translateY(0)';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(8px)'; }, 3200);
+}
+
+// ── Public URL ───────────────────────────────────────────────────────────────
+const pubUrl = `${location.protocol}//${location.hostname}:${location.port}/public/${COMP_ID}`;
+document.getElementById('pub-url').textContent = pubUrl;
+function copyPub() { navigator.clipboard.writeText(pubUrl).then(()=>toast('✓ URL copied!','success')); }
+
+// ── Upload ───────────────────────────────────────────────────────────────────
+document.getElementById('up-ind').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  toast('Loading…');
+  const r = await fetch(`/api/upload/individual/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ ${d.skater_count} skaters loaded`, 'success');
+    await refreshGroups();
+    if (d.groups.length) selectGroup(d.groups[0]);
+  } else {
+    if (d.missing?.length) {
+      toast(`❌ ${d.missing_count} athletes not in registry`, 'error');
+      showMissingAlert(d.missing);
+    } else toast(d.error, 'error');
+  }
+  e.target.value = '';
+});
+
+document.getElementById('up-rel').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await fetch(`/api/upload/relay/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Relay data loaded', 'success'); refreshRelays(); }
+  else toast(d.error, 'error');
+  e.target.value = '';
+});
+
+function showMissingAlert(missing) {
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  document.getElementById('grp-view').innerHTML = `
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-2xl">
+      <h3 class="text-red-700 font-bold text-base mb-2">⚠️ Import blocked — ${missing.length} athlete(s) not in registry</h3>
+      <p class="text-red-600 text-sm mb-4">All athletes must be registered before importing.
+        <a href="/registry" class="underline font-semibold">Go to Registry →</a></p>
+      <div class="bg-white border border-red-100 rounded-xl overflow-hidden">
+        ${missing.map(a=>`<div class="px-4 py-2.5 border-b border-red-50 last:border-0 text-sm mono text-red-700">
+          ${a.first} ${a.last} · Panel #${a.panel} · ${a.club}</div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Groups ───────────────────────────────────────────────────────────────────
+async function refreshGroups() {
+  const r = await fetch(`/api/${COMP_ID}/groups`);
+  allGroups = await r.json();
+  const list = document.getElementById('grp-list');
+  const sorted = Object.entries(allGroups).sort((a,b)=>a[0].localeCompare(b[0]));
+  list.innerHTML = sorted.map(([g,info]) => `
+    <button onclick="selectGroup('${esc(g)}')"
+      class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 group-btn" data-group="${esc(g)}">
+      <span class="truncate">${g}</span>
+      <span class="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">${info.skater_count}</span>
+    </button>`).join('');
+}
+
+async function refreshRelays() {
+  const r = await fetch(`/api/${COMP_ID}/relays`);
+  const data = await r.json();
+  // Store relay data in a JS map — avoids HTML attribute encoding issues
+  window._relayData = data;
+  const list = document.getElementById('relay-list');
+  list.innerHTML = Object.keys(data).map(ev => `
+    <button onclick="showRelayByName('${esc(ev)}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
+  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+
+  // If a relay event is currently shown, refresh it
+  const curRelayName = document.getElementById('grp-view')._curRelayName;
+  if (curRelayName && data[curRelayName]) {
+    showRelay(curRelayName, data[curRelayName]);
+  }
+}
+
+function showRelayByName(evName) {
+  const data = window._relayData || {};
+  if (data[evName]) showRelay(evName, data[evName]);
+}
+
+// ── Group view ───────────────────────────────────────────────────────────────
+async function selectGroup(group) {
+  curGroup = group;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    const active = b.dataset.group === group;
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn ${
+      active ? 'bg-orange-50 text-brand font-semibold' : 'text-gray-700 hover:bg-gray-100'
+    }`;
+    b.querySelector('span:last-child').className = `ml-2 text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+      active ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'
+    }`;
+  });
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const events = await r.json();
+  renderGroupView(group, events);
+}
+
+function renderGroupView(group, events) {
+  const info = allGroups[group] || {};
+  const evNames = Object.keys(events);
+  const hasPoints = Object.values(events).some(e => e.points_event);
+  if (!curEvent || !events[curEvent]) curEvent = evNames[0];
+
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  const gv = document.getElementById('grp-view');
+
+  gv.innerHTML = `
+    <!-- Group header -->
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold text-gray-900">${group}</h2>
+      <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">${info.skater_count||0} skaters</span>
+      <div class="ml-auto flex gap-2">
+        <button onclick="openXfer('${esc(group)}')"
+          class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">↔ Transfer</button>
+        <button onclick="openAddEv('${esc(group)}')"
+          class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">+ Add Event</button>
+      </div>
+    </div>
+    <!-- Event tabs -->
+    <div class="flex gap-1 border-b border-gray-200 mb-5 overflow-x-auto" id="ev-tabs">
+      ${evNames.map(n=>`
+        <button class="ev-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+          n===curEvent ? 'border-brand text-brand bg-orange-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
+        }" onclick="switchEv('${esc(group)}','${esc(n)}',this)">${n}</button>`).join('')}
+      ${hasPoints ? `<button class="ev-tab standings-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+        curEvent==='__standings__' ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
+      }" onclick="switchEv('${esc(group)}','__standings__',this)">🏆 Standings</button>` : ''}
+    </div>
+    <div id="ev-body"></div>`;
+
+  gv._events = events;
+  if (curEvent === '__standings__') loadStandings(group);
+  else renderEvent(events[curEvent]);
+}
+
+function switchEv(group, name, btn) {
+  curEvent = name;
+  document.querySelectorAll('.ev-tab').forEach(b => {
+    const isStandings = b.classList.contains('standings-tab');
+    const active = b === btn;
+    b.className = `ev-tab ${isStandings?'standings-tab':''} px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+      active
+        ? (isStandings ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-brand text-brand bg-orange-50 rounded-t-lg')
+        : 'border-transparent text-gray-500 hover:text-gray-800'
+    }`;
+  });
+  if (name === '__standings__') { loadStandings(group); return; }
+  renderEvent((document.getElementById('grp-view')._events||{})[name]);
+}
+
+// ── Render event ─────────────────────────────────────────────────────────────
+function renderEvent(ev) {
+  const body = document.getElementById('ev-body');
+  if (!ev) { body.innerHTML = ''; return; }
+  let html = '';
+
+  if (ev.type === 'direct_final') {
+    html += `<div class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">🏁 Direct Final — all skaters go straight to the final</div>`;
+    html += renderStage('Final', ev.finals, 'final', ev.id, 'individual');
+    body.innerHTML = html; return;
+  }
+
+  if (ev.heats.length) {
+    html += stageHeader('Heats', 'blue', ev.id, 'Heat', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.heats.map(h=>hCard(h,'heat',ev.id,'individual')).join('')}</div>`;
+    html += advBar('blue', ev.id, 'heats', 'individual', 'Advance qualifiers from Heats →');
+  }
+  if (ev.semis.length) {
+    html += stageHeader('Semi-Finals', 'green', ev.id, 'Semi', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.semis.map(h=>hCard(h,'semi',ev.id,'individual')).join('')}</div>`;
+    html += advBar('green', ev.id, 'semis', 'individual', 'Advance top 3 from each Semi →');
+  }
+  if (ev.finals.length) {
+    html += stageHeader('Final', 'yellow', ev.id, 'Final', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.finals.map(h=>hCard(h,'final',ev.id,'individual')).join('')}</div>`;
+  }
+
+  html += `<div class="flex items-center gap-3 mt-2">
+    <button onclick="reseedEv(${ev.id},'individual')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🔄 Re-seed All Heats</button>
+    <span class="text-xs text-gray-400">Rebuilds from current roster · Saved results preserved</span>
+    ${ev.points_event ? '<span class="text-xs text-yellow-600 font-semibold bg-yellow-50 px-2 py-1 rounded-full">🏆 Counts toward standings</span>' : ''}
+  </div>`;
+  body.innerHTML = html;
+}
+
+function stageHeader(label, color, evId, stage, kind) {
+  const colors = {blue:'text-blue-600',green:'text-green-600',yellow:'text-yellow-600'};
+  const editStages = {'Heat':'Heat','Semi':'Semi','Final':'Final'};
+  return `<div class="flex items-center gap-3 mb-3 mt-5">
+    <span class="text-xs font-bold uppercase tracking-widest ${colors[color]||'text-gray-500'}">${label}</span>
+    <div class="flex-1 h-px bg-gray-200"></div>
+    <button onclick="openDDModal(${evId},'${stage}','${kind}')"
+      class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center gap-1">
+      ✏️ Edit ${label}
+    </button>
+  </div>`;
+}
+
+function renderStage(label, heats, color, evId, kind) {
+  return stageHeader(label,'yellow',evId,'Final',kind) +
+    `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,color,evId,kind)).join('')}</div>`;
+}
+
+function advBar(color, evId, from, kind, label) {
+  const bg = {blue:'bg-blue-50 border-blue-100', green:'bg-green-50 border-green-100'}[color];
+  const btn = {blue:'bg-blue-600 hover:bg-blue-700', green:'bg-green-600 hover:bg-green-700'}[color];
+  return `<div class="flex items-center gap-3 border ${bg} rounded-xl px-4 py-3 mb-5">
+    <p class="text-sm text-gray-600 flex-1">Save results, then advance qualifiers.</p>
+    <button onclick="advance(${evId},'${from}','${kind}')"
+      class="px-3 py-1.5 ${btn} text-white rounded-lg text-xs font-semibold transition">${label}</button>
+  </div>`;
+}
+
+// ── Heat card ─────────────────────────────────────────────────────────────────
+function hCard(heat, color, parentId, kind) {
+  const isRelay = kind === 'relay';
+  const items   = isRelay ? heat.teams : heat.skaters;
+  const label   = heat.stage === 'Final' ? 'Final' : `${heat.stage} ${heat.number}`;
+
+  const hdrs = {heat:'bg-blue-600', semi:'bg-green-600', final:'bg-yellow-500', direct:'bg-purple-600'};
+  const hdrBg = hdrs[color] || 'bg-gray-600';
+
+  if (!items?.length) return `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
+      <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+        <span class="text-white text-sm font-bold">${label}</span>
+        <span class="text-white/70 text-xs">0 skaters</span>
+      </div>
+      <div class="p-6 text-center text-gray-400 text-sm">Waiting for advancement</div>
+    </div>`;
+
+  const rows = items.map((s,i) => {
+    const pl = s.placement;
+    const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
+    const nameCell = isRelay ? `${s.club} <span class="text-gray-400 text-xs">[${s.color}]</span>` : s.full_name;
+    const idAttr   = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
+    return `<tr class="${rc}">
+      <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
+      <td class="px-3 py-2 text-sm font-medium">${nameCell}</td>
+      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
+        <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
+      <td class="px-3 py-2">
+        <input type="text" value="${pl||''}" placeholder="—"
+          class="w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
+          data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
+          onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
+          oninput="this.classList.toggle('bg-red-50',this.value.toUpperCase()==='DQ');this.classList.toggle('text-red-600',this.value.toUpperCase()==='DQ')">
+      </td>
+    </tr>`;
+  }).join('');
+
+  const colHdrs = isRelay
+    ? '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th><th class="px-3 py-2">Place</th>'
+    : '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Panel</th><th class="px-3 py-2 text-left">Club</th><th class="px-3 py-2">Place</th>';
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
+    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+      <span class="text-white text-sm font-bold">${label}</span>
+      <span class="text-white/70 text-xs">${items.length} skaters</span>
+    </div>
+    <table class="w-full">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
+      <tbody class="divide-y divide-gray-50">${rows}</tbody>
+    </table>
+    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100">
+      <button onclick="saveCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
+      <button onclick="clearCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">✕ Clear</button>
+      <span class="text-xs text-gray-400 ml-auto">1–6 or DQ · ↵ save</span>
+    </div>
+  </div>`;
+}
+
+// ── Save results ──────────────────────────────────────────────────────────────
+async function saveCard(heatId, kind) {
+  const inputs = document.querySelectorAll(`input[data-heatid="${heatId}"]`);
+  const results = {};
+  inputs.forEach(inp => {
+    const v = inp.value.trim(); if (!v) return;
+    const key = kind==='relay' ? inp.dataset.team : inp.dataset.panel;
+    results[key] = v;
+  });
+  const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results} : {heat_id:heatId,results};
+  const r = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) toast('✓ Saved','success'); else toast(d.error,'error');
+}
+
+async function clearCard(heatId, kind) {
+  const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results:{}} : {heat_id:heatId,results:{}};
+  await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(kind==='relay') refreshRelays(); else selectGroup(curGroup);
+}
+
+// ── Advance / Reseed ──────────────────────────────────────────────────────────
+async function advance(id, from, kind) {
+  const url     = kind==='relay' ? '/api/advance_relay' : '/api/advance';
+  const payload = kind==='relay' ? {relay_event_id:id,from} : {event_id:id,from};
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) { toast('✓ '+d.message,'success'); kind==='relay'?refreshRelays():selectGroup(curGroup); }
+  else toast(d.error||'Error','error');
+}
+
+async function reseedEv(id, kind) {
+  if (!confirm('Re-seed heats from current roster?\nSaved results are preserved.')) return;
+  const url     = kind==='relay' ? '/api/reseed_relay' : '/api/reseed';
+  const payload = kind==='relay' ? {relay_event_id:id} : {event_id:id};
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) { toast('✓ '+d.message,'success'); kind==='relay'?refreshRelays():selectGroup(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Drag & Drop Heat Editor ───────────────────────────────────────────────────
+let ddEvId = null, ddStage = null, ddKind = null, ddSortables = [];
+
+function openDDModal(evId, stage, kind) {
+  ddEvId=evId; ddStage=stage; ddKind=kind;
+  const events = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(events).find(e=>e.id===evId);
+  if (!ev) { toast('Event data not found — try refreshing','error'); return; }
+  const stageKey = {Heat:'heats',Semi:'semis',Final:'finals'}[stage];
+  const heats = ev[stageKey] || [];
+  const evLabel = ev.name || Object.keys(events)[0] || '';
+  document.getElementById('dd-title').textContent = `Edit ${stage}s — ${evLabel}`;
+
+  if (kind === 'relay') {
+    // For relay: use teams as the participant pool
+    const allTeams = (ev.teams || []).map(t => ({
+      panel: String(t.team_id), // use team_id as unique key
+      full_name: `${t.club}`,
+      club: t.color || '',
+    }));
+    // Build relay heats with team_id as panel key
+    const relayHeats = heats.map(h => ({
+      ...h,
+      skaters: (h.teams||[]).map(t => ({
+        panel: String(t.team_id),
+        full_name: t.club,
+        club: t.color || '',
+      }))
+    }));
+    buildDDColumns(relayHeats, allTeams);
+  } else {
+    buildDDColumns(heats, ev.skaters || []);
+  }
+  document.getElementById('dd-modal').classList.remove('hidden');
+}
+
+function buildDDColumns(heats, allSkaters) {
+  // Collect all assigned panels
+  const assigned = new Set(heats.flatMap(h => h.skaters.map(s=>s.panel)));
+  // Unassigned = in group but not in any heat
+  const unassigned = allSkaters.filter(s => !assigned.has(s.panel));
+
+  ddSortables.forEach(s => s.destroy());
+  ddSortables = [];
+
+  const cols = document.getElementById('dd-columns');
+  cols.innerHTML = '';
+
+  // Unassigned pool column
+  const poolCol = mkDDColumn('pool', '📋 Unassigned', unassigned, '#6B7280');
+  cols.appendChild(poolCol);
+
+  // Heat columns
+  heats.forEach((heat, i) => {
+    const col = mkDDColumn(`heat-${i}`, `${ddStage} ${heat.number}`, heat.skaters,
+      ddStage==='Heat'?'#1565C0':ddStage==='Semi'?'#2E7D32':'#F9A825');
+    cols.appendChild(col);
+  });
+
+  // Init SortableJS on each list
+  cols.querySelectorAll('.dd-list').forEach(list => {
+    ddSortables.push(Sortable.create(list, {
+      group: 'heats',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      handle: '.drag-handle',
+      onEnd: updateUnassignedCount,
+    }));
+  });
+  updateUnassignedCount();
+}
+
+function mkDDColumn(id, label, skaters, color) {
+  const div = document.createElement('div');
+  div.className = 'flex flex-col min-w-48 w-48 flex-shrink-0';
+  div.innerHTML = `
+    <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1" style="color:${color}">${label}</div>
+    <div class="dd-list flex-1 min-h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-2 space-y-1.5" data-col="${id}">
+      ${skaters.map(s=>`
+        <div class="bg-white rounded-lg border border-gray-100 shadow-sm px-3 py-2 flex items-center gap-2 cursor-default" data-panel="${s.panel}">
+          <span class="drag-handle text-gray-300 text-sm select-none">⠿</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold truncate">${s.full_name||s.name||''}</div>
+            <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club||''}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  return div;
+}
+
+function updateUnassignedCount() {
+  const pool = document.querySelector('.dd-list[data-col="pool"]');
+  const n = pool ? pool.children.length : 0;
+  document.getElementById('dd-unassigned-count').textContent = n > 0 ? `⚠️ ${n} unassigned` : '✓ All assigned';
+  document.getElementById('dd-unassigned-count').className = n > 0 ? 'text-xs text-orange-500 font-semibold' : 'text-xs text-green-600 font-semibold';
+}
+
+function ddAddHeat() {
+  const cols = document.getElementById('dd-columns');
+  const count = cols.querySelectorAll('.dd-list:not([data-col="pool"])').length + 1;
+  const col = mkDDColumn(`heat-${count-1}`, `${ddStage} ${count}`, [],
+    ddStage==='Heat'?'#1565C0':ddStage==='Semi'?'#2E7D32':'#F9A825');
+  cols.appendChild(col);
+  const list = col.querySelector('.dd-list');
+  ddSortables.push(Sortable.create(list, {group:'heats',animation:150,ghostClass:'sortable-ghost',chosenClass:'sortable-chosen',handle:'.drag-handle',onEnd:updateUnassignedCount}));
+}
+
+function ddRemoveLastHeat() {
+  const cols = document.getElementById('dd-columns');
+  const heatCols = [...cols.children].filter(c => !c.querySelector('[data-col="pool"]'));
+  if (heatCols.length <= 1) { toast('Need at least 1 heat','error'); return; }
+  const last = heatCols[heatCols.length-1];
+  // Move skaters back to pool
+  const pool = cols.querySelector('[data-col="pool"]');
+  [...last.querySelectorAll('[data-panel]')].forEach(card => pool.appendChild(card));
+  last.remove();
+  updateUnassignedCount();
+}
+
+async function saveDDModal() {
+  const cols = document.getElementById('dd-columns');
+  const heatCols = [...cols.querySelectorAll('.dd-list')].filter(l => l.dataset.col !== 'pool');
+  const heats = heatCols.map(col => ({
+    panels: [...col.querySelectorAll('[data-panel]')].map(c => c.dataset.panel)
+  }));
+  const r = await fetch('/api/arrange_heats', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({event_id: ddEvId, stage: ddStage, heats})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ Heat arrangement saved','success');
+    closeDDModal();
+    selectGroup(curGroup);
+  } else toast(d.error,'error');
+}
+
+function closeDDModal() {
+  document.getElementById('dd-modal').classList.add('hidden');
+  ddSortables.forEach(s => s.destroy());
+  ddSortables = [];
+}
+
+// ── Standings ─────────────────────────────────────────────────────────────────
+async function loadStandings(group) {
+  const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+  const d = await r.json();
+  const data = d.standings||[], tbEv = d.tiebreaker_event||'';
+  const body = document.getElementById('ev-body');
+  const evs  = document.getElementById('grp-view')._events||{};
+  const ptEvs= Object.values(evs).filter(e=>e.points_event).map(e=>e.name);
+
+  const tbBar = `<div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 mb-4 shadow-sm flex-wrap">
+    <span class="text-sm font-semibold text-gray-700">⚖️ Tiebreaker:</span>
+    <select id="tb-select" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-brand">
+      <option value="">None selected</option>
+      ${ptEvs.map(n=>`<option value="${esc(n)}"${n===tbEv?' selected':''}>${n}</option>`).join('')}
+    </select>
+    <button onclick="saveTiebreaker()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Save</button>
+    <span class="text-xs text-gray-400">Applied globally to all groups in this competition</span>
+  </div>`;
+
+  if (!data.length) {
+    body.innerHTML = tbBar + `<div class="text-center py-16 text-gray-400"><div class="text-4xl mb-3">📊</div><p>No final results yet</p></div>`;
+    return;
+  }
+
+  const rows = data.map(row => {
+    const pos = row.position;
+    const posEl = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':`<span class="text-sm font-semibold text-gray-500">${pos}</span>`;
+    const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+      const s = ['st','nd','rd'][info.place-1]||'th';
+      return `<span class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${ev.replace(' Distance','')}: <strong>${info.pts}pts</strong> (${info.place}${s})${ev===tbEv?' ⚖️':''}</span>`;
+    }).join(' ');
+    const tbWarn = row.tb_needed
+      ? `<span class="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold">⚠️ TIE</span>` : '';
+    return `<tr class="hover:bg-gray-50 transition">
+      <td class="px-4 py-3 text-lg">${posEl}</td>
+      <td class="px-4 py-3 font-semibold text-sm">${row.name}${tbWarn}</td>
+      <td class="px-4 py-3 mono text-xs text-gray-400">${row.panel}</td>
+      <td class="px-4 py-3 text-sm text-gray-500">${row.club}</td>
+      <td class="px-4 py-3"><span class="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1 rounded-full mono">${row.points}</span></td>
+      <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${bd||'—'}</div></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = tbBar + `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h3 class="font-bold text-sm">Overall Group Standings</h3>
+        <div class="flex gap-2 text-xs text-gray-400">
+          <span>1st=30</span><span>2nd=20</span><span>3rd=10</span><span>4th=5</span>
+        </div>
+      </div>
+      <table class="w-full">
+        <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <th class="px-4 py-2 text-left">Pos</th><th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Panel</th><th class="px-4 py-2 text-left">Club</th>
+          <th class="px-4 py-2 text-left">Points</th><th class="px-4 py-2 text-left">Breakdown</th>
+        </tr></thead>
+        <tbody class="divide-y divide-gray-50">${rows}</tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-400 mt-3">⚖️ = tiebreaker event · ⚠️ = tied, resolve manually</p>`;
+}
+
+async function saveTiebreaker() {
+  const evName = document.getElementById('tb-select').value;
+  const r = await fetch(`/api/${COMP_ID}/tiebreaker`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:evName})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Tiebreaker saved','success'); loadStandings(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Relay view ────────────────────────────────────────────────────────────────
+function showRelay(evName, ev) {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b=>b.className=b.className.replace('bg-orange-50 text-brand font-semibold','text-gray-700 hover:bg-gray-100'));
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#1a1a1a',yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
+
+  // Store with consistent structure including name so openDDModal can find it
+  const evWithName = {...ev, name: evName};
+  document.getElementById('grp-view')._events = {[evName]: evWithName};
+  document.getElementById('grp-view')._curRelayName = evName;
+
+  let html = `
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold">🔄 ${evName}</h2>
+      <span class="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full">${(ev.teams||[]).length} teams</span>
+      <div class="ml-auto flex gap-2">
+        <button onclick="reseedEv(${ev.id},'relay')"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
+          🔄 Re-seed All Heats
+        </button>
+      </div>
+    </div>`;
+
+  const mkSection = (title, color, heats, stageKey) => {
+    if (!heats?.length) return '';
+    const stageWord = stageKey.replace('s',''); // heats→heat, semis→semi, finals→final
+    const stageCap = stageWord.charAt(0).toUpperCase()+stageWord.slice(1);
+    let s = `<div class="flex items-center gap-3 mb-3 mt-5">
+      <span class="text-xs font-bold uppercase tracking-widest" style="color:${color}">${title}</span>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <button onclick="openDDModal(${ev.id},'${stageCap}','relay')" class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">✏️ Edit ${title}</button>
+    </div>`;
+    s += `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,title.toLowerCase().includes('semi')?'semi':title.toLowerCase().includes('final')?'final':'heat',ev.id,'relay')).join('')}</div>`;
+    return s;
+  };
+
+  html += mkSection('Heats','#1565C0', ev.heats||[], 'heats');
+  if (ev.heats?.length) html += advBar('blue',ev.id,'heats','relay','Advance from Heats →');
+  html += mkSection('Semi-Finals','#2E7D32', ev.semis||[], 'semis');
+  if (ev.semis?.length) html += advBar('green',ev.id,'semis','relay','Advance from Semis →');
+  html += mkSection('Final','#F9A825', ev.finals||[], 'finals');
+
+  // Teams list
+  const teamCards = (ev.teams||[]).map(t => {
+    const c = COLORS[t.color?.toLowerCase()]||'#455A64';
+    const mems = (t.members||[]).filter(m=>m&&m!=='nan').map(m=>`<div class="text-sm py-1.5 border-b border-white/10 text-white/85">• ${m}</div>`).join('');
+    return `<div class="rounded-xl overflow-hidden shadow-sm">
+      <div class="px-4 py-3 font-bold text-sm text-white" style="background:${c}">${t.club} — ${t.color} bib</div>
+      <div class="px-4 py-2 pb-3" style="background:${c};opacity:.9">${mems}</div>
+    </div>`;
+  }).join('');
+  if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
+
+  document.getElementById('grp-view').innerHTML = html;
+  // Re-store after innerHTML wipe
+  document.getElementById('grp-view')._events = {[evName]: evWithName};
+  document.getElementById('grp-view')._curRelayName = evName;
+}
+
+// ── Transfer modal ────────────────────────────────────────────────────────────
+let xferGroup = null;
+async function openXfer(group) {
+  xferGroup = group;
+  document.getElementById('xfer-from').textContent = group;
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const evs = await r.json();
+  const firstEv = Object.values(evs)[0];
+  const seen = new Set(), skaters = [];
+  if (firstEv) [...firstEv.heats,...firstEv.semis,...firstEv.finals].forEach(h=>
+    h.skaters.forEach(s=>{if(!seen.has(s.panel)){seen.add(s.panel);skaters.push(s);}}));
+  skaters.sort((a,b)=>a.last?.localeCompare(b.last));
+  document.getElementById('xfer-sk-list').innerHTML = skaters.map(s=>`
+    <label class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition">
+      <input type="checkbox" value="${s.panel}" class="accent-brand w-4 h-4">
+      <div>
+        <div class="text-sm font-semibold">${s.full_name}</div>
+        <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club}</div>
+      </div>
+    </label>`).join('') || '<p class="text-sm text-gray-400 px-4 py-3">No skaters</p>';
+  const others = Object.keys(allGroups).filter(g=>g!==group).sort();
+  document.getElementById('xfer-to').innerHTML = others.map(g=>`<option value="${esc(g)}">${g}</option>`).join('');
+  openModal('xfer-modal');
+}
+
+async function doTransfer() {
+  const panels = [...document.querySelectorAll('#xfer-sk-list input:checked')].map(c=>c.value);
+  if (!panels.length) { toast('Select at least one skater','error'); return; }
+  const toGroup = document.getElementById('xfer-to').value;
+  const r = await fetch('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,panels,to_group:toGroup})});
+  const d = await r.json();
+  if (d.ok) { closeModal('xfer-modal'); toast(`✓ ${panels.length} skater(s) moved`,'success'); await refreshGroups(); selectGroup(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Add event modal ───────────────────────────────────────────────────────────
+let addEvGroup = null;
+function openAddEv(group) {
+  addEvGroup = group;
+  document.getElementById('ev-name-inp').value = '';
+  document.getElementById('ev-points').checked = false;
+  document.querySelector('input[name="evtype"][value="heat_based"]').checked = true;
+  openModal('addEv-modal');
+}
+
+async function doAddEvent() {
+  const name = document.getElementById('ev-name-inp').value.trim();
+  if (!name) { toast('Enter event name','error'); return; }
+  const type = document.querySelector('input[name="evtype"]:checked').value;
+  const pts  = document.getElementById('ev-points').checked ? 1 : 0;
+  const r = await fetch('/api/add_event',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,group:addEvGroup,name,type,points_event:pts})});
+  const d = await r.json();
+  if (d.ok) { closeModal('addEv-modal'); curEvent=name; toast('✓ Created','success'); selectGroup(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.querySelectorAll('[id$="-modal"]').forEach(m =>
+  m.addEventListener('click', e => { if (e.target===m) m.classList.add('hidden'); }));
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+refreshGroups().then(() => {
+  const gs = Object.keys(allGroups);
+  if (gs.length) selectGroup(gs[0]);
+});
+refreshRelays();
+</script>
+</body>
+</html>
