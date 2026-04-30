@@ -659,7 +659,8 @@ async function advance(id, from, kind) {
   const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d = await r.json();
   if (d.ok) { toast('✓ '+d.message,'success'); if(kind==='relay') refreshAndShowRelay(); else selectGroup(curGroup); }
-  else toast(d.error||'Error','error');
+  else toast(d.error || d.detail || 'Advance failed — check console','error');
+  if (d.detail) console.error('Advance error:', d.detail);
 }
 
 async function refreshAndShowRelay() {
