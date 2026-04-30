@@ -962,7 +962,12 @@ def advance():
         ev = session.query(Event).get(event_id)
         if not ev: return jsonify({"error":"Event not found"}), 404
         src = [h for h in ev.heats if h.stage==("Heat" if from_stage=="heats" else "Semi")]
-        dst = [h for h in ev.heats if h.stage==("Semi" if from_stage=="heats" else "Final")]
+        # Determine destination: if advancing from heats and no semis exist, go straight to final
+        if from_stage == "heats":
+            semis = [h for h in ev.heats if h.stage=="Semi"]
+            dst = semis if semis else [h for h in ev.heats if h.stage=="Final"]
+        else:
+            dst = [h for h in ev.heats if h.stage=="Final"]
         # Count only active skaters — use getattr for safety if column missing
         all_skaters = session.query(Skater).filter_by(
             competition_id=ev.competition_id, group_name=ev.group_name).all()
