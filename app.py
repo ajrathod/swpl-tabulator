@@ -256,8 +256,10 @@ def reseed_individual(session, event):
     for h in event.heats:
         for hs in h.skaters:
             if hs.placement: old[hs.skater.panel] = hs.placement
+    # Only seed active skaters — exclude scratched and standby
     panels = [s.panel for s in session.query(Skater).filter_by(
-        competition_id=event.competition_id, group_name=event.group_name).all()]
+        competition_id=event.competition_id, group_name=event.group_name,
+        status="active").all()]
     seed_individual_heats(session, event, panels)
     session.flush()
     for h in event.heats:
@@ -266,7 +268,8 @@ def reseed_individual(session, event):
 
 
 def reseed_relay(session, relay_event):
-    team_ids = [t.id for t in relay_event.teams]
+    # Only reseed active teams — exclude scratched
+    team_ids = [t.id for t in relay_event.teams if t.status == 'active']
     seed_relay_heats(session, relay_event, team_ids)
 
 
@@ -956,7 +959,8 @@ def advance():
         src = [h for h in ev.heats if h.stage==("Heat" if from_stage=="heats" else "Semi")]
         dst = [h for h in ev.heats if h.stage==("Semi" if from_stage=="heats" else "Final")]
         stages = compute_stages(session.query(Skater).filter_by(
-            competition_id=ev.competition_id, group_name=ev.group_name).count())
+            competition_id=ev.competition_id, group_name=ev.group_name,
+            status="active").count())
         adv = stages["adv_heat"] if from_stage=="heats" else stages["adv_semi"]
 
         qualifiers = []
@@ -996,7 +1000,7 @@ def advance_relay():
         if not re: return jsonify({"error":"Not found"}), 404
         src = [h for h in re.relay_heats if h.stage==("Heat" if from_stage=="heats" else "Semi")]
         dst = [h for h in re.relay_heats if h.stage==("Semi" if from_stage=="heats" else "Final")]
-        stages = compute_stages(len(re.teams))
+        stages = compute_stages(len([t for t in re.teams if t.status == 'active']), max_per=7, semi_threshold=6)
         adv = stages["adv_heat"] if from_stage=="heats" else stages["adv_semi"]
 
         qualifiers = []
