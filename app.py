@@ -842,6 +842,7 @@ def api_groups(comp_id):
 @app.route("/api/<int:comp_id>/group/<path:group>")
 def api_group(comp_id, group):
     session = db()
+    session.expire_all()  # force fresh load from DB, no stale cache
     events = session.query(Event).filter_by(competition_id=comp_id, group_name=group).all()
     result = {}
     for ev in events:
