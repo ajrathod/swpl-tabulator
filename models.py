@@ -322,6 +322,29 @@ class ScratchRecord(Base):
                 "scratched_at":self.scratched_at.strftime("%Y-%m-%d %H:%M") if self.scratched_at else ""}
 
 
+class RelayPoolAthlete(Base):
+    """Athletes in the relay pool — available to be assigned to relay teams."""
+    __tablename__ = "relay_pool_athletes"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    first          = Column(String(100))
+    last           = Column(String(100))
+    usars_no       = Column(String(30))
+    club           = Column(String(100))
+    gender         = Column(String(5))
+    age            = Column(Integer)
+    added_at       = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def full_name(self):
+        return f"{self.first} {self.last}".strip()
+
+    def to_dict(self):
+        return {"id":self.id,"first":self.first,"last":self.last,
+                "full_name":self.full_name,"usars_no":self.usars_no or "",
+                "club":self.club or "","gender":self.gender or "","age":self.age or 0}
+
+
 def init_db():
     Base.metadata.create_all(engine)
 

@@ -8,7 +8,7 @@ from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
-    AthleteRegistry, ScratchRecord,
+    AthleteRegistry, ScratchRecord, RelayPoolAthlete,
 )
 from seeding import compute_stages, distribute
 
@@ -900,6 +900,7 @@ def api_relays(comp_id):
         all_teams = [t.to_dict() for t in re.teams]
         result[re.event_name] = {
             "id": re.id, "event_type": re.event_type,
+            "competition_id": comp_id,
             "teams": all_teams,
             "heats":  [h.to_dict() for h in heats],
             "semis":  [h.to_dict() for h in semis],
@@ -1408,6 +1409,276 @@ def get_scratches(comp_id, group):
         result.append(d)
     session.close()
     return jsonify(result)
+
+
+
+# ── Relay Pool ────────────────────────────────────────────────────────────────
+
+@app.route("/api/<int:comp_id>/relay_pool")
+def get_relay_pool(comp_id):
+    session = db()
+    athletes = session.query(RelayPoolAthlete).filter_by(competition_id=comp_id)\
+        .order_by(RelayPoolAthlete.last, RelayPoolAthlete.first).all()
+    session.close()
+    return jsonify([a.to_dict() for a in athletes])
+
+
+@app.route("/api/relay_pool", methods=["POST"])
+def add_relay_pool():
+    data    = request.json
+    comp_id = data["comp_id"]
+    session = db()
+    try:
+        # Try to enrich from registry
+        reg = None
+        usars = data.get("usars_no", "").strip()
+        first = data.get("first", "").strip()
+        last  = data.get("last",  "").strip()
+        if usars:
+            reg = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+        if not reg and first and last:
+            reg = session.query(AthleteRegistry).filter(
+                AthleteRegistry.first.ilike(first),
+                AthleteRegistry.last.ilike(last)).first()
+
+        athlete = RelayPoolAthlete(
+            competition_id=comp_id,
+            first   = reg.first   if reg else first,
+            last    = reg.last    if reg else last,
+            usars_no= reg.usars_no if reg else usars,
+            club    = reg.club    if reg else data.get("club",""),
+            gender  = reg.gender  if reg else data.get("gender",""),
+            age     = data.get("age", 0) or 0,
+        )
+        session.add(athlete)
+        session.commit()
+        return jsonify({"ok": True, "athlete": athlete.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_pool/<int:athlete_id>", methods=["DELETE"])
+def delete_relay_pool(athlete_id):
+    session = db()
+    try:
+        a = session.query(RelayPoolAthlete).get(athlete_id)
+        if not a: return jsonify({"error": "Not found"}), 404
+        session.delete(a)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+# ── Relay team member editing ─────────────────────────────────────────────────
+
+@app.route("/api/relay_team/<int:team_id>/members")
+def get_relay_team_members(team_id):
+    session = db()
+    team = session.query(RelayTeam).get(team_id)
+    if not team:
+        session.close()
+        return jsonify({"error": "Team not found"}), 404
+    result = {"team_id": team.id, "club": team.club, "color": team.color,
+              "members": [{"id": m.id, "name": m.name} for m in team.members]}
+    session.close()
+    return jsonify(result)
+
+
+@app.route("/api/relay_team/<int:team_id>/members", methods=["POST"])
+def update_relay_team_members(team_id):
+    """Replace team members entirely with provided list."""
+    data    = request.json
+    members = data.get("members", [])  # list of name strings
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error": "Team not found"}), 404
+        # Delete existing
+        for m in list(team.members):
+            session.delete(m)
+        session.flush()
+        # Add new
+        for name in members:
+            name = name.strip()
+            if name:
+                session.add(RelayMember(team_id=team_id, name=name))
+        session.commit()
+        return jsonify({"ok": True, "members": members})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_team/<int:team_id>/add_member", methods=["POST"])
+def add_relay_team_member(team_id):
+    data = request.json
+    name = data.get("name", "").strip()
+    if not name: return jsonify({"error": "Name required"}), 400
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error": "Team not found"}), 404
+        m = RelayMember(team_id=team_id, name=name)
+        session.add(m)
+        session.commit()
+        return jsonify({"ok": True, "member": {"id": m.id, "name": m.name}})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_member/<int:member_id>", methods=["DELETE"])
+def delete_relay_member(member_id):
+    session = db()
+    try:
+        m = session.query(RelayMember).get(member_id)
+        if not m: return jsonify({"error": "Not found"}), 404
+        session.delete(m)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
+# ── Relay Pool ────────────────────────────────────────────────────────────────
+
+@app.route("/api/<int:comp_id>/relay_pool")
+def get_relay_pool(comp_id):
+    session = db()
+    athletes = session.query(RelayPoolAthlete).filter_by(competition_id=comp_id)\
+        .order_by(RelayPoolAthlete.last, RelayPoolAthlete.first).all()
+    session.close()
+    return jsonify([a.to_dict() for a in athletes])
+
+
+@app.route("/api/relay_pool/add", methods=["POST"])
+def add_relay_pool():
+    data = request.json
+    comp_id = data["comp_id"]
+    session = db()
+    try:
+        # Try to enrich from registry
+        reg = None
+        usars = data.get("usars_no","").strip()
+        first = data.get("first","").strip()
+        last  = data.get("last","").strip()
+        if usars:
+            reg = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+        if not reg and first and last:
+            reg = session.query(AthleteRegistry).filter(
+                AthleteRegistry.first.ilike(first),
+                AthleteRegistry.last.ilike(last)).first()
+        a = RelayPoolAthlete(
+            competition_id=comp_id,
+            first=reg.first if reg else first,
+            last=reg.last  if reg else last,
+            usars_no=(reg.usars_no if reg else usars) or "",
+            club=(reg.club if reg else data.get("club","")) or "",
+            gender=(reg.gender if reg else data.get("gender","")) or "",
+        )
+        session.add(a)
+        session.commit()
+        return jsonify({"ok": True, "athlete": a.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_pool/<int:athlete_id>", methods=["DELETE"])
+def delete_relay_pool(athlete_id):
+    session = db()
+    try:
+        a = session.query(RelayPoolAthlete).get(athlete_id)
+        if not a: return jsonify({"error": "Not found"}), 404
+        session.delete(a)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+# ── Relay Team Editing ────────────────────────────────────────────────────────
+
+@app.route("/api/relay_team/update_members", methods=["POST"])
+def update_relay_team_members():
+    """Replace a team's member list with the provided names."""
+    data = request.json
+    team_id = data["team_id"]
+    members = data.get("members", [])   # list of name strings
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error": "Team not found"}), 404
+        # Delete existing members and replace
+        for m in list(team.members):
+            session.delete(m)
+        session.flush()
+        for i, name in enumerate(members):
+            name = name.strip()
+            if name:
+                session.add(RelayMember(team_id=team_id, name=name))
+        session.commit()
+        return jsonify({"ok": True, "team": team.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_team/add", methods=["POST"])
+def add_relay_team():
+    """Add a new team to a relay event."""
+    data = request.json
+    relay_event_id = data["relay_event_id"]
+    club    = data.get("club","").strip()
+    color   = data.get("color","").strip()
+    members = data.get("members", [])
+    session = db()
+    try:
+        re = session.query(RelayEvent).get(relay_event_id)
+        if not re: return jsonify({"error": "Relay event not found"}), 404
+        team = RelayTeam(relay_event_id=relay_event_id, club=club, color=color, status="active")
+        session.add(team)
+        session.flush()
+        for name in members:
+            name = name.strip()
+            if name:
+                session.add(RelayMember(team_id=team.id, name=name))
+        session.commit()
+        return jsonify({"ok": True, "team": team.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_team/<int:team_id>", methods=["DELETE"])
+def delete_relay_team(team_id):
+    """Remove a team entirely from a relay event."""
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error": "Team not found"}), 404
+        session.delete(team)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":
