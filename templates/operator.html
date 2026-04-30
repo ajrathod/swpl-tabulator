@@ -196,7 +196,88 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- ── Scratch Modal ── -->
+<!-- ── Edit Relay Team Modal ── -->
+<div id="edit-team-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold" id="edit-team-title">Edit Team</h2>
+        <p class="text-sm text-gray-400 mt-0.5">Drag athletes from the pool, or add ad-hoc</p>
+      </div>
+      <button onclick="closeModal('edit-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Left: current members -->
+      <div class="flex-1 flex flex-col border-r border-gray-100 min-w-0">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Team Members</span>
+          <span class="text-xs text-gray-400" id="member-count"></span>
+        </div>
+        <div id="team-members-list" class="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-32
+          dd-list" data-col="team"></div>
+        <!-- Ad-hoc add -->
+        <div class="px-4 py-3 border-t border-gray-100 bg-gray-50">
+          <div class="flex gap-2">
+            <input id="adhoc-member-inp" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"
+              placeholder="Type name + Enter to add ad-hoc" onkeydown="if(event.key==='Enter')addAdhocMember()">
+            <button onclick="addAdhocMember()" class="px-3 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add</button>
+          </div>
+        </div>
+      </div>
+      <!-- Right: relay pool -->
+      <div class="w-72 flex-shrink-0 flex flex-col">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Relay Pool</span>
+          <button onclick="openAddToPoolModal()" class="text-xs font-semibold text-brand hover:underline">+ Add</button>
+        </div>
+        <!-- Pool search -->
+        <div class="px-3 py-2 border-b border-gray-100">
+          <input id="pool-search-inp" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-brand"
+            placeholder="Search pool…" oninput="filterPool()">
+        </div>
+        <div id="relay-pool-list" class="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-32
+          dd-list" data-col="pool"></div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('edit-team-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="saveTeamMembers()" class="px-5 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">💾 Save Members</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add to Relay Pool Modal ── -->
+<div id="add-pool-modal" class="hidden fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add to Relay Pool</h2>
+      <button onclick="closeModal('add-pool-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Search Registry (optional)</label>
+        <input id="pool-reg-search" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"
+          placeholder="Name or USARS No…" oninput="searchPoolRegistry()">
+        <div id="pool-reg-results" class="mt-1 border border-gray-200 rounded-lg overflow-hidden hidden max-h-36 overflow-y-auto"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-gray-500 mb-1">First *</label>
+          <input id="pool-first" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="First"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Last *</label>
+          <input id="pool-last" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Last"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Club</label>
+          <input id="pool-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">USARS No.</label>
+          <input id="pool-usars" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('add-pool-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddToPool()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add to Pool</button>
+    </div>
+  </div>
+</div>
+
 <div id="scratch-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -277,6 +358,96 @@ tailwind.config = {
     <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
       <button onclick="closeModal('standby-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
       <button onclick="doAddStandby()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add to Standby</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Relay Team Modal ── -->
+<div id="edit-team-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold" id="edit-team-title">Edit Team</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Drag to reorder · click ✕ to remove</p>
+      </div>
+      <button onclick="closeModal('edit-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-5 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Members</label>
+        <div id="edit-team-members" class="space-y-1.5 min-h-12"></div>
+      </div>
+      <div class="border-t border-gray-100 pt-4">
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Add Athlete</label>
+        <input id="edit-team-search" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand mb-2"
+          placeholder="Search relay pool or registry…" oninput="searchEditTeam()">
+        <div id="edit-team-search-results" class="border border-gray-200 rounded-lg overflow-hidden hidden max-h-36 overflow-y-auto mb-3"></div>
+        <div class="flex gap-2">
+          <input id="edit-team-adhoc" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Or type name directly…">
+          <button onclick="addAdhocMember()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold text-gray-600 transition">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('edit-team-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="saveTeamMembers()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">💾 Save Members</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Relay Team Modal ── -->
+<div id="add-team-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add Relay Team</h2>
+      <button onclick="closeModal('add-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-gray-500 mb-1">Club *</label>
+          <input id="at-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Bib Color *</label>
+          <input id="at-color" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. Red"></div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Members (one per line)</label>
+        <textarea id="at-members" rows="4" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand resize-none" placeholder="Rachel James&#10;Anna Shao"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('add-team-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddTeam()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add to Relay Pool Modal ── -->
+<div id="relay-pool-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add to Relay Pool</h2>
+      <button onclick="closeModal('relay-pool-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Search Registry (optional)</label>
+        <input id="rp-search" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Name or USARS No…" oninput="searchRelayPool()">
+        <div id="rp-search-results" class="mt-1 border border-gray-200 rounded-lg overflow-hidden hidden max-h-40 overflow-y-auto"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4">
+        <div><label class="block text-xs text-gray-500 mb-1">First *</label>
+          <input id="rp-first" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="First"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Last *</label>
+          <input id="rp-last" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Last"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Club</label>
+          <input id="rp-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">USARS No.</label>
+          <input id="rp-usars" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('relay-pool-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddRelayPool()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add to Pool</button>
     </div>
   </div>
 </div>
@@ -935,8 +1106,12 @@ function showRelay(evName, ev) {
   let html = `
     <div class="flex items-center gap-3 mb-5 flex-wrap">
       <h2 class="text-xl font-bold">🔄 ${evName}</h2>
-      <span class="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full">${(ev.teams||[]).length} teams</span>
+      <span class="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full">${(ev.teams||[]).filter(t=>t.status!=='scratched').length} teams</span>
       <div class="ml-auto flex gap-2">
+        <button onclick="openRelayPoolModal()"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🏊 Pool</button>
+        <button onclick="openAddTeam(${ev.id})"
+          class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition">+ Add Team</button>
         <button onclick="reseedEv(${ev.id},'relay')"
           class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
           🔄 Re-seed All Heats
@@ -964,15 +1139,29 @@ function showRelay(evName, ev) {
   html += mkSection('Final','#F9A825', ev.finals||[], 'finals');
 
   // Teams list
-  const teamCards = (ev.teams||[]).map(t => {
+  const teamCards = (ev.teams||[]).filter(t => t.status !== 'scratched').map(t => {
     const c = COLORS[t.color?.toLowerCase()]||'#455A64';
     const mems = (t.members||[]).filter(m=>m&&m!=='nan').map(m=>`<div class="text-sm py-1.5 border-b border-white/10 text-white/85">• ${m}</div>`).join('');
+    const membersJson = JSON.stringify(t.members||[]).replace(/"/g,'&quot;');
     return `<div class="rounded-xl overflow-hidden shadow-sm">
-      <div class="px-4 py-3 font-bold text-sm text-white" style="background:${c}">${t.club} — ${t.color} bib</div>
-      <div class="px-4 py-2 pb-3" style="background:${c};opacity:.9">${mems}</div>
+      <div class="px-4 py-3 font-bold text-sm text-white flex items-center justify-between" style="background:${c}">
+        <span>${t.club} — ${t.color} bib</span>
+        <button onclick="openEditTeam(${t.id},'${esc(t.club)}','${esc(t.color)}',${membersJson},${ev.id})"
+          class="text-white/70 hover:text-white text-xs font-semibold bg-white/10 hover:bg-white/20 px-2 py-1 rounded-lg transition">✏️ Edit</button>
+      </div>
+      <div class="px-4 py-2 pb-3" style="background:${c};opacity:.9">${mems||'<div class="text-sm text-white/50 italic">No members</div>'}</div>
     </div>`;
   }).join('');
   if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
+
+  // Relay pool panel
+  html += `<div class="mt-6 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <span class="text-xs font-bold uppercase tracking-wider text-gray-500">🏊 Relay Pool</span>
+      <button onclick="openRelayPoolModal()" class="text-xs font-semibold text-brand hover:underline">+ Add Athlete</button>
+    </div>
+    <div id="relay-pool-panel"><div class="text-center py-6 text-gray-400 text-sm">Loading…</div></div>
+  </div>`;
 
   // Scratched teams
   const scratchedTeams = (ev.teams||[]).filter(t => t.status === 'scratched');
@@ -993,6 +1182,8 @@ function showRelay(evName, ev) {
   // Re-store after innerHTML wipe
   document.getElementById('grp-view')._events = {[evName]: evWithName};
   document.getElementById('grp-view')._curRelayName = evName;
+  // Load relay pool
+  loadRelayPool().then(() => renderRelayPoolPanel());
 }
 
 // ── Scratch functions ─────────────────────────────────────────────────────────
@@ -1157,7 +1348,195 @@ async function unScratch(panel) {
 }
 
 
-let xferGroup = null;
+// ── Relay Pool & Team Editing ─────────────────────────────────────────────────
+let _editTeamId = null, _editCompId = null, _poolAthletes = [], _teamSortable = null, _poolSortable = null;
+
+async function openEditTeam(teamId, compId) {
+  _editTeamId = teamId; _editCompId = compId;
+  // Fetch team members and pool in parallel
+  const [teamR, poolR] = await Promise.all([
+    fetch(`/api/relay_team/${teamId}/members`),
+    fetch(`/api/${compId}/relay_pool`),
+  ]);
+  const team = await teamR.json();
+  _poolAthletes = await poolR.json();
+
+  document.getElementById('edit-team-title').textContent = `Edit — ${team.club} (${team.color} bib)`;
+  renderTeamMembers(team.members);
+  renderPoolList(_poolAthletes);
+  document.getElementById('adhoc-member-inp').value = '';
+  document.getElementById('pool-search-inp').value = '';
+  openModal('edit-team-modal');
+  initEditSortables();
+}
+
+function memberCard(m, fromPool = false) {
+  const id = fromPool ? `pool-${m.id}` : `member-${m.id}`;
+  const sub = fromPool ? (m.club ? `${m.club}${m.usars_no ? ' · '+m.usars_no : ''}` : m.usars_no || '') : '';
+  const delBtn = fromPool
+    ? `<button onclick="removeFromPool(${m.id})" title="Remove from pool"
+         class="text-gray-300 hover:text-red-400 text-xs px-1 transition ml-auto">🗑</button>`
+    : `<button onclick="removeMemberCard('${id}')" title="Remove from team"
+         class="text-gray-300 hover:text-red-400 text-xs px-1 transition ml-auto opacity-0 group-hover:opacity-100">✕</button>`;
+  return `<div id="${id}" class="bg-white rounded-lg border border-gray-200 shadow-sm px-3 py-2
+      flex items-center gap-2 group" data-name="${(m.full_name||m.name||'').replace(/"/g,'&quot;')}"
+      ${fromPool ? `data-pool-id="${m.id}"` : `data-member-id="${m.id}"`}>
+    <span class="drag-handle text-gray-300 text-sm select-none cursor-grab">⠿</span>
+    <div class="flex-1 min-w-0">
+      <div class="text-sm font-semibold truncate">${m.full_name||m.name||''}</div>
+      ${sub ? `<div class="text-xs text-gray-400 truncate">${sub}</div>` : ''}
+    </div>
+    ${delBtn}
+  </div>`;
+}
+
+function renderTeamMembers(members) {
+  const list = document.getElementById('team-members-list');
+  list.innerHTML = members.map(m => memberCard(m, false)).join('') ||
+    '<p class="text-xs text-gray-400 text-center py-4">No members yet — drag from pool or add below</p>';
+  document.getElementById('member-count').textContent = `${members.length} members`;
+}
+
+function renderPoolList(athletes, filter = '') {
+  const list = document.getElementById('relay-pool-list');
+  const filtered = filter ? athletes.filter(a =>
+    a.full_name.toLowerCase().includes(filter.toLowerCase()) ||
+    a.club?.toLowerCase().includes(filter.toLowerCase())
+  ) : athletes;
+  list.innerHTML = filtered.map(a => memberCard(a, true)).join('') ||
+    '<p class="text-xs text-gray-400 text-center py-4">Pool is empty</p>';
+  updateMemberCount();
+}
+
+function filterPool() {
+  const q = document.getElementById('pool-search-inp').value;
+  renderPoolList(_poolAthletes, q);
+}
+
+function initEditSortables() {
+  if (_teamSortable) _teamSortable.destroy();
+  if (_poolSortable)  _poolSortable.destroy();
+  const teamList = document.getElementById('team-members-list');
+  const poolList = document.getElementById('relay-pool-list');
+  const opts = {
+    group: { name: 'relay-edit', pull: true, put: true },
+    animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+    handle: '.drag-handle', onEnd: updateMemberCount,
+  };
+  _teamSortable = Sortable.create(teamList, opts);
+  _poolSortable = Sortable.create(poolList, opts);
+}
+
+function updateMemberCount() {
+  const n = document.getElementById('team-members-list').querySelectorAll('[id^="member-"],[id^="pool-"]').length;
+  document.getElementById('member-count').textContent = `${n} members`;
+}
+
+function removeMemberCard(id) {
+  document.getElementById(id)?.remove();
+  updateMemberCount();
+}
+
+function addAdhocMember() {
+  const inp = document.getElementById('adhoc-member-inp');
+  const name = inp.value.trim();
+  if (!name) return;
+  const list = document.getElementById('team-members-list');
+  // Remove placeholder if present
+  list.querySelector('p')?.remove();
+  const div = document.createElement('div');
+  div.innerHTML = memberCard({id: `adhoc-${Date.now()}`, full_name: name, name}, false);
+  list.appendChild(div.firstElementChild);
+  inp.value = '';
+  updateMemberCount();
+}
+
+async function saveTeamMembers() {
+  const list = document.getElementById('team-members-list');
+  const names = [...list.querySelectorAll('[data-name]')].map(el => el.dataset.name).filter(Boolean);
+  const r = await fetch(`/api/relay_team/${_editTeamId}/members`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({members: names})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('edit-team-modal');
+    toast('✓ Team members saved', 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+// ── Relay Pool management ─────────────────────────────────────────────────────
+let _poolRegSearchTimer = null;
+
+function openAddToPoolModal() {
+  ['pool-first','pool-last','pool-club','pool-usars'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pool-reg-search').value = '';
+  document.getElementById('pool-reg-results').classList.add('hidden');
+  openModal('add-pool-modal');
+}
+
+function searchPoolRegistry() {
+  clearTimeout(_poolRegSearchTimer);
+  const q = document.getElementById('pool-reg-search').value.trim();
+  if (!q) { document.getElementById('pool-reg-results').classList.add('hidden'); return; }
+  _poolRegSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    const res = document.getElementById('pool-reg-results');
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0,8).map(a => `
+      <div onclick="fillPoolForm(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+        class="px-3 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function fillPoolForm(a) {
+  document.getElementById('pool-first').value = a.first || '';
+  document.getElementById('pool-last').value  = a.last  || '';
+  document.getElementById('pool-club').value  = a.club  || '';
+  document.getElementById('pool-usars').value = a.usars_no || '';
+  document.getElementById('pool-reg-results').classList.add('hidden');
+}
+
+async function doAddToPool() {
+  const first = document.getElementById('pool-first').value.trim();
+  const last  = document.getElementById('pool-last').value.trim();
+  if (!first || !last) { toast('First and Last name required', 'error'); return; }
+  const r = await fetch('/api/relay_pool', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      comp_id: COMP_ID,
+      first, last,
+      club:     document.getElementById('pool-club').value.trim(),
+      usars_no: document.getElementById('pool-usars').value.trim(),
+    })
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('add-pool-modal');
+    toast(`✓ ${d.athlete.full_name} added to pool`, 'success');
+    // Refresh pool list in edit-team modal if open
+    _poolAthletes.push(d.athlete);
+    renderPoolList(_poolAthletes, document.getElementById('pool-search-inp')?.value || '');
+  } else toast(d.error, 'error');
+}
+
+async function removeFromPool(athleteId) {
+  const r = await fetch(`/api/relay_pool/${athleteId}`, {method: 'DELETE'});
+  const d = await r.json();
+  if (d.ok) {
+    _poolAthletes = _poolAthletes.filter(a => a.id !== athleteId);
+    renderPoolList(_poolAthletes, document.getElementById('pool-search-inp')?.value || '');
+    toast('Removed from pool', 'success');
+  } else toast(d.error, 'error');
+}
+
+
 async function openXfer(group) {
   xferGroup = group;
   document.getElementById('xfer-from').textContent = group;
@@ -1221,7 +1600,237 @@ document.querySelectorAll('[id$="-modal"]').forEach(m =>
   m.addEventListener('click', e => { if (e.target===m) m.classList.add('hidden'); }));
 function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Relay Team Editing ────────────────────────────────────────────────────────
+let _editTeamId = null, _editTeamMembers = [], _editRelayEvId = null;
+
+function openEditTeam(teamId, club, color, members, relayEvId) {
+  _editTeamId = teamId;
+  _editRelayEvId = relayEvId;
+  _editTeamMembers = [...members];
+  document.getElementById('edit-team-title').textContent = `✏️ ${club} — ${color} bib`;
+  document.getElementById('edit-team-search').value = '';
+  document.getElementById('edit-team-adhoc').value = '';
+  document.getElementById('edit-team-search-results').classList.add('hidden');
+  renderEditTeamMembers();
+  openModal('edit-team-modal');
+}
+
+function renderEditTeamMembers() {
+  const container = document.getElementById('edit-team-members');
+  if (!_editTeamMembers.length) {
+    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">No members yet</p>';
+    return;
+  }
+  container.innerHTML = _editTeamMembers.map((name, i) => `
+    <div class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group">
+      <span class="drag-handle text-gray-300 cursor-grab select-none">⠿</span>
+      <span class="flex-1 text-sm font-medium">${name}</span>
+      <button onclick="removeEditMember(${i})" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition text-xs px-1">✕</button>
+    </div>`).join('');
+}
+
+function removeEditMember(index) {
+  _editTeamMembers.splice(index, 1);
+  renderEditTeamMembers();
+}
+
+function addAdhocMember() {
+  const inp = document.getElementById('edit-team-adhoc');
+  const name = inp.value.trim();
+  if (!name) return;
+  _editTeamMembers.push(name);
+  inp.value = '';
+  renderEditTeamMembers();
+}
+
+let _etSearchTimer = null;
+async function searchEditTeam() {
+  clearTimeout(_etSearchTimer);
+  const q = document.getElementById('edit-team-search').value.trim();
+  const res = document.getElementById('edit-team-search-results');
+  if (!q) { res.classList.add('hidden'); return; }
+  _etSearchTimer = setTimeout(async () => {
+    // Search both relay pool and registry
+    const [poolR, regR] = await Promise.all([
+      fetch(`/api/${COMP_ID}/relay_pool`),
+      fetch(`/api/registry?q=${encodeURIComponent(q)}`),
+    ]);
+    const pool = await poolR.json().catch(() => []);
+    const reg  = await regR.json().catch(() => ({athletes:[]}));
+    const poolFiltered = pool.filter(a =>
+      a.full_name.toLowerCase().includes(q.toLowerCase()) ||
+      (a.usars_no || '').toLowerCase().includes(q.toLowerCase())
+    );
+    const regAthletes = (reg.athletes || []).slice(0, 5);
+    if (!poolFiltered.length && !regAthletes.length) { res.classList.add('hidden'); return; }
+    let html = '';
+    if (poolFiltered.length) {
+      html += `<div class="px-3 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50">Relay Pool</div>`;
+      html += poolFiltered.slice(0, 5).map(a => `
+        <div onclick="addEditMemberFromPool('${esc(a.full_name)}')"
+          class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 flex items-center gap-2">
+          <span class="text-blue-400 text-xs">🏊</span>
+          <div><div class="text-sm font-semibold">${a.full_name}</div>
+            <div class="text-xs text-gray-400">${a.club}</div></div>
+        </div>`).join('');
+    }
+    if (regAthletes.length) {
+      html += `<div class="px-3 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50">Registry</div>`;
+      html += regAthletes.map(a => `
+        <div onclick="addEditMemberFromPool('${esc(a.full_name)}')"
+          class="px-3 py-2.5 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-0 flex items-center gap-2">
+          <span class="text-orange-400 text-xs">📋</span>
+          <div><div class="text-sm font-semibold">${a.full_name}</div>
+            <div class="text-xs text-gray-400">${a.usars_no} · ${a.club}</div></div>
+        </div>`).join('');
+    }
+    res.innerHTML = html;
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function addEditMemberFromPool(name) {
+  _editTeamMembers.push(name);
+  renderEditTeamMembers();
+  document.getElementById('edit-team-search').value = '';
+  document.getElementById('edit-team-search-results').classList.add('hidden');
+}
+
+async function saveTeamMembers() {
+  const r = await fetch('/api/relay_team/update_members', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({team_id: _editTeamId, members: _editTeamMembers})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('edit-team-modal');
+    toast('✓ Team updated', 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+// ── Add New Team ──────────────────────────────────────────────────────────────
+let _addTeamRelayEvId = null;
+function openAddTeam(relayEvId) {
+  _addTeamRelayEvId = relayEvId;
+  ['at-club','at-color','at-members'].forEach(id => document.getElementById(id).value = '');
+  openModal('add-team-modal');
+}
+
+async function doAddTeam() {
+  const club    = document.getElementById('at-club').value.trim();
+  const color   = document.getElementById('at-color').value.trim();
+  const members = document.getElementById('at-members').value.split('\n').filter(l => l.trim());
+  if (!club || !color) { toast('Club and bib color required', 'error'); return; }
+  const r = await fetch('/api/relay_team/add', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({relay_event_id: _addTeamRelayEvId, club, color, members})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('add-team-modal');
+    toast('✓ Team added', 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+// ── Relay Pool ────────────────────────────────────────────────────────────────
+let _relayPool = [];
+
+async function loadRelayPool() {
+  const r = await fetch(`/api/${COMP_ID}/relay_pool`);
+  _relayPool = await r.json().catch(() => []);
+}
+
+function openRelayPoolModal() {
+  ['rp-first','rp-last','rp-club','rp-usars'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('rp-search').value = '';
+  document.getElementById('rp-search-results').classList.add('hidden');
+  openModal('relay-pool-modal');
+}
+
+let _rpSearchTimer = null;
+function searchRelayPool() {
+  clearTimeout(_rpSearchTimer);
+  const q = document.getElementById('rp-search').value.trim();
+  if (!q) { document.getElementById('rp-search-results').classList.add('hidden'); return; }
+  _rpSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json().catch(() => ({athletes:[]}));
+    const res = document.getElementById('rp-search-results');
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0,6).map(a => `
+      <div onclick="fillRelayPool(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+        class="px-3 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function fillRelayPool(a) {
+  document.getElementById('rp-first').value = a.first || '';
+  document.getElementById('rp-last').value  = a.last  || '';
+  document.getElementById('rp-club').value  = a.club  || '';
+  document.getElementById('rp-usars').value = a.usars_no || '';
+  document.getElementById('rp-search-results').classList.add('hidden');
+}
+
+async function doAddRelayPool() {
+  const first = document.getElementById('rp-first').value.trim();
+  const last  = document.getElementById('rp-last').value.trim();
+  if (!first || !last) { toast('First and Last required', 'error'); return; }
+  const r = await fetch('/api/relay_pool/add', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      comp_id: COMP_ID, first, last,
+      club: document.getElementById('rp-club').value.trim(),
+      usars_no: document.getElementById('rp-usars').value.trim(),
+    })
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('relay-pool-modal');
+    toast(`✓ ${d.athlete.full_name} added to pool`, 'success');
+    await loadRelayPool();
+    renderRelayPoolPanel();
+  } else toast(d.error, 'error');
+}
+
+async function removeFromPool(id) {
+  const r = await fetch(`/api/relay_pool/${id}`, {method:'DELETE'});
+  const d = await r.json();
+  if (d.ok) {
+    await loadRelayPool();
+    renderRelayPoolPanel();
+    toast('✓ Removed from pool', 'success');
+  } else toast(d.error, 'error');
+}
+
+function renderRelayPoolPanel() {
+  const panel = document.getElementById('relay-pool-panel');
+  if (!panel) return;
+  if (!_relayPool.length) {
+    panel.innerHTML = `<div class="text-center py-6 text-gray-400">
+      <div class="text-2xl mb-2">🏊</div>
+      <p class="text-sm">No athletes in pool yet</p>
+      <p class="text-xs mt-1">Add athletes to assign them to teams</p>
+    </div>`;
+    return;
+  }
+  panel.innerHTML = _relayPool.map(a => `
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 group">
+      <div class="flex-1">
+        <div class="text-sm font-medium">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.club}${a.usars_no ? ' · ' + a.usars_no : ''}</div>
+      </div>
+      <button onclick="removeFromPool(${a.id})"
+        class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition">✕</button>
+    </div>`).join('');
+}
+
+
 refreshGroups().then(() => {
   const gs = Object.keys(allGroups);
   if (gs.length) selectGroup(gs[0]);
