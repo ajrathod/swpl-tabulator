@@ -556,6 +556,8 @@ function renderRelayEvent(evName, ev) {
 function waiting(msg) {
   return `<div class="waiting"><div class="wi">⏳</div><p>${msg}</p></div>`;
 }
+
+function switchEv(name, btn) {
   curEvent = name;
   document.querySelectorAll('.epill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
