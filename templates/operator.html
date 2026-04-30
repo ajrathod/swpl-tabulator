@@ -196,9 +196,96 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- ── Scratch Modal ── -->
+<div id="scratch-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold text-red-600">✕ Scratch Athlete</h2>
+      <button onclick="closeModal('scratch-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+        <div class="font-bold text-sm" id="scratch-name"></div>
+        <div class="text-xs text-gray-500 mt-0.5" id="scratch-panel"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Scope</label>
+        <div class="space-y-2">
+          <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-red-300 hover:bg-red-50 transition">
+            <input type="radio" name="scratch-scope" value="event" checked class="mt-0.5 accent-red-500">
+            <div>
+              <div class="font-semibold text-sm">This event only</div>
+              <div class="text-xs text-gray-400">Scratch from current event — still runs other events</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-red-300 hover:bg-red-50 transition">
+            <input type="radio" name="scratch-scope" value="all" class="mt-0.5 accent-red-500">
+            <div>
+              <div class="font-semibold text-sm">All events</div>
+              <div class="text-xs text-gray-400">Athlete will not compete in any event today</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Reason (optional)</label>
+        <input id="scratch-reason" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-400" placeholder="e.g. Did not show, Injury…">
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('scratch-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doScratch()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700">✕ Confirm Scratch</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Standby Modal ── -->
+<div id="standby-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">⏳ Add Standby Athlete</h2>
+      <button onclick="closeModal('standby-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-4">
+      <p class="text-sm text-gray-500">Add an athlete to the standby list. They will appear in the group's Standby section and can be dragged into heats using the heat editor.</p>
+      <!-- Search registry -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Search Registry (optional)</label>
+        <input id="standby-search" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Name or USARS No…" oninput="searchStandby()">
+        <div id="standby-search-results" class="mt-1 border border-gray-200 rounded-lg overflow-hidden hidden max-h-40 overflow-y-auto"></div>
+      </div>
+      <div class="border-t border-gray-100 pt-4">
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Athlete Details</label>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs text-gray-500 mb-1">First Name *</label>
+            <input id="sb-first" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="First"></div>
+          <div><label class="block text-xs text-gray-500 mb-1">Last Name *</label>
+            <input id="sb-last" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Last"></div>
+          <div><label class="block text-xs text-gray-500 mb-1">Panel No. *</label>
+            <input id="sb-panel" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. 999"></div>
+          <div><label class="block text-xs text-gray-500 mb-1">Club</label>
+            <input id="sb-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
+          <div><label class="block text-xs text-gray-500 mb-1">USARS No.</label>
+            <input id="sb-usars" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Optional"></div>
+          <div><label class="block text-xs text-gray-500 mb-1">Gender</label>
+            <select id="sb-gender" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand">
+              <option value="">—</option><option value="M">M</option><option value="F">F</option>
+            </select></div>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('standby-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddStandby()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add to Standby</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const COMP_ID = {{comp.id}};
 let curGroup = null, curEvent = null, allGroups = {};
+let _scratchPanel = null, _scratchEventId = null;
+
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg, type='') {
@@ -331,6 +418,8 @@ function renderGroupView(group, events) {
       <h2 class="text-xl font-bold text-gray-900">${group}</h2>
       <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">${info.skater_count||0} skaters</span>
       <div class="ml-auto flex gap-2">
+        <button onclick="openStandbyModal('${esc(group)}')"
+          class="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm font-semibold hover:bg-yellow-600 transition">+ Standby</button>
         <button onclick="openXfer('${esc(group)}')"
           class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">↔ Transfer</button>
         <button onclick="openAddEv('${esc(group)}')"
@@ -352,6 +441,16 @@ function renderGroupView(group, events) {
   gv._events = events;
   if (curEvent === '__standings__') loadStandings(group);
   else renderEvent(events[curEvent]);
+
+  // Load scratch/standby panel
+  renderScratchStandbyPanel(group).then(html => {
+    if (html) {
+      const container = document.createElement('div');
+      container.id = 'scratch-standby-panel';
+      container.innerHTML = html;
+      document.getElementById('ev-body').after(container);
+    }
+  });
 }
 
 function switchEv(group, name, btn) {
@@ -366,7 +465,19 @@ function switchEv(group, name, btn) {
     }`;
   });
   if (name === '__standings__') { loadStandings(group); return; }
-  renderEvent((document.getElementById('grp-view')._events||{})[name]);
+  const ev = (document.getElementById('grp-view')._events||{})[name];
+  renderEvent(ev);
+  // Reload scratch/standby panel for current group
+  renderScratchStandbyPanel(group).then(html => {
+    const existing = document.getElementById('scratch-standby-panel');
+    if (existing) existing.remove();
+    if (html) {
+      const container = document.createElement('div');
+      container.id = 'scratch-standby-panel';
+      container.innerHTML = html;
+      document.getElementById('ev-body').after(container);
+    }
+  });
 }
 
 // ── Render event ─────────────────────────────────────────────────────────────
@@ -449,6 +560,74 @@ function hCard(heat, color, parentId, kind) {
       </div>
       <div class="p-6 text-center text-gray-400 text-sm">Waiting for advancement</div>
     </div>`;
+
+  const rows = items.map((s,i) => {
+    const pl = s.placement;
+    const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
+    const idAttr = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
+
+    let nameCell = '';
+    if (isRelay) {
+      const RBIB = {red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#212121',
+        yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#9E9E9E'};
+      const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
+      const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').slice(0,3).join(', ');
+      nameCell = `<div class="font-semibold text-sm">${s.club}
+        <span class="inline-flex items-center gap-1 ml-1.5 text-xs font-normal text-gray-400">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>${s.color||'—'}
+        </span></div>
+        ${memberStr ? `<div class="text-xs text-gray-400 mt-0.5">${memberStr}</div>` : ''}`;
+    } else {
+      nameCell = `<span class="font-medium text-sm">${s.full_name}</span>`;
+    }
+
+    // Scratch button
+    const scratchBtn = isRelay
+      ? `<button onclick="scratchRelayTeam(${s.team_id})" title="Scratch team"
+           class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`
+      : `<button onclick="openScratchModal('${s.panel}','${esc(s.full_name)}')" title="Scratch skater"
+           class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`;
+
+    return `<tr class="${rc} group">
+      <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
+      <td class="px-3 py-2">
+        <div class="flex items-center gap-1">${nameCell}${scratchBtn}</div>
+      </td>
+      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
+        <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
+      <td class="px-3 py-2">
+        <input type="text" value="${pl||''}" placeholder="—"
+          class="w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
+          data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
+          onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
+          oninput="this.classList.toggle('bg-red-50',this.value.toUpperCase()==='DQ');this.classList.toggle('text-red-600',this.value.toUpperCase()==='DQ')">
+      </td>
+    </tr>`;
+  }).join('');
+
+  const colHdrs = isRelay
+    ? '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th><th class="px-3 py-2">Place</th>'
+    : '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Panel</th><th class="px-3 py-2 text-left">Club</th><th class="px-3 py-2">Place</th>';
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
+    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+      <span class="text-white text-sm font-bold">${label}</span>
+      <span class="text-white/70 text-xs">${items.length} skaters</span>
+    </div>
+    <table class="w-full">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
+      <tbody class="divide-y divide-gray-50">${rows}</tbody>
+    </table>
+    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100">
+      <button onclick="saveCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
+      <button onclick="clearCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">✕ Clear</button>
+      <span class="text-xs text-gray-400 ml-auto">1–6 or DQ · hover row to scratch</span>
+    </div>
+  </div>`;
+}
+
 
   const rows = items.map((s,i) => {
     const pl = s.placement;
@@ -841,13 +1020,183 @@ function showRelay(evName, ev) {
   }).join('');
   if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
 
+  // Scratched teams
+  const scratchedTeams = (ev.teams||[]).filter(t => t.status === 'scratched');
+  if (scratchedTeams.length) {
+    const scratchRows = scratchedTeams.map(t => `
+      <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 opacity-60">
+        <span class="text-red-400 text-xs">✕</span>
+        <div class="flex-1"><div class="text-sm font-medium line-through text-gray-500">${t.club} — ${t.color}</div>
+          <div class="text-xs text-gray-400">${(t.members||[]).join(', ')}</div></div>
+        <button onclick="unScratchRelay(${t.id})" class="px-2.5 py-1 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">↩ Restore</button>
+      </div>`).join('');
+    html += `<div class="mt-4 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+      <div class="px-4 py-3 border-b border-gray-100 bg-gray-50"><span class="text-xs font-bold uppercase tracking-wider text-gray-500">Scratched Teams</span></div>
+      ${scratchRows}</div>`;
+  }
+
   document.getElementById('grp-view').innerHTML = html;
   // Re-store after innerHTML wipe
   document.getElementById('grp-view')._events = {[evName]: evWithName};
   document.getElementById('grp-view')._curRelayName = evName;
 }
 
-// ── Transfer modal ────────────────────────────────────────────────────────────
+// ── Scratch functions ─────────────────────────────────────────────────────────
+function openScratchModal(panel, name) {
+  _scratchPanel = panel;
+  // Find current event id
+  const evs = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(evs).find(e => e.name === curEvent);
+  _scratchEventId = ev ? ev.id : null;
+  document.getElementById('scratch-name').textContent = name;
+  document.getElementById('scratch-panel').textContent = `Panel #${panel}`;
+  document.getElementById('scratch-reason').value = '';
+  document.querySelector('input[name="scratch-scope"][value="event"]').checked = true;
+  openModal('scratch-modal');
+}
+
+async function doScratch() {
+  const scope  = document.querySelector('input[name="scratch-scope"]:checked').value;
+  const reason = document.getElementById('scratch-reason').value.trim();
+  const payload = {comp_id: COMP_ID, panel: _scratchPanel, scope, reason};
+  if (scope === 'event') payload.event_id = _scratchEventId;
+  const r = await fetch('/api/scratch', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('scratch-modal');
+    toast(`✓ ${_scratchPanel} scratched`, 'success');
+    selectGroup(curGroup);
+  } else toast(d.error, 'error');
+}
+
+async function scratchRelayTeam(teamId) {
+  const reason = prompt('Reason for scratch (optional):') ?? '';
+  if (reason === null) return; // cancelled
+  const r = await fetch('/api/scratch_relay', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id: teamId, reason})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Team scratched', 'success'); refreshAndShowRelay(); }
+  else toast(d.error, 'error');
+}
+
+async function unScratchRelay(teamId) {
+  const r = await fetch('/api/unscratch_relay', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id: teamId})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Team restored', 'success'); refreshAndShowRelay(); }
+  else toast(d.error, 'error');
+}
+
+// ── Standby functions ─────────────────────────────────────────────────────────
+let _standbyGroup = null;
+function openStandbyModal(group) {
+  _standbyGroup = group;
+  ['sb-first','sb-last','sb-panel','sb-club','sb-usars'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('sb-gender').value = '';
+  document.getElementById('standby-search').value = '';
+  document.getElementById('standby-search-results').classList.add('hidden');
+  openModal('standby-modal');
+}
+
+let _sbSearchTimer = null;
+function searchStandby() {
+  clearTimeout(_sbSearchTimer);
+  const q = document.getElementById('standby-search').value.trim();
+  if (!q) { document.getElementById('standby-search-results').classList.add('hidden'); return; }
+  _sbSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    const res = document.getElementById('standby-search-results');
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0,8).map(a => `
+      <div onclick="fillStandby(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+        class="px-3 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function fillStandby(athlete) {
+  document.getElementById('sb-first').value  = athlete.first || '';
+  document.getElementById('sb-last').value   = athlete.last  || '';
+  document.getElementById('sb-club').value   = athlete.club  || '';
+  document.getElementById('sb-usars').value  = athlete.usars_no || '';
+  document.getElementById('sb-gender').value = athlete.gender || '';
+  document.getElementById('standby-search-results').classList.add('hidden');
+}
+
+async function doAddStandby() {
+  const payload = {
+    comp_id: COMP_ID, group: _standbyGroup,
+    first:  document.getElementById('sb-first').value.trim(),
+    last:   document.getElementById('sb-last').value.trim(),
+    panel:  document.getElementById('sb-panel').value.trim(),
+    club:   document.getElementById('sb-club').value.trim(),
+    usars_no: document.getElementById('sb-usars').value.trim(),
+    gender: document.getElementById('sb-gender').value,
+  };
+  if (!payload.first || !payload.last || !payload.panel) {
+    toast('First, Last and Panel are required', 'error'); return;
+  }
+  const r = await fetch('/api/add_standby', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('standby-modal');
+    toast(`✓ ${d.skater.full_name} added as standby`, 'success');
+    selectGroup(curGroup);
+  } else toast(d.error, 'error');
+}
+
+// ── Render scratched + standby panel ─────────────────────────────────────────
+async function renderScratchStandbyPanel(group) {
+  const [sr, sbr] = await Promise.all([
+    fetch(`/api/${COMP_ID}/scratches/${encodeURIComponent(group)}`),
+    fetch(`/api/${COMP_ID}/standbys/${encodeURIComponent(group)}`),
+  ]);
+  const scratched = await sr.json();
+  const standbys  = await sbr.json();
+
+  if (!scratched.length && !standbys.length) return '';
+
+  const scratchRows = scratched.map(s => `
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 opacity-60">
+      <span class="text-red-400 text-xs">✕</span>
+      <div class="flex-1">
+        <div class="text-sm font-medium line-through text-gray-500">${s.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">#${s.panel}${s.scratch_reason ? ' · ' + s.scratch_reason : ''}</div>
+      </div>
+      <button onclick="unScratch('${s.panel}')" class="px-2.5 py-1 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">↩ Restore</button>
+    </div>`).join('');
+
+  const standbyRows = standbys.map(s => `
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0">
+      <span class="text-yellow-500 text-xs">⏳</span>
+      <div class="flex-1">
+        <div class="text-sm font-medium">${s.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">#${s.panel} · ${s.club}</div>
+      </div>
+      <span class="text-xs bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-0.5 rounded-full font-semibold">Standby</span>
+    </div>`).join('');
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mt-5">
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+      <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Scratched & Standby</span>
+    </div>
+    ${scratchRows}${standbyRows}
+  </div>`;
+}
+
+async function unScratch(panel) {
+  const evs = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(evs).find(e => e.name === curEvent);
+  const r = await fetch('/api/unscratch', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({comp_id: COMP_ID, panel, scope:'all'})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Athlete restored', 'success'); selectGroup(curGroup); }
+  else toast(d.error, 'error');
+}
+
+
 let xferGroup = null;
 async function openXfer(group) {
   xferGroup = group;
