@@ -397,7 +397,7 @@ async function selectGroup(group) {
       active ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'
     }`;
   });
-  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}?t=${Date.now()}`);
   const events = await r.json();
   renderGroupView(group, events);
 }
