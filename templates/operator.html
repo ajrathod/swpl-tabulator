@@ -440,17 +440,18 @@ function renderGroupView(group, events) {
 
   gv._events = events;
   if (curEvent === '__standings__') loadStandings(group);
-  else renderEvent(events[curEvent]);
+  else renderEvent(events[curEvent], group);
 
-  // Load scratch/standby panel
+  // Load scratch/standby panel (non-blocking)
   renderScratchStandbyPanel(group).then(html => {
-    if (html) {
-      const container = document.createElement('div');
-      container.id = 'scratch-standby-panel';
-      container.innerHTML = html;
-      document.getElementById('ev-body').after(container);
-    }
-  });
+    if (!html) return;
+    const evBody = document.getElementById('ev-body');
+    if (!evBody) return;
+    const container = document.createElement('div');
+    container.id = 'scratch-standby-panel';
+    container.innerHTML = html;
+    evBody.after(container);
+  }).catch(e => console.warn('scratch panel:', e));
 }
 
 function switchEv(group, name, btn) {
@@ -466,22 +467,23 @@ function switchEv(group, name, btn) {
   });
   if (name === '__standings__') { loadStandings(group); return; }
   const ev = (document.getElementById('grp-view')._events||{})[name];
-  renderEvent(ev);
-  // Reload scratch/standby panel for current group
+  renderEvent(ev, group);
+  // Reload scratch/standby panel for current group (non-blocking)
   renderScratchStandbyPanel(group).then(html => {
     const existing = document.getElementById('scratch-standby-panel');
     if (existing) existing.remove();
-    if (html) {
-      const container = document.createElement('div');
-      container.id = 'scratch-standby-panel';
-      container.innerHTML = html;
-      document.getElementById('ev-body').after(container);
-    }
-  });
+    if (!html) return;
+    const evBody = document.getElementById('ev-body');
+    if (!evBody) return;
+    const container = document.createElement('div');
+    container.id = 'scratch-standby-panel';
+    container.innerHTML = html;
+    evBody.after(container);
+  }).catch(e => console.warn('scratch panel:', e));
 }
 
 // ── Render event ─────────────────────────────────────────────────────────────
-function renderEvent(ev) {
+function renderEvent(ev, group) {
   const body = document.getElementById('ev-body');
   if (!ev) { body.innerHTML = ''; return; }
   let html = '';
@@ -495,12 +497,12 @@ function renderEvent(ev) {
   if (ev.heats.length) {
     html += stageHeader('Heats', 'blue', ev.id, 'Heat', 'individual');
     html += `<div class="flex gap-4 flex-wrap mb-3">${ev.heats.map(h=>hCard(h,'heat',ev.id,'individual')).join('')}</div>`;
-    html += advBar('blue', ev.id, 'heats', 'individual', 'Advance qualifiers from Heats →');
+    html += advBar('blue', ev.id, 'heats', 'individual', 'Advance qualifiers from Heats →', group);
   }
   if (ev.semis.length) {
     html += stageHeader('Semi-Finals', 'green', ev.id, 'Semi', 'individual');
     html += `<div class="flex gap-4 flex-wrap mb-3">${ev.semis.map(h=>hCard(h,'semi',ev.id,'individual')).join('')}</div>`;
-    html += advBar('green', ev.id, 'semis', 'individual', 'Advance top 3 from each Semi →');
+    html += advBar('green', ev.id, 'semis', 'individual', 'Advance top 3 from each Semi →', group);
   }
   if (ev.finals.length) {
     html += stageHeader('Final', 'yellow', ev.id, 'Final', 'individual');
@@ -533,12 +535,13 @@ function renderStage(label, heats, color, evId, kind) {
     `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,color,evId,kind)).join('')}</div>`;
 }
 
-function advBar(color, evId, from, kind, label) {
+function advBar(color, evId, from, kind, label, group) {
   const bg = {blue:'bg-blue-50 border-blue-100', green:'bg-green-50 border-green-100'}[color];
   const btn = {blue:'bg-blue-600 hover:bg-blue-700', green:'bg-green-600 hover:bg-green-700'}[color];
+  const grpArg = group ? `,'${esc(group)}'` : '';
   return `<div class="flex items-center gap-3 border ${bg} rounded-xl px-4 py-3 mb-5">
     <p class="text-sm text-gray-600 flex-1">Save results, then advance qualifiers.</p>
-    <button onclick="advance(${evId},'${from}','${kind}')"
+    <button onclick="advance(${evId},'${from}','${kind}'${grpArg})"
       class="px-3 py-1.5 ${btn} text-white rounded-lg text-xs font-semibold transition">${label}</button>
   </div>`;
 }
@@ -653,7 +656,8 @@ async function clearCard(heatId, kind) {
 }
 
 // ── Advance / Reseed ──────────────────────────────────────────────────────────
-async function advance(id, from, kind) {
+async function advance(id, from, kind, group) {
+  const targetGroup = group || curGroup;
   const url     = kind==='relay' ? '/api/advance_relay' : '/api/advance';
   const payload = kind==='relay' ? {relay_event_id:id,from} : {event_id:id,from};
   const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -663,8 +667,7 @@ async function advance(id, from, kind) {
     if (kind==='relay') {
       refreshAndShowRelay();
     } else {
-      // Small delay to ensure DB commit is visible before refresh
-      setTimeout(() => selectGroup(curGroup), 300);
+      setTimeout(() => selectGroup(targetGroup), 300);
     }
   }
   else toast(d.error || d.detail || 'Advance failed — check console','error');
