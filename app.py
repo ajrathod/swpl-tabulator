@@ -8,7 +8,7 @@ from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
-    AthleteRegistry,
+    AthleteRegistry, ScratchRecord,
 )
 from seeding import compute_stages, distribute
 
@@ -888,9 +888,11 @@ def api_relays(comp_id):
         heats  = sorted([h for h in re.relay_heats if h.stage=="Heat"],  key=lambda h: h.number)
         semis  = sorted([h for h in re.relay_heats if h.stage=="Semi"],  key=lambda h: h.number)
         finals = sorted([h for h in re.relay_heats if h.stage=="Final"], key=lambda h: h.number)
+        # Include all teams (active + scratched) so operator can unscratch
+        all_teams = [t.to_dict() for t in re.teams]
         result[re.event_name] = {
             "id": re.id, "event_type": re.event_type,
-            "teams": [t.to_dict() for t in re.teams],
+            "teams": all_teams,
             "heats":  [h.to_dict() for h in heats],
             "semis":  [h.to_dict() for h in semis],
             "finals": [h.to_dict() for h in finals],
@@ -1175,6 +1177,221 @@ def athlete_history(panel):
     if not info: info = {"panel":panel,"usars_no":"","name":panel,"club":"","gender":"","age":0}
     session.close()
     return jsonify({**info, "history": history, "stats": stats})
+
+
+
+# ── Scratch / Unscratch ───────────────────────────────────────────────────────
+
+@app.route("/api/scratch", methods=["POST"])
+def scratch_skater():
+    """
+    Scratch a skater from one event or all events.
+    scope: "event" (event_id required) | "all" (all events in competition)
+    """
+    data = request.json
+    comp_id  = data["comp_id"]
+    panel    = data["panel"]
+    scope    = data.get("scope", "event")   # "event" | "all"
+    event_id = data.get("event_id")
+    reason   = data.get("reason", "")
+    session  = db()
+    try:
+        sk = session.query(Skater).filter_by(competition_id=comp_id, panel=panel).first()
+        if not sk: return jsonify({"error": "Skater not found"}), 404
+
+        if scope == "all":
+            # Remove from all heats across all events
+            for hs in list(sk.heat_skaters):
+                session.delete(hs)
+            sk.status = "scratched"
+        else:
+            # Remove from specific event's heats only
+            if not event_id: return jsonify({"error": "event_id required for scope=event"}), 400
+            for hs in list(sk.heat_skaters):
+                if hs.heat.event_id == int(event_id):
+                    session.delete(hs)
+
+        # Log it
+        session.add(ScratchRecord(
+            competition_id=comp_id, panel=panel,
+            event_id=event_id if scope=="event" else None,
+            scope=scope, reason=reason, entity_type="skater", action="scratch"))
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/unscratch", methods=["POST"])
+def unscratch_skater():
+    """Restore a scratched skater — re-add to heats in specified events."""
+    data = request.json
+    comp_id  = data["comp_id"]
+    panel    = data["panel"]
+    scope    = data.get("scope", "event")
+    event_id = data.get("event_id")
+    session  = db()
+    try:
+        sk = session.query(Skater).filter_by(competition_id=comp_id, panel=panel).first()
+        if not sk: return jsonify({"error": "Skater not found"}), 404
+
+        if scope == "all":
+            sk.status = "active"
+            # Re-seed all events for this group
+            events = session.query(Event).filter_by(
+                competition_id=comp_id, group_name=sk.group_name).all()
+            for ev in events:
+                reseed_individual(session, ev)
+        else:
+            if not event_id: return jsonify({"error": "event_id required"}), 400
+            ev = session.query(Event).get(int(event_id))
+            if ev: reseed_individual(session, ev)
+
+        session.add(ScratchRecord(
+            competition_id=comp_id, panel=panel,
+            event_id=event_id if scope=="event" else None,
+            scope=scope, entity_type="skater", action="unscratch"))
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/scratch_relay", methods=["POST"])
+def scratch_relay_team():
+    """Scratch a relay team from their relay event."""
+    data = request.json
+    team_id  = data["team_id"]
+    reason   = data.get("reason", "")
+    session  = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error": "Team not found"}), 404
+        # Remove from all heats
+        for rht in list(team.relay_heats):
+            session.delete(rht)
+        team.status = "scratched"
+        re = team.relay_event
+        session.add(ScratchRecord(
+            competition_id=re.competition_id, team_id=team_id,
+            scope="event", entity_type="relay_team", reason=reason, action="scratch"))
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/unscratch_relay", methods=["POST"])
+def unscratch_relay_team():
+    """Restore a scratched relay team — re-seed the relay event."""
+    data = request.json
+    team_id = data["team_id"]
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error": "Team not found"}), 404
+        team.status = "active"
+        re = team.relay_event
+        reseed_relay(session, re)
+        session.add(ScratchRecord(
+            competition_id=re.competition_id, team_id=team_id,
+            scope="event", entity_type="relay_team", action="unscratch"))
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+# ── Standby athletes ──────────────────────────────────────────────────────────
+
+@app.route("/api/add_standby", methods=["POST"])
+def add_standby():
+    """
+    Add a standby athlete to the competition roster.
+    Can come from registry (by usars_no) or ad-hoc (first, last, panel).
+    """
+    data    = request.json
+    comp_id = data["comp_id"]
+    group   = data["group"]
+    panel   = data.get("panel", "").strip()
+    usars   = data.get("usars_no", "").strip()
+    first   = data.get("first", "").strip()
+    last    = data.get("last", "").strip()
+    session = db()
+    try:
+        if not panel: return jsonify({"error": "Panel number required"}), 400
+
+        # Check for duplicate panel in this competition
+        existing = session.query(Skater).filter_by(
+            competition_id=comp_id, panel=panel).first()
+        if existing:
+            return jsonify({"error": f"Panel #{panel} already exists in this competition"}), 409
+
+        # Try to enrich from registry
+        reg = None
+        if usars:
+            reg = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
+        if not reg and first and last:
+            reg = session.query(AthleteRegistry).filter(
+                AthleteRegistry.first.ilike(first),
+                AthleteRegistry.last.ilike(last)).first()
+
+        sk = Skater(
+            competition_id=comp_id,
+            panel=panel,
+            usars_no=(reg.usars_no if reg else usars) or "",
+            first=reg.first if reg else first,
+            last=reg.last  if reg else last,
+            gender=reg.gender if reg else data.get("gender",""),
+            age=data.get("age", 0) or 0,
+            club=(reg.club if reg else data.get("club","")) or "",
+            group_name=group,
+            status="standby",
+        )
+        session.add(sk)
+        session.commit()
+        return jsonify({"ok": True, "skater": sk.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/<int:comp_id>/standbys/<path:group>")
+def get_standbys(comp_id, group):
+    """Return standby athletes for a group."""
+    session = db()
+    standbys = session.query(Skater).filter_by(
+        competition_id=comp_id, group_name=group, status="standby").all()
+    session.close()
+    return jsonify([s.to_dict() for s in standbys])
+
+
+@app.route("/api/<int:comp_id>/scratches/<path:group>")
+def get_scratches(comp_id, group):
+    """Return scratched athletes for a group with their scratch records."""
+    session = db()
+    scratched = session.query(Skater).filter_by(
+        competition_id=comp_id, group_name=group, status="scratched").all()
+    result = []
+    for sk in scratched:
+        rec = session.query(ScratchRecord).filter_by(
+            competition_id=comp_id, panel=sk.panel, action="scratch"
+        ).order_by(ScratchRecord.scratched_at.desc()).first()
+        d = sk.to_dict()
+        d["scratch_reason"] = rec.reason if rec else ""
+        d["scratch_scope"]  = rec.scope  if rec else "event"
+        result.append(d)
+    session.close()
+    return jsonify(result)
 
 
 if __name__ == "__main__":

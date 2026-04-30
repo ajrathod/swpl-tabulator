@@ -141,7 +141,7 @@ class Skater(Base):
     __tablename__ = "skaters"
     id             = Column(Integer, primary_key=True)
     competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
-    usars_no       = Column(String(30))              # USARS membership number
+    usars_no       = Column(String(30))
     panel          = Column(String(20), nullable=False)
     first          = Column(String(100))
     last           = Column(String(100))
@@ -149,11 +149,11 @@ class Skater(Base):
     age            = Column(Integer)
     club           = Column(String(100))
     group_name     = Column(String(200))
+    status         = Column(String(20), default="active")  # active | scratched | standby
 
     competition  = relationship("Competition", back_populates="skaters")
     heat_skaters = relationship("HeatSkater",  back_populates="skater", cascade="all, delete-orphan")
 
-    # Unique per competition by panel number (USARS no. may be blank on old sheets)
     __table_args__ = (UniqueConstraint("competition_id", "panel"),)
 
     @property
@@ -164,7 +164,7 @@ class Skater(Base):
         return {"id":self.id,"panel":self.panel,"usars_no":self.usars_no or "",
                 "first":self.first,"last":self.last,
                 "full_name":self.full_name,"gender":self.gender,"age":self.age,
-                "club":self.club,"group":self.group_name}
+                "club":self.club,"group":self.group_name,"status":self.status or "active"}
 
 
 class Event(Base):
@@ -245,6 +245,7 @@ class RelayTeam(Base):
     relay_event_id = Column(Integer, ForeignKey("relay_events.id"), nullable=False)
     club           = Column(String(100))
     color          = Column(String(50))
+    status         = Column(String(20), default="active")  # active | scratched
 
     relay_event   = relationship("RelayEvent",    back_populates="teams")
     members       = relationship("RelayMember",   back_populates="team", cascade="all, delete-orphan")
@@ -252,6 +253,7 @@ class RelayTeam(Base):
 
     def to_dict(self):
         return {"id":self.id,"club":self.club,"color":self.color or "",
+                "status": self.status or "active",
                 "members":[m.name for m in self.members]}
 
 
@@ -297,6 +299,27 @@ class RelayHeatTeam(Base):
         return {"team_id":t.id,"club":t.club,"color":t.color or "",
                 "members":[m.name for m in t.members],
                 "placement":self.placement or "","seed_order":self.seed_order}
+
+
+class ScratchRecord(Base):
+    """Audit trail of scratches and unscratch actions."""
+    __tablename__ = "scratch_records"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    panel          = Column(String(20))           # skater panel (individual)
+    team_id        = Column(Integer)              # relay team id
+    event_id       = Column(Integer)              # None = all events
+    scope          = Column(String(20))           # "event" | "all"
+    entity_type    = Column(String(20))           # "skater" | "relay_team"
+    reason         = Column(String(200))
+    action         = Column(String(20))           # "scratch" | "unscratch"
+    scratched_at   = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id":self.id,"panel":self.panel,"team_id":self.team_id,
+                "scope":self.scope,"reason":self.reason or "",
+                "action":self.action,
+                "scratched_at":self.scratched_at.strftime("%Y-%m-%d %H:%M") if self.scratched_at else ""}
 
 
 def init_db():
