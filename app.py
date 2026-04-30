@@ -256,10 +256,10 @@ def reseed_individual(session, event):
     for h in event.heats:
         for hs in h.skaters:
             if hs.placement: old[hs.skater.panel] = hs.placement
-    # Only seed active skaters — exclude scratched and standby
-    panels = [s.panel for s in session.query(Skater).filter_by(
-        competition_id=event.competition_id, group_name=event.group_name,
-        status="active").all()]
+    # Filter in Python to handle missing status column on older DBs
+    all_skaters = session.query(Skater).filter_by(
+        competition_id=event.competition_id, group_name=event.group_name).all()
+    panels = [s.panel for s in all_skaters if (s.status or 'active') == 'active']
     seed_individual_heats(session, event, panels)
     session.flush()
     for h in event.heats:
@@ -958,9 +958,11 @@ def advance():
         if not ev: return jsonify({"error":"Event not found"}), 404
         src = [h for h in ev.heats if h.stage==("Heat" if from_stage=="heats" else "Semi")]
         dst = [h for h in ev.heats if h.stage==("Semi" if from_stage=="heats" else "Final")]
-        stages = compute_stages(session.query(Skater).filter_by(
-            competition_id=ev.competition_id, group_name=ev.group_name,
-            status="active").count())
+        # Count only active skaters (filter in Python to handle missing status column)
+        all_skaters = session.query(Skater).filter_by(
+            competition_id=ev.competition_id, group_name=ev.group_name).all()
+        active_count = sum(1 for s in all_skaters if (s.status or 'active') == 'active')
+        stages = compute_stages(active_count)
         adv = stages["adv_heat"] if from_stage=="heats" else stages["adv_semi"]
 
         qualifiers = []
@@ -1358,7 +1360,7 @@ def add_standby():
             age=data.get("age", 0) or 0,
             club=(reg.club if reg else data.get("club","")) or "",
             group_name=group,
-            status="standby",
+            status="standby",  # will be None on old DBs until migration
         )
         session.add(sk)
         session.commit()
@@ -1373,8 +1375,9 @@ def add_standby():
 def get_standbys(comp_id, group):
     """Return standby athletes for a group."""
     session = db()
-    standbys = session.query(Skater).filter_by(
-        competition_id=comp_id, group_name=group, status="standby").all()
+    all_sk2 = session.query(Skater).filter_by(
+        competition_id=comp_id, group_name=group).all()
+    standbys = [s for s in all_sk2 if (s.status or 'active') == 'standby']
     session.close()
     return jsonify([s.to_dict() for s in standbys])
 
@@ -1383,8 +1386,9 @@ def get_standbys(comp_id, group):
 def get_scratches(comp_id, group):
     """Return scratched athletes for a group with their scratch records."""
     session = db()
-    scratched = session.query(Skater).filter_by(
-        competition_id=comp_id, group_name=group, status="scratched").all()
+    all_sk = session.query(Skater).filter_by(
+        competition_id=comp_id, group_name=group).all()
+    scratched = [s for s in all_sk if (s.status or 'active') == 'scratched']
     result = []
     for sk in scratched:
         rec = session.query(ScratchRecord).filter_by(
