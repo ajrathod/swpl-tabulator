@@ -259,7 +259,8 @@ def reseed_individual(session, event):
     # Filter in Python to handle missing status column on older DBs
     all_skaters = session.query(Skater).filter_by(
         competition_id=event.competition_id, group_name=event.group_name).all()
-    panels = [s.panel for s in all_skaters if (s.status or 'active') == 'active']
+    panels = [s.panel for s in all_skaters
+              if getattr(s, 'status', 'active') in (None, 'active')]
     seed_individual_heats(session, event, panels)
     session.flush()
     for h in event.heats:
@@ -958,10 +959,11 @@ def advance():
         if not ev: return jsonify({"error":"Event not found"}), 404
         src = [h for h in ev.heats if h.stage==("Heat" if from_stage=="heats" else "Semi")]
         dst = [h for h in ev.heats if h.stage==("Semi" if from_stage=="heats" else "Final")]
-        # Count only active skaters (filter in Python to handle missing status column)
+        # Count only active skaters — use getattr for safety if column missing
         all_skaters = session.query(Skater).filter_by(
             competition_id=ev.competition_id, group_name=ev.group_name).all()
-        active_count = sum(1 for s in all_skaters if (s.status or 'active') == 'active')
+        active_count = sum(1 for s in all_skaters
+                           if getattr(s, 'status', 'active') in (None, 'active'))
         stages = compute_stages(active_count)
         adv = stages["adv_heat"] if from_stage=="heats" else stages["adv_semi"]
 
@@ -985,12 +987,9 @@ def advance():
         dest = dst[0].stage if dst else "Final"
         return jsonify({"ok":True, "message":f"{len(qualifiers)} skaters → {dest}"})
     except Exception as e:
-        session.rollback(); return jsonify({"error":str(e)}), 500
-    finally:
-        session.close()
-
-
-# ── Advance relay ─────────────────────────────────────────────────────────────
+        import traceback
+        session.rollback()
+        return jsonify({"error": str(e), "detail": traceback.format_exc()[-500:]}), 500
 
 @app.route("/api/advance_relay", methods=["POST"])
 def advance_relay():
