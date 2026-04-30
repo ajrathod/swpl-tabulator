@@ -856,7 +856,10 @@ def api_group(comp_id, group):
             "finals": [h.to_dict() for h in finals],
         }
     session.close()
-    return jsonify(result)
+    from flask import make_response
+    resp = make_response(jsonify(result))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    return resp
 
 
 @app.route("/api/<int:comp_id>/standings/<path:group>")
