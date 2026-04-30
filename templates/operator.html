@@ -658,7 +658,15 @@ async function advance(id, from, kind) {
   const payload = kind==='relay' ? {relay_event_id:id,from} : {event_id:id,from};
   const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d = await r.json();
-  if (d.ok) { toast('✓ '+d.message,'success'); if(kind==='relay') refreshAndShowRelay(); else selectGroup(curGroup); }
+  if (d.ok) {
+    toast('✓ '+d.message,'success');
+    if (kind==='relay') {
+      refreshAndShowRelay();
+    } else {
+      // Small delay to ensure DB commit is visible before refresh
+      setTimeout(() => selectGroup(curGroup), 300);
+    }
+  }
   else toast(d.error || d.detail || 'Advance failed — check console','error');
   if (d.detail) console.error('Advance error:', d.detail);
 }
@@ -1092,14 +1100,16 @@ async function doAddStandby() {
 
 // ── Render scratched + standby panel ─────────────────────────────────────────
 async function renderScratchStandbyPanel(group) {
-  const [sr, sbr] = await Promise.all([
-    fetch(`/api/${COMP_ID}/scratches/${encodeURIComponent(group)}`),
-    fetch(`/api/${COMP_ID}/standbys/${encodeURIComponent(group)}`),
-  ]);
-  const scratched = await sr.json();
-  const standbys  = await sbr.json();
+  try {
+    const [sr, sbr] = await Promise.all([
+      fetch(`/api/${COMP_ID}/scratches/${encodeURIComponent(group)}`),
+      fetch(`/api/${COMP_ID}/standbys/${encodeURIComponent(group)}`),
+    ]);
+    if (!sr.ok || !sbr.ok) return '';
+    const scratched = await sr.json().catch(() => []);
+    const standbys  = await sbr.json().catch(() => []);
 
-  if (!scratched.length && !standbys.length) return '';
+    if (!scratched.length && !standbys.length) return '';
 
   const scratchRows = scratched.map(s => `
     <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 opacity-60">
@@ -1127,6 +1137,10 @@ async function renderScratchStandbyPanel(group) {
     </div>
     ${scratchRows}${standbyRows}
   </div>`;
+  } catch(e) {
+    console.warn('renderScratchStandbyPanel error:', e);
+    return '';
+  }
 }
 
 async function unScratch(panel) {
