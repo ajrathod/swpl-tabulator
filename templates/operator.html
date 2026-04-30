@@ -629,64 +629,6 @@ function hCard(heat, color, parentId, kind) {
 }
 
 
-  const rows = items.map((s,i) => {
-    const pl = s.placement;
-    const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
-    const idAttr = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
-
-    let nameCell = '';
-    if (isRelay) {
-      const RBIB = {red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#212121',
-        yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#9E9E9E'};
-      const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
-      const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').slice(0,3).join(', ');
-      nameCell = `<div class="font-semibold text-sm">${s.club}
-        <span class="inline-flex items-center gap-1 ml-1.5 text-xs font-normal text-gray-400">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>${s.color||'—'}
-        </span></div>
-        ${memberStr ? `<div class="text-xs text-gray-400 mt-0.5">${memberStr}</div>` : ''}`;
-    } else {
-      nameCell = `<span class="font-medium text-sm">${s.full_name}</span>`;
-    }
-
-    return `<tr class="${rc}">
-      <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
-      <td class="px-3 py-2">${nameCell}</td>
-      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
-        <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
-      <td class="px-3 py-2">
-        <input type="text" value="${pl||''}" placeholder="—"
-          class="w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
-          data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
-          onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
-          oninput="this.classList.toggle('bg-red-50',this.value.toUpperCase()==='DQ');this.classList.toggle('text-red-600',this.value.toUpperCase()==='DQ')">
-      </td>
-    </tr>`;
-  }).join('');
-
-  const colHdrs = isRelay
-    ? '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th><th class="px-3 py-2">Place</th>'
-    : '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Panel</th><th class="px-3 py-2 text-left">Club</th><th class="px-3 py-2">Place</th>';
-
-  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
-    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
-      <span class="text-white text-sm font-bold">${label}</span>
-      <span class="text-white/70 text-xs">${items.length} skaters</span>
-    </div>
-    <table class="w-full">
-      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
-      <tbody class="divide-y divide-gray-50">${rows}</tbody>
-    </table>
-    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100">
-      <button onclick="saveCard(${heat.id},'${kind}')"
-        class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
-      <button onclick="clearCard(${heat.id},'${kind}')"
-        class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">✕ Clear</button>
-      <span class="text-xs text-gray-400 ml-auto">1–6 or DQ · ↵ save</span>
-    </div>
-  </div>`;
-}
-
 // ── Save results ──────────────────────────────────────────────────────────────
 async function saveCard(heatId, kind) {
   const inputs = document.querySelectorAll(`input[data-heatid="${heatId}"]`);
