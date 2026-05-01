@@ -608,12 +608,21 @@ function hCard(heat, color, parentId, kind) {
       };
       const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
       const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').join(', ');
+      // Color swatches for inline picker
+      const swatches = Object.entries(RBIB).map(([name, hex]) =>
+        `<button type="button" title="${name}"
+           onclick="setTeamColor(${s.team_id},'${name}',this)"
+           style="width:16px;height:16px;border-radius:50%;background:${hex};border:2px solid ${(s.color||'').toLowerCase()===name?'#F4511E':'transparent'};flex-shrink:0;cursor:pointer;transition:border-color .1s"
+         ></button>`
+      ).join('');
       nameCell = `<div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <span class="font-semibold text-sm">${s.club}</span>
-          <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white" style="background:${bibColor}">
+          <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white cursor-pointer"
+            style="background:${bibColor}" title="Click swatches to change color">
             ${s.color||'—'}
           </span>
+          <div class="flex items-center gap-1 flex-wrap">${swatches}</div>
         </div>
         ${memberStr ? `<div class="text-xs text-gray-500 mt-0.5">${memberStr}</div>` : ''}
       </div>`;
@@ -1221,7 +1230,20 @@ document.querySelectorAll('[id$="-modal"]').forEach(m =>
   m.addEventListener('click', e => { if (e.target===m) m.classList.add('hidden'); }));
 function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
-// ── Color picker helper ───────────────────────────────────────────────────────
+// ── Inline relay team color change ────────────────────────────────────────────
+async function setTeamColor(teamId, color, btn) {
+  const r = await fetch('/api/relay_team/update_members', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({team_id: teamId, color, members: null})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ Color updated to ${color}`, 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+
 const RELAY_COLORS = {
   'Green':      '#2E7D32',
   'Blue':       '#1565C0',
