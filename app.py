@@ -1477,15 +1477,17 @@ def delete_relay_pool(athlete_id):
 
 @app.route("/api/relay_team/update_members", methods=["POST"])
 def update_relay_team_members():
-    """Replace a team's member list with the provided names."""
+    """Replace a team's member list and optionally update color."""
     data = request.json
     team_id = data["team_id"]
-    members = data.get("members", [])   # list of name strings
+    members = data.get("members", [])
+    color   = data.get("color", "").strip()
     session = db()
     try:
         team = session.query(RelayTeam).get(team_id)
         if not team: return jsonify({"error": "Team not found"}), 404
-        # Delete existing members and replace
+        if color:
+            team.color = color
         for m in list(team.members):
             session.delete(m)
         session.flush()
