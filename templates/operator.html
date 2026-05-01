@@ -207,6 +207,21 @@ tailwind.config = {
       <button onclick="closeModal('edit-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
     </div>
     <div class="overflow-y-auto flex-1 p-5 space-y-4">
+      <!-- Color picker -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Bib Color</label>
+        <div class="flex gap-1.5 flex-wrap" id="et-color-swatches">
+          <input type="hidden" id="et-color" value="">
+          <button type="button" data-color="Green"      onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#2E7D32" title="Green"></button>
+          <button type="button" data-color="Blue"       onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#1565C0" title="Blue"></button>
+          <button type="button" data-color="Yellow"     onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#F9A825" title="Yellow"></button>
+          <button type="button" data-color="Pink"       onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#E91E8C" title="Pink"></button>
+          <button type="button" data-color="Light Blue" onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#29B6F6" title="Light Blue"></button>
+          <button type="button" data-color="Black"      onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#212121" title="Black"></button>
+          <button type="button" data-color="Red"        onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#C62828" title="Red"></button>
+        </div>
+        <div class="text-xs text-gray-400 mt-1" id="et-color-label">No color selected</div>
+      </div>
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Members</label>
         <div id="edit-team-members" class="space-y-1.5 min-h-12"></div>
@@ -241,7 +256,18 @@ tailwind.config = {
         <div><label class="block text-xs text-gray-500 mb-1">Club *</label>
           <input id="at-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
         <div><label class="block text-xs text-gray-500 mb-1">Bib Color *</label>
-          <input id="at-color" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. Red"></div>
+          <div class="flex gap-1.5 flex-wrap" id="at-color-swatches">
+            <input type="hidden" id="at-color" value="">
+            <button type="button" data-color="Green"      onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#2E7D32" title="Green"></button>
+            <button type="button" data-color="Blue"       onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#1565C0" title="Blue"></button>
+            <button type="button" data-color="Yellow"     onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#F9A825" title="Yellow"></button>
+            <button type="button" data-color="Pink"       onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#E91E8C" title="Pink"></button>
+            <button type="button" data-color="Light Blue" onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#29B6F6" title="Light Blue"></button>
+            <button type="button" data-color="Black"      onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#212121" title="Black"></button>
+            <button type="button" data-color="Red"        onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#C62828" title="Red"></button>
+          </div>
+          <div class="text-xs text-gray-400 mt-1" id="at-color-label">No color selected</div>
+        </div>
       </div>
       <div>
         <label class="block text-xs text-gray-500 mb-1">Members (one per line)</label>
@@ -576,15 +602,21 @@ function hCard(heat, color, parentId, kind) {
 
     let nameCell = '';
     if (isRelay) {
-      const RBIB = {red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#212121',
-        yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#9E9E9E'};
+      const RBIB = {
+        green:'#2E7D32', blue:'#1565C0', yellow:'#F9A825',
+        pink:'#E91E8C', 'light blue':'#29B6F6', black:'#212121', red:'#C62828'
+      };
       const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
-      const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').slice(0,3).join(', ');
-      nameCell = `<div class="font-semibold text-sm">${s.club}
-        <span class="inline-flex items-center gap-1 ml-1.5 text-xs font-normal text-gray-400">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>${s.color||'—'}
-        </span></div>
-        ${memberStr ? `<div class="text-xs text-gray-400 mt-0.5">${memberStr}</div>` : ''}`;
+      const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').join(', ');
+      nameCell = `<div>
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-sm">${s.club}</span>
+          <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white" style="background:${bibColor}">
+            ${s.color||'—'}
+          </span>
+        </div>
+        ${memberStr ? `<div class="text-xs text-gray-500 mt-0.5">${memberStr}</div>` : ''}
+      </div>`;
     } else {
       nameCell = `<span class="font-medium text-sm">${s.full_name}</span>`;
     }
@@ -930,7 +962,7 @@ function showRelay(evName, ev) {
   document.querySelectorAll('.group-btn').forEach(b=>b.className=b.className.replace('bg-orange-50 text-brand font-semibold','text-gray-700 hover:bg-gray-100'));
   document.getElementById('welcome').classList.add('hidden');
   document.getElementById('grp-view').classList.remove('hidden');
-  const COLORS={red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#1a1a1a',yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#757575'};
+  const COLORS={green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
 
   // Store with consistent structure including name so openDDModal can find it
   const evWithName = {...ev, name: evName};
@@ -1189,6 +1221,44 @@ document.querySelectorAll('[id$="-modal"]').forEach(m =>
   m.addEventListener('click', e => { if (e.target===m) m.classList.add('hidden'); }));
 function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
+// ── Color picker helper ───────────────────────────────────────────────────────
+const RELAY_COLORS = {
+  'Green':      '#2E7D32',
+  'Blue':       '#1565C0',
+  'Yellow':     '#F9A825',
+  'Pink':       '#E91E8C',
+  'Light Blue': '#29B6F6',
+  'Black':      '#212121',
+  'Red':        '#C62828',
+};
+
+function pickTeamColor(btn, scope) {
+  const prefix = scope === 'edit' ? 'et' : 'at';
+  // Deselect all swatches in this scope
+  document.querySelectorAll(`#${prefix}-color-swatches .color-swatch`).forEach(b => {
+    b.style.borderColor = 'transparent';
+    b.style.transform = '';
+    b.style.boxShadow = '';
+  });
+  // Select this one
+  btn.style.borderColor = '#F4511E';
+  btn.style.boxShadow = '0 0 0 3px rgba(244,81,30,.25)';
+  const color = btn.dataset.color;
+  document.getElementById(`${prefix}-color`).value = color;
+  document.getElementById(`${prefix}-color-label`).textContent = color;
+}
+
+function preselectColor(color, scope) {
+  const prefix = scope === 'edit' ? 'et' : 'at';
+  document.getElementById(`${prefix}-color`).value = color || '';
+  document.getElementById(`${prefix}-color-label`).textContent = color || 'No color selected';
+  document.querySelectorAll(`#${prefix}-color-swatches .color-swatch`).forEach(b => {
+    const match = b.dataset.color.toLowerCase() === (color||'').toLowerCase();
+    b.style.borderColor = match ? '#F4511E' : 'transparent';
+    b.style.boxShadow = match ? '0 0 0 3px rgba(244,81,30,.25)' : '';
+  });
+}
+
 // ── Relay Team Editing ────────────────────────────────────────────────────────
 let _editTeamId = null, _editTeamMembers = [], _editRelayEvId = null;
 
@@ -1200,6 +1270,7 @@ function openEditTeam(teamId, club, color, members, relayEvId) {
   document.getElementById('edit-team-search').value = '';
   document.getElementById('edit-team-adhoc').value = '';
   document.getElementById('edit-team-search-results').classList.add('hidden');
+  preselectColor(color, 'edit');
   renderEditTeamMembers();
   openModal('edit-team-modal');
 }
@@ -1286,9 +1357,10 @@ function addEditMemberFromPool(name) {
 }
 
 async function saveTeamMembers() {
+  const color = document.getElementById('et-color').value;
   const r = await fetch('/api/relay_team/update_members', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({team_id: _editTeamId, members: _editTeamMembers})
+    body: JSON.stringify({team_id: _editTeamId, members: _editTeamMembers, color})
   });
   const d = await r.json();
   if (d.ok) {
@@ -1302,7 +1374,8 @@ async function saveTeamMembers() {
 let _addTeamRelayEvId = null;
 function openAddTeam(relayEvId) {
   _addTeamRelayEvId = relayEvId;
-  ['at-club','at-color','at-members'].forEach(id => document.getElementById(id).value = '');
+  ['at-club','at-members'].forEach(id => document.getElementById(id).value = '');
+  preselectColor('', 'add');
   openModal('add-team-modal');
 }
 
@@ -1310,7 +1383,8 @@ async function doAddTeam() {
   const club    = document.getElementById('at-club').value.trim();
   const color   = document.getElementById('at-color').value.trim();
   const members = document.getElementById('at-members').value.split('\n').filter(l => l.trim());
-  if (!club || !color) { toast('Club and bib color required', 'error'); return; }
+  if (!club) { toast('Club required', 'error'); return; }
+  if (!color) { toast('Select a bib color', 'error'); return; }
   const r = await fetch('/api/relay_team/add', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({relay_event_id: _addTeamRelayEvId, club, color, members})

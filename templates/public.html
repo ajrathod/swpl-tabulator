@@ -542,7 +542,7 @@ async function showStandings(group) {
 // ── Relay view ───────────────────────────────────────────────────────────────
 function showRelay(evName, ev) {
   if (!ev) { setContent('<div class="waiting"><div class="wi">⏳</div><p>No relay data</p></div>'); return; }
-  const COLORS = {red:'#C62828',green:'#2E7D32',blue:'#1565C0',black:'#222',yellow:'#F9A825',orange:'#E65100',purple:'#6A1B9A',white:'#546E7A'};
+  const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
   let html = '';
 
   const relayHCard = (heat, cls) => {
@@ -566,7 +566,8 @@ function showRelay(evName, ev) {
         <div class="rank-num ${ranked?pcls:'rn'}">${ranked?num:i+1}</div>
         <div class="sk-info">
           <div class="sk-name" style="display:flex;align-items:center;gap:8px">
-            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>${t.club}
+            <span>${t.club}</span>
+            <span style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;background:${bibColor}">${t.color||''}</span>
           </div>
           ${memberList?`<div class="sk-meta">${memberList}</div>`:''}
         </div>${plEl}
