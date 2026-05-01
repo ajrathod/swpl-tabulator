@@ -882,13 +882,14 @@ async function saveDDModal() {
   }));
   const r = await fetch('/api/arrange_heats', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({event_id: ddEvId, stage: ddStage, heats})
+    body: JSON.stringify({event_id: ddEvId, stage: ddStage, heats, kind: ddKind})
   });
   const d = await r.json();
   if (d.ok) {
     toast('✓ Heat arrangement saved','success');
     closeDDModal();
-    selectGroup(curGroup);
+    if (ddKind === 'relay') refreshAndShowRelay();
+    else selectGroup(curGroup);
   } else toast(d.error,'error');
 }
 
