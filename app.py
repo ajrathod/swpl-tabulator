@@ -1043,7 +1043,12 @@ def advance_relay():
         re = session.query(RelayEvent).get(relay_event_id)
         if not re: return jsonify({"error":"Not found"}), 404
         src = [h for h in re.relay_heats if h.stage==("Heat" if from_stage=="heats" else "Semi")]
-        dst = [h for h in re.relay_heats if h.stage==("Semi" if from_stage=="heats" else "Final")]
+        # If advancing from heats and no semis exist, go straight to Final
+        if from_stage == "heats":
+            semis = [h for h in re.relay_heats if h.stage=="Semi"]
+            dst = semis if semis else [h for h in re.relay_heats if h.stage=="Final"]
+        else:
+            dst = [h for h in re.relay_heats if h.stage=="Final"]
         stages = compute_stages(len([t for t in re.teams if t.status == 'active']), max_per=7, semi_threshold=6)
         adv = stages["adv_heat"] if from_stage=="heats" else stages["adv_semi"]
 
