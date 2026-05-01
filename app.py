@@ -3,7 +3,7 @@ PacWest Inline Racing — Race Manager v3
 Flask + SQLite/PostgreSQL
 """
 from flask import Flask, render_template, request, jsonify
-import pandas as pd, math, os
+import pandas as pd, math, os, re
 from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
@@ -110,56 +110,89 @@ def parse_individual(filepath):
 
 def parse_relay(filepath):
     """
-    Parse relay master sheet. Handles two formats:
-    Format A (old): sheet name contains 'relay', event name in col0 (e.g. 'Final — Juvenile 3 Mix')
-    Format B (Roseville): sheet name = 'Sheet1', col0='FINAL', event name in col1
-                          col0=club, col1=member name, col0 blank for 2nd member
+    Parse relay master sheet. Three supported formats:
+
+    Format A (old): col0 contains 'Final', event name is col0 itself
+    Format B (Roseville current): col0='FINAL', event name in col1
+    Format C (new simplified):    col0='EVENT' or just a division name in col0,
+                                  col1 empty — e.g. "Elite Elementary 2 Boy (2000M) Final"
+                                  No FINAL keyword needed; any col0 value with no col1
+                                  that looks like an event header triggers a new event.
+
+    Team rows in all formats:
+      col0=club, col1=first member  → new team
+      col0 empty, col1=member       → additional member
+      col0='HEAT' or 'Heat N'       → skip (heat divider rows ignored, teams still parsed)
+      col0='XX'                     → skip (section header)
     """
+    # Keywords that are never club names
+    SKIP_KEYWORDS = {"XX", "FINAL", "HEAT"}
+    HEAT_RE = re.compile(r'^heat\s*\d*$', re.I)
+
     df = pd.read_excel(filepath, sheet_name=None, header=None, engine='openpyxl')
     teams = []
     for sname, ws in df.items():
         cur_event = None; cur_team = None
         for i, row in ws.iterrows():
-            col0 = _clean(row.get(0,""))
-            col1 = _clean(row.get(1,""))
-            col2 = _clean(row.get(2,""))
-            col5 = _clean(row.get(5,""))
+            col0 = _clean(row.get(0, ""))
+            col1 = _clean(row.get(1, ""))
+            col2 = _clean(row.get(2, ""))
+            col5 = _clean(row.get(5, ""))
+
+            # ── Skip blank rows ─────────────────────────────────────────────
+            if not col0 and not col1:
+                continue
+
+            # ── Skip section dividers (XX, 'N PERSON RELAY', etc.) ─────────
+            if col0 == "XX":
+                continue
+
+            # ── Skip heat divider rows (HEAT, Heat 1, Heat 2, …) ───────────
+            # But if col0=='HEAT' and col1 has content, it's an event header
+            if col0.upper() == "HEAT":
+                if col1:
+                    cur_event = col1  # e.g. "HEAT | Elite Juvenile Any 3 (900M) Final"
+                cur_team = None
+                continue
+            if HEAT_RE.match(col0):
+                cur_team = None  # Heat 1 / Heat 2 divider — just reset cur_team
+                continue
 
             # ── Event header detection ──────────────────────────────────────
             # Format B: col0 == 'FINAL', event name in col1
             if col0.upper() == "FINAL" and col1:
                 cur_event = col1; cur_team = None; continue
-            # Format A: col0 contains 'Final', event name is col0 itself
-            if "Final" in col0 and col0.upper() != "FINAL" and not col1:
+
+            # Format A: col0 contains 'Final' keyword and no col1
+            if "final" in col0.lower() and not col1:
                 cur_event = col0; cur_team = None; continue
 
-            # Skip meta rows (e.g. 'XX', '2 PERSON RELAY')
-            if col0 in ("XX","") and col1 and not cur_event:
-                continue
+            # Format C (new): col0 has event name, col1 empty, col0 is not a club keyword
+            # Heuristic: col0 looks like an event name (contains letters + digits/parens,
+            # no col1) and we're not in the middle of a team list
+            if col1 == "" and col0 and col0.upper() not in SKIP_KEYWORDS and not HEAT_RE.match(col0):
+                # Distinguish event header from a team with a blank member field:
+                # event headers tend to be longer / contain parentheses / contain digits
+                looks_like_event = (
+                    "(" in col0 or           # e.g. "(900M)"
+                    len(col0.split()) >= 3 or # multi-word name
+                    col0.upper() == col0       # all-caps section marker
+                )
+                if looks_like_event:
+                    cur_event = col0; cur_team = None; continue
 
             # ── Team / member rows ──────────────────────────────────────────
-            # Format B: col0=club, col1=member1 name  (col2 empty)
-            # Format B continued: col0 empty, col1=member2 name
-            # Format A: col0=club, col1=member1, col2=member2, col5=color
-
-            # Determine which column holds the member name
-            # Format B uses col1 for names; Format A uses col1 and col2
-            if col0 and col0 not in ("nan","FINAL","XX") and col1:
+            if col0 and col0.upper() not in SKIP_KEYWORDS and not HEAT_RE.match(col0) and col1:
                 # New team
-                club  = col0
-                name  = col1
-                color = col5 if col5 else ""
-                cur_team = {"event_name": cur_event, "club": club,
-                            "color": color, "members": [name]}
+                cur_team = {"event_name": cur_event, "club": col0,
+                            "color": col5 if col5 else "", "members": [col1]}
                 teams.append(cur_team)
-                # Format A: second member may be in col2
-                if col2:
-                    cur_team["members"].append(col2)
+                if col2: cur_team["members"].append(col2)
+
             elif not col0 and col1 and cur_team:
-                # Continuation row — additional member
+                # Continuation — additional member
                 cur_team["members"].append(col1)
-                if col2:
-                    cur_team["members"].append(col2)
+                if col2: cur_team["members"].append(col2)
 
     # Deduplicate members per team
     for t in teams:
