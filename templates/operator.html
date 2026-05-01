@@ -608,23 +608,20 @@ function hCard(heat, color, parentId, kind) {
       };
       const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
       const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').join(', ');
-      // Color swatches for inline picker
-      const swatches = Object.entries(RBIB).map(([name, hex]) =>
-        `<button type="button" title="${name}"
-           onclick="setTeamColor(${s.team_id},'${name}',this)"
-           style="width:16px;height:16px;border-radius:50%;background:${hex};border:2px solid ${(s.color||'').toLowerCase()===name?'#F4511E':'transparent'};flex-shrink:0;cursor:pointer;transition:border-color .1s"
-         ></button>`
-      ).join('');
+      const colorOpts = ['Green','Blue','Yellow','Pink','Light Blue','Black','Red']
+        .map(n => `<option value="${n}" ${(s.color||'').toLowerCase()===n.toLowerCase()?'selected':''}>${n}</option>`)
+        .join('');
       nameCell = `<div>
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-2">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
           <span class="font-semibold text-sm">${s.club}</span>
-          <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full text-white cursor-pointer"
-            style="background:${bibColor}" title="Click swatches to change color">
-            ${s.color||'—'}
-          </span>
-          <div class="flex items-center gap-1 flex-wrap">${swatches}</div>
+          <select onchange="setTeamColor(${s.team_id},this.value)"
+            class="text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
+            <option value="" disabled ${!s.color?'selected':''}>— color —</option>
+            ${colorOpts}
+          </select>
         </div>
-        ${memberStr ? `<div class="text-xs text-gray-500 mt-0.5">${memberStr}</div>` : ''}
+        ${memberStr ? `<div class="text-xs text-gray-500 mt-0.5 ml-4">${memberStr}</div>` : ''}
       </div>`;
     } else {
       nameCell = `<span class="font-medium text-sm">${s.full_name}</span>`;
@@ -1231,14 +1228,14 @@ document.querySelectorAll('[id$="-modal"]').forEach(m =>
 function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
 // ── Inline relay team color change ────────────────────────────────────────────
-async function setTeamColor(teamId, color, btn) {
+async function setTeamColor(teamId, color) {
   const r = await fetch('/api/relay_team/update_members', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({team_id: teamId, color, members: null})
   });
   const d = await r.json();
   if (d.ok) {
-    toast(`✓ Color updated to ${color}`, 'success');
+    toast(`✓ Color → ${color}`, 'success');
     refreshAndShowRelay();
   } else toast(d.error, 'error');
 }
