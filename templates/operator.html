@@ -761,19 +761,26 @@ function openDDModal(evId, stage, kind) {
   document.getElementById('dd-title').textContent = `Edit ${stage}s — ${evLabel}`;
 
   if (kind === 'relay') {
-    // For relay: use teams as the participant pool
-    const allTeams = (ev.teams || []).map(t => ({
-      panel: String(t.team_id), // use team_id as unique key
-      full_name: `${t.club}`,
-      club: t.color || '',
-    }));
-    // Build relay heats with team_id as panel key
+    const RBIB = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+    const teamLabel = t => {
+      const memberStr = (t.members||[]).filter(m=>m&&m!=='nan').slice(0,2).join(', ');
+      return `${t.club}${t.color ? ' · '+t.color : ''}${memberStr ? ' — '+memberStr : ''}`;
+    };
+    const allTeams = (ev.teams || [])
+      .filter(t => (t.status||'active') !== 'scratched')
+      .map(t => ({
+        panel:     String(t.team_id),
+        full_name: teamLabel(t),
+        club:      t.color || '',
+        _bibColor: RBIB[(t.color||'').toLowerCase()] || '#9E9E9E',
+      }));
     const relayHeats = heats.map(h => ({
       ...h,
       skaters: (h.teams||[]).map(t => ({
-        panel: String(t.team_id),
-        full_name: t.club,
-        club: t.color || '',
+        panel:     String(t.team_id),
+        full_name: teamLabel(t),
+        club:      t.color || '',
+        _bibColor: RBIB[(t.color||'').toLowerCase()] || '#9E9E9E',
       }))
     }));
     buildDDColumns(relayHeats, allTeams);
@@ -822,18 +829,23 @@ function buildDDColumns(heats, allSkaters) {
 
 function mkDDColumn(id, label, skaters, color) {
   const div = document.createElement('div');
-  div.className = 'flex flex-col min-w-48 w-48 flex-shrink-0';
+  div.className = 'flex flex-col min-w-52 w-52 flex-shrink-0';
   div.innerHTML = `
     <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1" style="color:${color}">${label}</div>
     <div class="dd-list flex-1 min-h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-2 space-y-1.5" data-col="${id}">
-      ${skaters.map(s=>`
-        <div class="bg-white rounded-lg border border-gray-100 shadow-sm px-3 py-2 flex items-center gap-2 cursor-default" data-panel="${s.panel}">
+      ${skaters.map(s => {
+        const dot = s._bibColor
+          ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${s._bibColor};flex-shrink:0"></span>`
+          : '';
+        return `<div class="bg-white rounded-lg border border-gray-100 shadow-sm px-3 py-2 flex items-center gap-2 cursor-default" data-panel="${s.panel}">
           <span class="drag-handle text-gray-300 text-sm select-none">⠿</span>
+          ${dot}
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold truncate">${s.full_name||s.name||''}</div>
-            <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club||''}</div>
+            <div class="text-xs mono text-gray-400">#${s.panel}${s.club ? ' · '+s.club : ''}</div>
           </div>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
   return div;
 }
