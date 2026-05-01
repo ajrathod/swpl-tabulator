@@ -798,48 +798,71 @@ def upload_relay(comp_id):
 def arrange_heats():
     """
     Save manually arranged heat rosters.
-    Payload: {event_id, stage, heats: [{heat_id, panels: [panel,...]}]}
-    Creates/removes HeatSkater rows to match the new arrangement.
+    Payload: {event_id, stage, heats: [{panels: [panel,...]}], kind: 'individual'|'relay'}
     """
-    data = request.json
+    data     = request.json
     event_id = data["event_id"]
-    stage    = data["stage"]       # "Heat" | "Semi" | "Final"
-    heats_in = data["heats"]       # [{heat_id, panels:[...]}, ...]
+    stage    = data["stage"]
+    heats_in = data["heats"]
+    kind     = data.get("kind", "individual")
 
     session = db()
     try:
+        if kind == "relay":
+            re = session.query(RelayEvent).get(event_id)
+            if not re: return jsonify({"error": "Relay event not found"}), 404
+
+            target_heats = [h for h in re.relay_heats if h.stage == stage]
+            existing = sorted(target_heats, key=lambda h: h.number)
+
+            # Build team_id → RelayTeam lookup
+            tm_map = {str(t.id): t for t in re.teams}
+
+            # Create / remove heats to match incoming count
+            while len(existing) < len(heats_in):
+                new_h = RelayHeat(relay_event_id=event_id, stage=stage, number=len(existing)+1)
+                session.add(new_h); session.flush()
+                existing.append(new_h)
+            while len(existing) > len(heats_in):
+                extra = existing.pop(); session.delete(extra)
+            session.flush()
+
+            for heat, heat_data in zip(existing, heats_in):
+                for rht in list(heat.teams):
+                    session.delete(rht)
+                session.flush()
+                for order, panel in enumerate(heat_data.get("panels", [])):
+                    team = tm_map.get(str(panel))
+                    if team:
+                        session.add(RelayHeatTeam(
+                            relay_heat_id=heat.id, team_id=team.id, seed_order=order))
+
+            session.commit()
+            return jsonify({"ok": True})
+
+        # ── Individual ──────────────────────────────────────────────────────
         ev = session.query(Event).get(event_id)
         if not ev: return jsonify({"error": "Event not found"}), 404
 
         target_heats = [h for h in ev.heats if h.stage == stage]
-
-        # Build panel→skater lookup for this competition
         sk_map = {s.panel: s for s in session.query(Skater).filter_by(
             competition_id=ev.competition_id).all()}
 
-        # How many heats do we need?
         n_incoming = len(heats_in)
         existing   = sorted(target_heats, key=lambda h: h.number)
 
-        # Create missing heats
         while len(existing) < n_incoming:
             new_h = Heat(event_id=event_id, stage=stage, number=len(existing)+1)
             session.add(new_h); session.flush()
             existing.append(new_h)
-
-        # Remove extra heats (empty ones at end)
         while len(existing) > n_incoming:
-            extra = existing.pop()
-            session.delete(extra)
+            extra = existing.pop(); session.delete(extra)
         session.flush()
 
-        # Apply panel assignments to each heat
         for heat, heat_data in zip(existing, heats_in):
-            # Clear current skaters
             for hs in list(heat.skaters):
                 session.delete(hs)
             session.flush()
-            # Add new skaters in order
             for order, panel in enumerate(heat_data.get("panels", [])):
                 sk = sk_map.get(panel)
                 if sk:
