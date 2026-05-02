@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{comp.name}} — Operator Access</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0A0A0F;
+  color: #fff;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(244,81,30,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244,81,30,.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+.card {
+  position: relative;
+  background: #13131C;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.4);
+}
+.logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 800;
+  letter-spacing: .06em;
+  color: rgba(255,255,255,.5);
+  margin-bottom: 28px;
+}
+.logo span { color: #F4511E; }
+h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px; font-weight: 900;
+  line-height: 1.1; letter-spacing: -.01em;
+  margin-bottom: 6px;
+}
+.sub {
+  font-size: 13px; color: rgba(255,255,255,.45);
+  margin-bottom: 28px; line-height: 1.5;
+}
+label {
+  display: block;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: rgba(255,255,255,.4);
+  margin-bottom: 8px;
+}
+.input-wrap { position: relative; margin-bottom: 16px; }
+input[type="password"], input[type="text"] {
+  width: 100%;
+  padding: 12px 44px 12px 16px;
+  background: rgba(255,255,255,.07);
+  border: 1.5px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: .1em;
+  outline: none;
+  transition: border-color .15s, background .15s;
+}
+input:focus {
+  border-color: #F4511E;
+  background: rgba(255,255,255,.1);
+}
+input::placeholder { color: rgba(255,255,255,.2); letter-spacing: .02em; }
+.eye-btn {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,.3); font-size: 16px;
+  transition: color .15s; padding: 4px;
+}
+.eye-btn:hover { color: rgba(255,255,255,.7); }
+.btn {
+  width: 100%;
+  padding: 13px;
+  background: #F4511E;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px; font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 8px 24px rgba(244,81,30,.3);
+  margin-top: 4px;
+}
+.btn:hover { background: #BF360C; transform: translateY(-1px); box-shadow: 0 12px 32px rgba(244,81,30,.4); }
+.btn:active { transform: none; }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.error {
+  background: rgba(239,83,80,.15);
+  border: 1px solid rgba(239,83,80,.3);
+  color: #EF9A9A;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+.error.show { display: block; }
+.public-link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+  color: rgba(255,255,255,.3);
+}
+.public-link a { color: rgba(255,255,255,.5); text-decoration: none; }
+.public-link a:hover { color: rgba(255,255,255,.8); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">PACWEST<span>/</span>RACING</div>
+  <h1>Operator Access</h1>
+  <p class="sub">{{comp.name}}{% if comp.venue %} · {{comp.venue}}{% endif %}</p>
+
+  <label for="code">Passcode</label>
+  <div class="error" id="error-msg">Incorrect passcode — try again</div>
+  <div class="input-wrap">
+    <input type="password" id="code" placeholder="Enter operator code…"
+      autocomplete="current-password" onkeydown="if(event.key==='Enter')submit()">
+    <button class="eye-btn" type="button" onclick="toggleVis()" id="eye-btn" title="Show/hide">👁</button>
+  </div>
+  <button class="btn" id="submit-btn" onclick="submit()">Unlock →</button>
+
+  <div class="public-link">
+    <a href="/public/{{comp.id}}">View public results page ↗</a>
+  </div>
+</div>
+
+<script>
+const COMP_ID = {{comp.id}};
+
+function toggleVis() {
+  const inp = document.getElementById('code');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+async function submit() {
+  const code = document.getElementById('code').value.trim();
+  if (!code) return;
+  const btn = document.getElementById('submit-btn');
+  const err = document.getElementById('error-msg');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  err.classList.remove('show');
+
+  const r = await fetch(`/api/auth/${COMP_ID}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({code})
+  });
+  const d = await r.json();
+
+  if (d.ok) {
+    btn.textContent = '✓ Unlocked!';
+    window.location.reload();
+  } else {
+    err.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Unlock →';
+    document.getElementById('code').value = '';
+    document.getElementById('code').focus();
+  }
+}
+
+document.getElementById('code').focus();
+</script>
+</body>
+</html>

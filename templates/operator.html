@@ -54,6 +54,8 @@ tailwind.config = {
     <a href="/athletes" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">⛸️ Athletes</a>
     <a href="/public/{{comp.id}}" target="_blank"
        class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">👁 Public ↗</a>
+    <button onclick="logoutOp()" title="Lock operator view"
+      class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition">🔒 Lock</button>
   </div>
 </header>
 
@@ -320,6 +322,12 @@ const COMP_ID = {{comp.id}};
 let curGroup = null, curEvent = null, allGroups = {};
 let _scratchPanel = null, _scratchEventId = null;
 
+
+async function logoutOp() {
+  if (!confirm('Lock this operator view?\nYou\'ll need the passcode to get back in.')) return;
+  await fetch(`/api/auth/${COMP_ID}/logout`, {method:'POST'});
+  window.location.reload();
+}
 
 // ── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg, type='') {

@@ -648,6 +648,7 @@ body {
         <a href="/comp/{{c.id}}" class="btn btn-primary">🎛 Manage</a>
         <a href="/public/{{c.id}}" target="_blank" class="btn btn-outline">👁 Public</a>
         <button class="btn btn-outline" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
+        <button class="btn btn-outline" onclick="editPasscode({{c.id}},'{{c.name}}',{{c.has_passcode|tojson}})" title="Set operator passcode">🔒</button>
         <button class="btn btn-danger" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑</button>
       </div>
     </div>
@@ -739,7 +740,11 @@ function renderStep1(){
       <select class="form-sel" id="c-type">
         <option value="indoor">Indoor</option>
         <option value="outdoor">Outdoor</option>
-      </select></div>`;
+      </select></div>
+    <div class="form-grp">
+      <label class="form-lbl">Operator Passcode <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(optional — locks operator view)</span></label>
+      <input class="form-inp" id="c-passcode" type="text" placeholder="e.g. SWPL2026" autocomplete="off">
+    </div>`;
   document.getElementById('wiz-foot').innerHTML=`
     <button class="btn btn-outline" onclick="closeWizard()">Cancel</button>
     <button class="btn btn-primary" onclick="goStep2()">Next: Select Events →</button>`;
@@ -750,7 +755,8 @@ async function goStep2(){
   if(!name){toast('Enter a competition name','error');return;}
   const r=await fetch('/api/competitions',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name,venue:document.getElementById('c-venue').value.trim(),
-      date:document.getElementById('c-date').value,type:document.getElementById('c-type').value})});
+      date:document.getElementById('c-date').value,type:document.getElementById('c-type').value,
+      passcode:document.getElementById('c-passcode').value.trim()})});
   const d=await r.json();
   if(!d.id){toast(d.error||'Error','error');return;}
   wizCompId=d.id;renderStep2(new Set(['Short Distance','Medium Distance','Long Distance']),'');
@@ -863,6 +869,21 @@ async function saveTiebreakerAndFinish(){
 function getCheckedEvents(){
   return [...document.querySelectorAll('.ev-check input:checked')]
     .map(cb=>cb.closest('.ev-check').textContent.trim().replace(/PTS$/,'').trim());
+}
+
+async function editPasscode(id, name, hasPasscode) {
+  const msg = hasPasscode
+    ? `Update passcode for "${name}"\n(Leave blank to remove passcode)`
+    : `Set a passcode for "${name}"\n(Leave blank to skip)`;
+  const code = prompt(msg);
+  if (code === null) return; // cancelled
+  const r = await fetch(`/api/competitions/${id}/passcode`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({passcode: code.trim()})
+  });
+  const d = await r.json();
+  if (d.ok) toast(code.trim() ? `✓ Passcode set` : '✓ Passcode removed', 'success');
+  else toast(d.error || 'Error', 'error');
 }
 
 async function deleteComp(id,name){
