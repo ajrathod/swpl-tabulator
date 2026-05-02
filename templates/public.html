@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>{{comp.name}} — Live Results</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root {
   --orange: #F4511E; --orange-dim: #BF360C;
@@ -57,7 +57,7 @@ body.light {
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg); color: var(--text);
   min-height: 100vh; padding-bottom: 64px; overflow-x: hidden;
   transition: background .2s, color .2s;
@@ -99,7 +99,7 @@ body {
   width: 100%; padding: 9px 12px 9px 36px;
   background: var(--input-bg); border: 1px solid var(--border);
   border-radius: 10px; color: var(--text); font-size: 14px;
-  font-family: 'DM Sans', sans-serif; outline: none; transition: border-color .15s, background .15s;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif; outline: none; transition: border-color .15s, background .15s;
 }
 .search-inp::placeholder { color: var(--text-faint); }
 .search-inp:focus { border-color: var(--orange); background: var(--input-bg-focus); }
@@ -109,7 +109,7 @@ body {
   flex: 1; padding: 8px 10px; min-width: 0;
   background: var(--input-bg); border: 1px solid var(--border);
   border-radius: 10px; color: var(--text); font-size: 13px;
-  font-family: 'DM Sans', sans-serif; outline: none; cursor: pointer;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif; outline: none; cursor: pointer;
   transition: border-color .15s; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(128,128,128,.6)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center;
@@ -210,7 +210,7 @@ body {
 .mode-btn {
   padding: 6px 14px; font-size: 12px; font-weight: 700;
   border: none; background: none; cursor: pointer;
-  color: var(--text-faint); font-family: 'DM Sans', sans-serif;
+  color: var(--text-faint); font-family: 'Inter', system-ui, -apple-system, sans-serif;
   transition: all .15s; letter-spacing: .02em;
 }
 .mode-btn.active {
@@ -236,7 +236,7 @@ body {
   padding: 14px 16px; text-align: center;
   font-size: 12px; color: var(--text-faint); font-style: italic;
 } position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-faint); z-index: 99; }
-.rbar button { font-size: 12px; font-weight: 700; color: var(--orange); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.rbar button { font-size: 12px; font-weight: 700; color: var(--orange); background: none; border: none; cursor: pointer; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 
 @keyframes result-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
 .sk-row, .standings-row { animation: result-in .25s ease both; }
