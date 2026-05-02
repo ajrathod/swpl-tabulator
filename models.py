@@ -108,7 +108,8 @@ class Competition(Base):
     venue      = Column(String(200))
     date       = Column(String(20))
     comp_type  = Column(String(20), default="indoor")
-    tiebreaker_event = Column(String(200))   # event name used as tiebreaker
+    tiebreaker_event = Column(String(200))
+    passcode   = Column(String(100))           # operator access code
     created_at = Column(DateTime, default=datetime.utcnow)
 
     skaters        = relationship("Skater",        back_populates="competition", cascade="all, delete-orphan")
@@ -120,6 +121,7 @@ class Competition(Base):
         return {"id":self.id,"name":self.name,"venue":self.venue or "",
                 "date":self.date or "","type":self.comp_type,
                 "tiebreaker_event": self.tiebreaker_event or "",
+                "has_passcode": bool(self.passcode),
                 "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else ""}
 
 

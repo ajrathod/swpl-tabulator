@@ -2,7 +2,7 @@
 PacWest Inline Racing — Race Manager v3
 Flask + SQLite/PostgreSQL
 """
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, make_response, redirect, url_for
 import pandas as pd, math, os, re
 from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
@@ -382,6 +382,8 @@ def comp_view(comp_id):
     comp = session.query(Competition).get(comp_id)
     session.close()
     if not comp: return "Not found", 404
+    if not is_authed(comp_id):
+        return render_template("auth.html", comp=comp.to_dict())
     return render_template("operator.html", comp=comp.to_dict())
 
 
@@ -599,7 +601,8 @@ def create_competition():
     data = request.json
     session = db()
     comp = Competition(name=data["name"], venue=data.get("venue",""),
-                       date=data.get("date",""), comp_type=data.get("type","indoor"))
+                       date=data.get("date",""), comp_type=data.get("type","indoor"),
+                       passcode=data.get("passcode","").strip() or None)
     session.add(comp); session.commit()
     result = comp.to_dict()
     session.close()
@@ -1256,7 +1259,70 @@ def athlete_history(panel):
 
 
 
-# ── Scratch / Unscratch ───────────────────────────────────────────────────────
+# ── Operator Auth ─────────────────────────────────────────────────────────────
+
+def is_authed(comp_id):
+    """Check if request has valid operator cookie for this competition."""
+    session = db()
+    comp = session.query(Competition).get(comp_id)
+    session.close()
+    if not comp or not comp.passcode:
+        return True  # no passcode set = open access
+    cookie = request.cookies.get(f"op_auth_{comp_id}")
+    return cookie == comp.passcode
+
+
+@app.route("/api/auth/<int:comp_id>", methods=["POST"])
+def auth_operator(comp_id):
+    """Validate operator passcode and set 7-day cookie."""
+    data = request.json or {}
+    code = data.get("code", "").strip()
+    session = db()
+    comp = session.query(Competition).get(comp_id)
+    session.close()
+    if not comp:
+        return jsonify({"error": "Competition not found"}), 404
+    if not comp.passcode:
+        return jsonify({"ok": True, "message": "No passcode required"})
+    if code != comp.passcode:
+        return jsonify({"error": "Incorrect passcode"}), 401
+    resp = make_response(jsonify({"ok": True}))
+    resp.set_cookie(
+        f"op_auth_{comp_id}", code,
+        max_age=7 * 24 * 3600,  # 7 days
+        httponly=True,
+        samesite="Lax",
+        secure=request.is_secure,
+    )
+    return resp
+
+
+@app.route("/api/auth/<int:comp_id>/logout", methods=["POST"])
+def logout_operator(comp_id):
+    resp = make_response(jsonify({"ok": True}))
+    resp.delete_cookie(f"op_auth_{comp_id}")
+    return resp
+
+
+@app.route("/api/competitions/<int:comp_id>/passcode", methods=["POST"])
+def set_passcode(comp_id):
+    """Set or update the operator passcode for a competition."""
+    data = request.json or {}
+    code = data.get("passcode", "").strip()
+    session = db()
+    try:
+        comp = session.query(Competition).get(comp_id)
+        if not comp: return jsonify({"error": "Not found"}), 404
+        comp.passcode = code or None
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
 
 @app.route("/api/scratch", methods=["POST"])
 def scratch_skater():
