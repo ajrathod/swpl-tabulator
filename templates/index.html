@@ -644,13 +644,13 @@ body {
           <span>🕐 {{c.created_at}}</span>
         </div>
       </div>
-      <div class="comp-card-bottom">
+      <div class="comp-card-bottom" style="flex-wrap:wrap;gap:6px">
         <a href="/comp/{{c.id}}" class="btn btn-primary">🎛 Manage</a>
         <a href="/public/{{c.id}}" target="_blank" class="btn btn-outline">👁 Public</a>
         <button class="btn btn-outline" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
-        <button class="btn btn-outline" onclick="openRegLinks({{c.id}},'{{c.name}}')" title="Registration links">🔗 Links</button>
-        <button class="btn btn-outline" onclick="editPasscode({{c.id}},'{{c.name}}',{{c.has_passcode|tojson}})" title="Set operator passcode">🔒</button>
-        <button class="btn btn-danger" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑</button>
+        <button class="btn btn-outline" onclick="openRegLinks({{c.id}},'{{c.name}}')">🔗 Links</button>
+        <button class="btn btn-outline" onclick="editPasscode({{c.id}},'{{c.name}}',{{c.has_passcode|tojson}})">🔒</button>
+        <button class="btn btn-danger" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑 Delete</button>
       </div>
     </div>
     {% else %}
@@ -1011,7 +1011,7 @@ document.getElementById('reg-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('reg-modal')) closeRegModal();
 });
 
-
+async function deleteComp(id,name){
   if(!confirm(`Delete "${name}" and all its data?\nThis cannot be undone.`)) return;
   const r=await fetch('/api/competitions/'+id,{method:'DELETE'});
   const d=await r.json();
