@@ -3,12 +3,13 @@ PacWest Inline Racing — Race Manager v3
 Flask + SQLite/PostgreSQL
 """
 from flask import Flask, render_template, request, jsonify, make_response, redirect, url_for
-import pandas as pd, math, os, re
+import pandas as pd, math, os, re, uuid
 from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
     AthleteRegistry, ScratchRecord, RelayPoolAthlete,
+    RegistrationLink, Registration,
 )
 from seeding import compute_stages, distribute
 
@@ -1669,6 +1670,293 @@ def delete_relay_team(team_id):
         session.delete(team)
         session.commit()
         return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
+# ── Registration Links ────────────────────────────────────────────────────────
+
+@app.route("/register/<token>")
+def register_page(token):
+    session = db()
+    link = session.query(RegistrationLink).filter_by(token=token).first()
+    if not link:
+        session.close()
+        return "Registration link not found", 404
+    comp = session.query(Competition).get(link.competition_id)
+    session.close()
+    return render_template("register.html", link=link.to_dict(), comp=comp.to_dict())
+
+
+@app.route("/api/comp/<int:comp_id>/clubs")
+def get_clubs(comp_id):
+    """Return distinct clubs from registry that have athletes."""
+    session = db()
+    clubs = [r[0] for r in session.query(AthleteRegistry.club)
+             .filter(AthleteRegistry.club.isnot(None))
+             .distinct().order_by(AthleteRegistry.club).all()
+             if r[0] and r[0].strip()]
+    # Also show clubs that already have links
+    existing = {l.club for l in session.query(RegistrationLink)
+                .filter_by(competition_id=comp_id).all()}
+    session.close()
+    return jsonify({"clubs": clubs, "has_links": list(existing)})
+
+
+@app.route("/api/comp/<int:comp_id>/reg_links", methods=["GET"])
+def get_reg_links(comp_id):
+    session = db()
+    links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+    result = []
+    for link in links:
+        regs = link.registrations
+        attending     = sum(1 for r in regs if r.status == "attending")
+        not_attending = sum(1 for r in regs if r.status == "not_attending")
+        pending       = sum(1 for r in regs if r.status == "pending")
+        total         = session.query(AthleteRegistry).filter_by(club=link.club).count()
+        d = link.to_dict()
+        d.update({"attending": attending, "not_attending": not_attending,
+                  "pending": pending, "total_in_registry": total})
+        result.append(d)
+    session.close()
+    return jsonify(result)
+
+
+@app.route("/api/comp/<int:comp_id>/reg_links", methods=["POST"])
+def create_reg_links(comp_id):
+    """Generate registration links for selected clubs."""
+    data  = request.json
+    clubs = data.get("clubs", [])
+    session = db()
+    try:
+        created = []
+        for club in clubs:
+            # Skip if already exists
+            existing = session.query(RegistrationLink).filter_by(
+                competition_id=comp_id, club=club).first()
+            if existing:
+                created.append(existing.to_dict())
+                continue
+            token = uuid.uuid4().hex
+            link  = RegistrationLink(competition_id=comp_id, club=club, token=token)
+            session.add(link)
+            session.flush()
+            # Pre-create pending registrations for all athletes in this club
+            athletes = session.query(AthleteRegistry).filter_by(club=club).all()
+            for a in athletes:
+                session.add(Registration(link_id=link.id, athlete_id=a.id, status="pending"))
+            created.append(link.to_dict())
+        session.commit()
+        return jsonify({"ok": True, "links": created})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/reg_links/<int:link_id>/toggle", methods=["POST"])
+def toggle_reg_link(link_id):
+    session = db()
+    try:
+        link = session.query(RegistrationLink).get(link_id)
+        if not link: return jsonify({"error": "Not found"}), 404
+        link.is_open = not link.is_open
+        session.commit()
+        return jsonify({"ok": True, "is_open": link.is_open})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/reg_links/<int:link_id>", methods=["DELETE"])
+def delete_reg_link(link_id):
+    session = db()
+    try:
+        link = session.query(RegistrationLink).get(link_id)
+        if not link: return jsonify({"error": "Not found"}), 404
+        session.delete(link)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+# ── Registration Page API ─────────────────────────────────────────────────────
+
+@app.route("/api/register/<token>/athletes")
+def register_athletes(token):
+    """Return athletes for this club + their current status."""
+    session = db()
+    link = session.query(RegistrationLink).filter_by(token=token).first()
+    if not link:
+        session.close()
+        return jsonify({"error": "Invalid link"}), 404
+    # Get all athletes in club with their registration status
+    athletes = session.query(AthleteRegistry).filter_by(club=link.club)\
+        .order_by(AthleteRegistry.last, AthleteRegistry.first).all()
+    reg_map = {r.athlete_id: r for r in link.registrations}
+    result = []
+    for a in athletes:
+        reg = reg_map.get(a.id)
+        result.append({
+            "athlete_id": a.id,
+            "full_name":  a.full_name,
+            "usars_no":   a.usars_no or "",
+            "gender":     a.gender or "",
+            "status":     reg.status if reg else "pending",
+            "reg_id":     reg.id if reg else None,
+        })
+    session.close()
+    return jsonify({"athletes": result, "is_open": link.is_open, "club": link.club})
+
+
+@app.route("/api/register/<token>/update", methods=["POST"])
+def update_registration(token):
+    """Update a single athlete's attendance status."""
+    data       = request.json
+    athlete_id = data["athlete_id"]
+    status     = data["status"]  # attending | not_attending | pending
+    if status not in ("attending", "not_attending", "pending"):
+        return jsonify({"error": "Invalid status"}), 400
+    session = db()
+    try:
+        link = session.query(RegistrationLink).filter_by(token=token).first()
+        if not link: return jsonify({"error": "Invalid link"}), 404
+        if not link.is_open: return jsonify({"error": "Registration is closed"}), 403
+        reg = session.query(Registration).filter_by(
+            link_id=link.id, athlete_id=athlete_id).first()
+        if not reg:
+            reg = Registration(link_id=link.id, athlete_id=athlete_id, status=status)
+            session.add(reg)
+        else:
+            reg.status = status
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+# ── Operator registration management ─────────────────────────────────────────
+
+@app.route("/api/comp/<int:comp_id>/registrations")
+def get_registrations(comp_id):
+    """Full registration data for operator view."""
+    session = db()
+    links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+    result = {}
+    for link in links:
+        regs = sorted(link.registrations, key=lambda r: (r.athlete.last or "", r.athlete.first or ""))
+        result[link.club] = {
+            "link_id": link.id, "token": link.token, "is_open": link.is_open,
+            "athletes": [r.to_dict() for r in regs]
+        }
+    session.close()
+    return jsonify(result)
+
+
+@app.route("/api/registration/<int:reg_id>/override", methods=["POST"])
+def override_registration(reg_id):
+    """Operator override of an individual athlete's status."""
+    data   = request.json
+    status = data.get("status")
+    session = db()
+    try:
+        reg = session.query(Registration).get(reg_id)
+        if not reg: return jsonify({"error": "Not found"}), 404
+        reg.status = status
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/seed_from_reg", methods=["POST"])
+def seed_from_registrations(comp_id):
+    """
+    Create Skater entries for all 'attending' athletes across all registration links
+    and seed heats — equivalent to uploading the individual master sheet.
+    """
+    session = db()
+    try:
+        links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+        attending = []
+        for link in links:
+            for reg in link.registrations:
+                if reg.status == "attending" and reg.athlete:
+                    attending.append(reg.athlete)
+
+        if not attending:
+            return jsonify({"error": "No attending athletes found"}), 400
+
+        # Build skater records grouped by group_name (from registry)
+        # group_name = "<age_group> <gender>" derived from athlete data
+        # For now use a simple mapping: age + gender → group
+        from seeding import compute_stages, distribute
+
+        comp_events_q = session.query(CompEvent).filter_by(competition_id=comp_id).all()
+        event_names = [ce.name for ce in comp_events_q]
+        if not event_names:
+            return jsonify({"error": "No events configured for this competition"}), 400
+
+        # Clear existing skaters and events for this competition
+        existing_skaters = session.query(Skater).filter_by(competition_id=comp_id).all()
+        for s in existing_skaters:
+            session.delete(s)
+        existing_events = session.query(Event).filter_by(competition_id=comp_id).all()
+        for e in existing_events:
+            session.delete(e)
+        session.flush()
+
+        # Group athletes by their group_name field in registry
+        groups = {}
+        for a in attending:
+            group = getattr(a, 'group_name', None) or f"{a.gender or 'Open'}"
+            groups.setdefault(group, []).append(a)
+
+        skater_count = 0
+        for group, athletes in groups.items():
+            for a in athletes:
+                # Use next available panel or USARS as panel
+                panel = a.usars_no or str(a.id)
+                existing = session.query(Skater).filter_by(
+                    competition_id=comp_id, panel=panel).first()
+                if not existing:
+                    session.add(Skater(
+                        competition_id=comp_id,
+                        panel=panel,
+                        usars_no=a.usars_no or "",
+                        first=a.first, last=a.last,
+                        gender=a.gender or "",
+                        club=a.club or "",
+                        group_name=group,
+                        status="active",
+                    ))
+                    skater_count += 1
+            session.flush()
+
+            # Seed heats for each event in this group
+            for ev_name in event_names:
+                ev = Event(competition_id=comp_id, group_name=group,
+                           name=ev_name, event_type="heat_based",
+                           points_event=1 if ev_name in ("Short Distance","Medium Distance","Long Distance") else 0)
+                session.add(ev)
+                session.flush()
+                panels = [a.usars_no or str(a.id) for a in athletes]
+                seed_individual_heats(session, ev, panels)
+
+        session.commit()
+        return jsonify({"ok": True, "skater_count": skater_count,
+                        "groups": list(groups.keys())})
     except Exception as e:
         session.rollback(); return jsonify({"error": str(e)}), 500
     finally:

@@ -347,6 +347,46 @@ class RelayPoolAthlete(Base):
                 "club":self.club or "","gender":self.gender or "","age":self.age or 0}
 
 
+class RegistrationLink(Base):
+    __tablename__ = "registration_links"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    club           = Column(String(100), nullable=False)
+    token          = Column(String(64), unique=True, nullable=False)
+    is_open        = Column(Boolean, default=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+    registrations  = relationship("Registration", back_populates="link", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {"id": self.id, "competition_id": self.competition_id,
+                "club": self.club, "token": self.token,
+                "is_open": self.is_open,
+                "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else ""}
+
+
+class Registration(Base):
+    __tablename__ = "registrations"
+    id         = Column(Integer, primary_key=True)
+    link_id    = Column(Integer, ForeignKey("registration_links.id"), nullable=False)
+    athlete_id = Column(Integer, ForeignKey("athlete_registry.id"), nullable=False)
+    status     = Column(String(20), default="pending")  # pending | attending | not_attending
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    link    = relationship("RegistrationLink", back_populates="registrations")
+    athlete = relationship("AthleteRegistry")
+
+    def to_dict(self):
+        a = self.athlete
+        return {"id": self.id, "athlete_id": self.athlete_id,
+                "full_name": a.full_name if a else "",
+                "panel": "", "club": a.club if a else "",
+                "usars_no": a.usars_no if a else "",
+                "gender": a.gender if a else "",
+                "status": self.status,
+                "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M") if self.updated_at else ""}
+
+
 def init_db():
     Base.metadata.create_all(engine)
 
