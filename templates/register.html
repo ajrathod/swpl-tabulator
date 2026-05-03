@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>{{comp.name}} — Registration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #F5F5F7; color: #1A1A2E;
+  min-height: 100vh; padding-bottom: 40px;
+}
+
+.header {
+  background: #1E2330; padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.header-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 800;
+  letter-spacing: .04em; color: #fff;
+}
+.header-logo span { color: #F4511E; }
+
+.hero {
+  background: #fff; border-bottom: 1px solid #E8E8EE;
+  padding: 20px 16px;
+}
+.comp-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 26px; font-weight: 900;
+  letter-spacing: -.01em; color: #1A1A2E;
+  margin-bottom: 4px;
+}
+.comp-meta { font-size: 13px; color: #888; display: flex; gap: 12px; flex-wrap: wrap; }
+.club-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(244,81,30,.1); border: 1px solid rgba(244,81,30,.2);
+  color: #F4511E; font-size: 12px; font-weight: 700;
+  padding: 4px 12px; border-radius: 20px; margin-top: 10px;
+}
+
+/* Tally bar */
+.tally {
+  display: flex; gap: 0;
+  background: #fff; border-bottom: 1px solid #E8E8EE;
+  padding: 12px 16px; gap: 16px;
+}
+.tally-item { text-align: center; }
+.tally-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 26px; font-weight: 900; line-height: 1;
+}
+.tally-num.attending { color: #2E7D32; }
+.tally-num.not { color: #C62828; }
+.tally-num.pending { color: #9E9E9E; }
+.tally-label { font-size: 10px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+.tally-sep { width: 1px; background: #E8E8EE; margin: 4px 0; }
+
+/* Closed banner */
+.closed-banner {
+  background: #FFF3E0; border-bottom: 1px solid #FFE0B2;
+  padding: 10px 16px; font-size: 13px; font-weight: 600;
+  color: #E65100; display: flex; align-items: center; gap: 6px;
+}
+
+/* Search */
+.search-wrap {
+  padding: 12px 16px; background: #fff;
+  border-bottom: 1px solid #E8E8EE;
+  position: sticky; top: 0; z-index: 10;
+}
+.search-inp {
+  width: 100%; padding: 9px 14px;
+  border: 1.5px solid #E8E8EE; border-radius: 10px;
+  font-size: 14px; font-family: 'Inter', sans-serif;
+  outline: none; background: #F5F5F7;
+  transition: border-color .15s;
+}
+.search-inp:focus { border-color: #F4511E; background: #fff; }
+
+/* Athlete list */
+.athlete-list { padding: 10px 12px; max-width: 600px; margin: 0 auto; }
+
+.athlete-row {
+  background: #fff; border: 1px solid #E8E8EE;
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 8px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.athlete-row.attending { border-color: #A5D6A7; background: #F1F8E9; }
+.athlete-row.not_attending { border-color: #FFCDD2; background: #FFF5F5; opacity: .75; }
+
+.athlete-info { flex: 1; min-width: 0; }
+.athlete-name { font-size: 15px; font-weight: 600; color: #1A1A2E; }
+.athlete-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+/* Toggle buttons */
+.toggle-group { display: flex; gap: 6px; flex-shrink: 0; }
+.tog-btn {
+  padding: 6px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  border: 1.5px solid #E8E8EE;
+  background: #fff; color: #aaa;
+  cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+}
+.tog-btn:hover { border-color: #ccc; color: #555; }
+.tog-btn.active-yes {
+  background: #E8F5E9; border-color: #81C784;
+  color: #2E7D32;
+}
+.tog-btn.active-no {
+  background: #FFEBEE; border-color: #EF9A9A;
+  color: #C62828;
+}
+.tog-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Saving indicator */
+.saving-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #F4511E; display: inline-block;
+  animation: blink .8s ease-in-out infinite;
+  margin-left: 4px;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 14px; }
+.empty .icon { font-size: 32px; margin-bottom: 8px; }
+
+.footer { text-align: center; padding: 20px; font-size: 12px; color: #bbb; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">PACWEST<span>/</span>RACING</div>
+</div>
+
+<div class="hero">
+  <div class="comp-name">{{comp.name}}</div>
+  <div class="comp-meta">
+    {% if comp.venue %}<span>📍 {{comp.venue}}</span>{% endif %}
+    {% if comp.date %}<span>📅 {{comp.date}}</span>{% endif %}
+  </div>
+  <div class="club-badge">🏒 {{link.club}} — Athlete Registration</div>
+</div>
+
+<div class="tally" id="tally">
+  <div class="tally-item">
+    <div class="tally-num attending" id="t-attending">—</div>
+    <div class="tally-label">Attending</div>
+  </div>
+  <div class="tally-sep"></div>
+  <div class="tally-item">
+    <div class="tally-num not" id="t-not">—</div>
+    <div class="tally-label">Not Going</div>
+  </div>
+  <div class="tally-sep"></div>
+  <div class="tally-item">
+    <div class="tally-num pending" id="t-pending">—</div>
+    <div class="tally-label">No Response</div>
+  </div>
+</div>
+
+{% if not link.is_open %}
+<div class="closed-banner">🔒 Registration is closed — results are read-only</div>
+{% endif %}
+
+<div class="search-wrap">
+  <input class="search-inp" id="search" type="text" placeholder="Search athlete name…" oninput="filterAthletes()">
+</div>
+
+<div class="athlete-list" id="athlete-list">
+  <div class="empty"><div class="icon">⏳</div><p>Loading athletes…</p></div>
+</div>
+
+<div class="footer">PACWEST Race Manager · Changes save automatically</div>
+
+<script>
+const TOKEN   = '{{link.token}}';
+const IS_OPEN = {{link.is_open|tojson}};
+let athletes  = [];
+let saving    = {};
+
+async function load() {
+  const r = await fetch(`/api/register/${TOKEN}/athletes`);
+  const d = await r.json();
+  athletes  = d.athletes || [];
+  renderList(athletes);
+  updateTally();
+}
+
+function filterAthletes() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = q ? athletes.filter(a => a.full_name.toLowerCase().includes(q)) : athletes;
+  renderList(filtered);
+}
+
+function renderList(list) {
+  const container = document.getElementById('athlete-list');
+  if (!list.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>No athletes found</p></div>';
+    return;
+  }
+  container.innerHTML = list.map(a => `
+    <div class="athlete-row ${a.status}" id="row-${a.athlete_id}">
+      <div class="athlete-info">
+        <div class="athlete-name">${a.full_name} ${saving[a.athlete_id] ? '<span class="saving-dot"></span>' : ''}</div>
+        <div class="athlete-meta">${a.usars_no || ''}${a.usars_no && a.gender ? ' · ' : ''}${a.gender || ''}</div>
+      </div>
+      <div class="toggle-group">
+        <button class="tog-btn ${a.status==='attending'?'active-yes':''}"
+          onclick="setStatus(${a.athlete_id},'attending')"
+          ${!IS_OPEN?'disabled':''}>✓ Yes</button>
+        <button class="tog-btn ${a.status==='not_attending'?'active-no':''}"
+          onclick="setStatus(${a.athlete_id},'not_attending')"
+          ${!IS_OPEN?'disabled':''}>✕ No</button>
+      </div>
+    </div>`).join('');
+}
+
+async function setStatus(athleteId, status) {
+  // Toggle off if already selected
+  const a = athletes.find(x => x.athlete_id === athleteId);
+  if (!a) return;
+  const newStatus = a.status === status ? 'pending' : status;
+
+  // Optimistic update
+  a.status = newStatus;
+  saving[athleteId] = true;
+  filterAthletes();
+  updateTally();
+
+  const r = await fetch(`/api/register/${TOKEN}/update`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({athlete_id: athleteId, status: newStatus})
+  });
+  const d = await r.json();
+
+  delete saving[athleteId];
+  if (!d.ok) {
+    // Revert on error
+    a.status = status === 'attending' ? 'not_attending' : 'attending';
+    alert('Failed to save — please try again');
+  }
+  filterAthletes();
+  updateTally();
+}
+
+function updateTally() {
+  document.getElementById('t-attending').textContent = athletes.filter(a=>a.status==='attending').length;
+  document.getElementById('t-not').textContent       = athletes.filter(a=>a.status==='not_attending').length;
+  document.getElementById('t-pending').textContent   = athletes.filter(a=>a.status==='pending').length;
+}
+
+load();
+</script>
+</body>
+</html>

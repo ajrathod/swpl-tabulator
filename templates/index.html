@@ -648,6 +648,7 @@ body {
         <a href="/comp/{{c.id}}" class="btn btn-primary">🎛 Manage</a>
         <a href="/public/{{c.id}}" target="_blank" class="btn btn-outline">👁 Public</a>
         <button class="btn btn-outline" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
+        <button class="btn btn-outline" onclick="openRegLinks({{c.id}},'{{c.name}}')" title="Registration links">🔗 Links</button>
         <button class="btn btn-outline" onclick="editPasscode({{c.id}},'{{c.name}}',{{c.has_passcode|tojson}})" title="Set operator passcode">🔒</button>
         <button class="btn btn-danger" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑</button>
       </div>
@@ -664,6 +665,17 @@ body {
       <div class="new-card-title">New Competition</div>
       <div class="new-card-sub">April 2026 Meet, Regionals…</div>
     </div>
+  </div>
+</div>
+
+<!-- Registration Links Modal -->
+<div class="modal-overlay" id="reg-modal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-head">
+      <h3>🔗 Registration Links</h3>
+      <button class="mc" onclick="closeRegModal()">×</button>
+    </div>
+    <div class="modal-body" id="reg-modal-body"></div>
   </div>
 </div>
 
@@ -886,7 +898,120 @@ async function editPasscode(id, name, hasPasscode) {
   else toast(d.error || 'Error', 'error');
 }
 
-async function deleteComp(id,name){
+// ── Registration Links ────────────────────────────────────────────────────────
+let _regCompId = null;
+
+async function openRegLinks(compId, compName) {
+  _regCompId = compId;
+  document.getElementById('reg-modal').classList.add('open');
+  document.getElementById('reg-modal-body').innerHTML = '<p style="color:var(--muted);font-size:13px">Loading…</p>';
+  await renderRegModal();
+}
+
+function closeRegModal() {
+  document.getElementById('reg-modal').classList.remove('open');
+}
+
+async function renderRegModal() {
+  const [clubsR, linksR] = await Promise.all([
+    fetch(`/api/comp/${_regCompId}/clubs`),
+    fetch(`/api/comp/${_regCompId}/reg_links`),
+  ]);
+  const clubsData = await clubsR.json();
+  const links     = await linksR.json();
+  const clubs     = clubsData.clubs || [];
+  const baseUrl   = `${location.protocol}//${location.host}`;
+
+  const linkMap = {};
+  links.forEach(l => linkMap[l.club] = l);
+
+  const clubRows = clubs.map(club => {
+    const link = linkMap[club];
+    if (link) {
+      const url = `${baseUrl}/register/${link.token}`;
+      const pct = link.total_in_registry ? Math.round((link.attending + link.not_attending) / link.total_in_registry * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px">${club}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">
+            ✅ ${link.attending} attending · ❌ ${link.not_attending} not · ⬜ ${link.pending} pending · ${link.total_in_registry} in registry
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:monospace;word-break:break-all">${url}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="copyLink('${url}')">📋 Copy</button>
+          <button class="btn ${link.is_open ? 'btn-outline' : 'btn-primary'}" style="font-size:11px;padding:5px 10px"
+            onclick="toggleLink(${link.id})">${link.is_open ? '🔓 Open' : '🔒 Closed'}</button>
+          <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="deleteLink(${link.id},'${club}')">🗑</button>
+        </div>
+      </div>`;
+    } else {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${club}</div>
+          <div style="font-size:11px;color:var(--muted)">No link generated yet</div>
+        </div>
+        <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="generateLink('${club}')">+ Generate Link</button>
+      </div>`;
+    }
+  }).join('');
+
+  document.getElementById('reg-modal-body').innerHTML = `
+    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <p style="font-size:13px;color:var(--muted)">Generate a unique registration link for each club. Share the link with coaches — parents can then mark themselves as attending.</p>
+      <button class="btn btn-primary" onclick="generateAllLinks()">⚡ Generate All Links</button>
+    </div>
+    <div>${clubRows || '<p style="color:var(--muted);font-size:13px">No clubs found in registry. Add athletes to the registry first.</p>'}</div>`;
+}
+
+async function generateLink(club) {
+  const r = await fetch(`/api/comp/${_regCompId}/reg_links`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clubs: [club]})
+  });
+  const d = await r.json();
+  if (d.ok) { toast('✓ Link generated','success'); renderRegModal(); }
+  else toast(d.error,'error');
+}
+
+async function generateAllLinks() {
+  const r = await fetch(`/api/comp/${_regCompId}/clubs`);
+  const d = await r.json();
+  const clubs = (d.clubs || []);
+  if (!clubs.length) { toast('No clubs in registry','error'); return; }
+  const r2 = await fetch(`/api/comp/${_regCompId}/reg_links`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clubs})
+  });
+  const d2 = await r2.json();
+  if (d2.ok) { toast(`✓ ${clubs.length} links generated`, 'success'); renderRegModal(); }
+  else toast(d2.error,'error');
+}
+
+async function toggleLink(linkId) {
+  const r = await fetch(`/api/reg_links/${linkId}/toggle`, {method:'POST'});
+  const d = await r.json();
+  if (d.ok) renderRegModal();
+  else toast(d.error,'error');
+}
+
+async function deleteLink(linkId, club) {
+  if (!confirm(`Delete registration link for ${club}?\nAll responses will be lost.`)) return;
+  const r = await fetch(`/api/reg_links/${linkId}`, {method:'DELETE'});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Deleted','success'); renderRegModal(); }
+  else toast(d.error,'error');
+}
+
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(() => toast('✓ Link copied!','success'));
+}
+
+document.getElementById('reg-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('reg-modal')) closeRegModal();
+});
+
+
   if(!confirm(`Delete "${name}" and all its data?\nThis cannot be undone.`)) return;
   const r=await fetch('/api/competitions/'+id,{method:'DELETE'});
   const d=await r.json();

@@ -69,7 +69,13 @@ tailwind.config = {
       <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
     </div>
     <div class="border-t border-gray-100 mx-3 my-2"></div>
-    <div class="px-3 pb-4">
+    <div class="px-3 pb-2">
+      <button onclick="showRegistrations()"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+        🔗 <span>Registrations</span>
+      </button>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
       <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Relay Events</p>
       <div id="relay-list"></div>
     </div>
@@ -1529,6 +1535,103 @@ function renderRelayPoolPanel() {
       <button onclick="removeFromPool(${a.id})"
         class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition">✕</button>
     </div>`).join('');
+}
+
+
+// ── Registrations ─────────────────────────────────────────────────────────────
+async function showRegistrations() {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn text-gray-700 hover:bg-gray-100`;
+  });
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+
+  document.getElementById('grp-view').innerHTML = `
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold">🔗 Registrations</h2>
+      <div class="ml-auto">
+        <button onclick="seedFromRegistrations()"
+          class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+          ⚡ Seed from Registrations
+        </button>
+      </div>
+    </div>
+    <div id="reg-body"><div class="text-gray-400 text-sm py-4">Loading…</div></div>`;
+
+  const r = await fetch(`/api/comp/${COMP_ID}/registrations`);
+  const data = await r.json();
+  const clubs = Object.keys(data).sort();
+  const body = document.getElementById('reg-body');
+  const baseUrl = `${location.protocol}//${location.host}`;
+
+  if (!clubs.length) {
+    body.innerHTML = `<div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400">
+      <div class="text-4xl mb-3">🔗</div>
+      <p class="font-semibold">No registration links yet</p>
+      <p class="text-sm mt-1">Generate links from the competition card on the home page</p>
+    </div>`;
+    return;
+  }
+
+  body.innerHTML = clubs.map(club => {
+    const d = data[club];
+    const attending    = d.athletes.filter(a => a.status === 'attending').length;
+    const notAttending = d.athletes.filter(a => a.status === 'not_attending').length;
+    const pending      = d.athletes.filter(a => a.status === 'pending').length;
+    const url = `${baseUrl}/register/${d.token}`;
+
+    const rows = d.athletes.map(a => `
+      <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 ${a.status==='attending'?'bg-green-50':a.status==='not_attending'?'bg-red-50':''}">
+        <div class="flex-1">
+          <div class="text-sm font-semibold">${a.full_name}</div>
+          <div class="text-xs text-gray-400 font-mono">${a.usars_no}${a.gender?' · '+a.gender:''}</div>
+        </div>
+        <select onchange="overrideReg(${a.id},this.value)"
+          class="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-brand bg-white">
+          <option value="attending"     ${a.status==='attending'    ?'selected':''}>✅ Attending</option>
+          <option value="not_attending" ${a.status==='not_attending'?'selected':''}>❌ Not Going</option>
+          <option value="pending"       ${a.status==='pending'      ?'selected':''}>⬜ No Response</option>
+        </select>
+      </div>`).join('');
+
+    return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
+      <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <span class="font-bold">${club}</span>
+          <span class="ml-3 text-xs text-gray-500">✅ ${attending} · ❌ ${notAttending} · ⬜ ${pending}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold ${d.is_open?'text-green-600':'text-orange-500'}">${d.is_open?'🔓 Open':'🔒 Closed'}</span>
+          <button onclick="navigator.clipboard.writeText('${url}').then(()=>toast('✓ Copied','success'))"
+            class="text-xs px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 font-semibold text-gray-600">📋 Copy Link</button>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+async function overrideReg(regId, status) {
+  const r = await fetch(`/api/registration/${regId}/override`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  const d = await r.json();
+  if (!d.ok) toast(d.error || 'Error','error');
+}
+
+async function seedFromRegistrations() {
+  if (!confirm('Seed heats from all attending athletes?\nThis will replace existing individual event data.')) return;
+  toast('⏳ Seeding heats…');
+  const r = await fetch(`/api/comp/${COMP_ID}/seed_from_reg`, {method:'POST'});
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ ${d.skater_count} athletes seeded into ${d.groups.length} groups`, 'success');
+    await refreshGroups();
+    const gs = Object.keys(allGroups);
+    if (gs.length) selectGroup(gs[0]);
+  } else toast(d.error || 'Error seeding', 'error');
 }
 
 
