@@ -1880,79 +1880,147 @@ def override_registration(reg_id):
         session.close()
 
 
-@app.route("/api/comp/<int:comp_id>/seed_from_reg", methods=["POST"])
+
+# ── Group Assignment ──────────────────────────────────────────────────────────
+
+@app.route("/assign_groups/<int:comp_id>")
+def assign_groups_page(comp_id):
+    if not is_authed(comp_id):
+        return redirect(url_for('comp_view', comp_id=comp_id))
+    session = db()
+    comp = session.query(Competition).get(comp_id)
+    session.close()
+    if not comp: return "Not found", 404
+    return render_template("assign_groups.html", comp=comp.to_dict())
+
+
+@app.route("/api/comp/<int:comp_id>/prev_groups")
+def get_prev_groups(comp_id):
+    """Return distinct group names from the most recent other competition."""
+    session = db()
+    # Find most recent competition that isn't this one and has skaters
+    prev = session.query(Competition)\
+        .filter(Competition.id != comp_id)\
+        .order_by(Competition.created_at.desc()).first()
+    groups = []
+    if prev:
+        rows = session.query(Skater.group_name)\
+            .filter_by(competition_id=prev.id)\
+            .distinct().all()
+        groups = sorted([r[0] for r in rows if r[0]])
+    session.close()
+    return jsonify({"groups": groups, "from_comp": prev.name if prev else None})
+
+
+@app.route("/api/comp/<int:comp_id>/assign_group", methods=["POST"])
+def assign_group():
+    """Save group assignment for a registration — called on every drag drop."""
+    data       = request.json
+    comp_id    = data["comp_id"]
+    reg_id     = data["reg_id"]
+    group_name = data.get("group_name", "")  # empty string = unassign
+    session = db()
+    try:
+        reg = session.query(Registration).get(reg_id)
+        if not reg: return jsonify({"error": "Registration not found"}), 404
+        reg.group_name = group_name or None
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/group_assignments")
+def get_group_assignments(comp_id):
+    """Return all attending athletes with their current group assignments."""
+    session = db()
+    links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+    athletes = []
+    for link in links:
+        for reg in link.registrations:
+            if reg.status == "attending":
+                athletes.append(reg.to_dict())
+    # Sort by club then last name
+    athletes.sort(key=lambda a: (a["club"], a["full_name"]))
+    session.close()
+    return jsonify({"athletes": athletes})
+
+
 def seed_from_registrations(comp_id):
     """
-    Create Skater entries for all 'attending' athletes across all registration links
-    and seed heats — equivalent to uploading the individual master sheet.
+    Create Skater entries for all 'attending' athletes with group assignments
+    and seed heats. Uses registration.group_name set via drag-drop assignment.
     """
     session = db()
     try:
         links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
-        attending = []
+
+        # Collect attending registrations that have a group assigned
+        regs_with_group = []
+        regs_without_group = []
         for link in links:
             for reg in link.registrations:
                 if reg.status == "attending" and reg.athlete:
-                    attending.append(reg.athlete)
+                    if reg.group_name:
+                        regs_with_group.append(reg)
+                    else:
+                        regs_without_group.append(reg)
 
-        if not attending:
+        if not regs_with_group and not regs_without_group:
             return jsonify({"error": "No attending athletes found"}), 400
 
-        # Build skater records grouped by group_name (from registry)
-        # group_name = "<age_group> <gender>" derived from athlete data
-        # For now use a simple mapping: age + gender → group
-        from seeding import compute_stages, distribute
+        if regs_without_group:
+            names = ", ".join(r.athlete.full_name for r in regs_without_group[:5])
+            extra = f" (+{len(regs_without_group)-5} more)" if len(regs_without_group) > 5 else ""
+            return jsonify({"error": f"{len(regs_without_group)} athletes have no group assigned: {names}{extra}"}), 400
 
         comp_events_q = session.query(CompEvent).filter_by(competition_id=comp_id).all()
         event_names = [ce.name for ce in comp_events_q]
         if not event_names:
             return jsonify({"error": "No events configured for this competition"}), 400
 
-        # Clear existing skaters and events for this competition
-        existing_skaters = session.query(Skater).filter_by(competition_id=comp_id).all()
-        for s in existing_skaters:
+        # Clear existing skaters and events
+        for s in session.query(Skater).filter_by(competition_id=comp_id).all():
             session.delete(s)
-        existing_events = session.query(Event).filter_by(competition_id=comp_id).all()
-        for e in existing_events:
+        for e in session.query(Event).filter_by(competition_id=comp_id).all():
             session.delete(e)
         session.flush()
 
-        # Group athletes by their group_name field in registry
+        # Group registrations by group_name
         groups = {}
-        for a in attending:
-            group = getattr(a, 'group_name', None) or f"{a.gender or 'Open'}"
-            groups.setdefault(group, []).append(a)
+        for reg in regs_with_group:
+            groups.setdefault(reg.group_name, []).append(reg)
 
         skater_count = 0
-        for group, athletes in groups.items():
-            for a in athletes:
-                # Use next available panel or USARS as panel
+        for group, regs in sorted(groups.items()):
+            for reg in regs:
+                a = reg.athlete
                 panel = a.usars_no or str(a.id)
-                existing = session.query(Skater).filter_by(
-                    competition_id=comp_id, panel=panel).first()
-                if not existing:
+                if not session.query(Skater).filter_by(competition_id=comp_id, panel=panel).first():
                     session.add(Skater(
-                        competition_id=comp_id,
-                        panel=panel,
-                        usars_no=a.usars_no or "",
-                        first=a.first, last=a.last,
-                        gender=a.gender or "",
-                        club=a.club or "",
-                        group_name=group,
-                        status="active",
+                        competition_id=comp_id, panel=panel,
+                        usars_no=a.usars_no or "", first=a.first, last=a.last,
+                        gender=a.gender or "", club=a.club or "",
+                        group_name=group, status="active",
                     ))
                     skater_count += 1
             session.flush()
 
-            # Seed heats for each event in this group
+            # Seed heats for each event
             for ev_name in event_names:
                 ev = Event(competition_id=comp_id, group_name=group,
                            name=ev_name, event_type="heat_based",
                            points_event=1 if ev_name in ("Short Distance","Medium Distance","Long Distance") else 0)
                 session.add(ev)
                 session.flush()
-                panels = [a.usars_no or str(a.id) for a in athletes]
+                panels = [r.athlete.usars_no or str(r.athlete.id) for r in regs]
                 seed_individual_heats(session, ev, panels)
+
+        session.commit()
+        return jsonify({"ok": True, "skater_count": skater_count,
+                        "groups": list(groups.keys())})
 
         session.commit()
         return jsonify({"ok": True, "skater_count": skater_count,

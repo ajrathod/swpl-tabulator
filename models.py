@@ -371,6 +371,7 @@ class Registration(Base):
     link_id    = Column(Integer, ForeignKey("registration_links.id"), nullable=False)
     athlete_id = Column(Integer, ForeignKey("athlete_registry.id"), nullable=False)
     status     = Column(String(20), default="pending")  # pending | attending | not_attending
+    group_name = Column(String(200))                    # assigned race group
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     link    = relationship("RegistrationLink", back_populates="registrations")
@@ -384,6 +385,7 @@ class Registration(Base):
                 "usars_no": a.usars_no if a else "",
                 "gender": a.gender if a else "",
                 "status": self.status,
+                "group_name": self.group_name or "",
                 "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M") if self.updated_at else ""}
 
 
