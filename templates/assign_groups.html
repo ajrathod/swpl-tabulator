@@ -17,6 +17,13 @@
   .drag-handle:active { cursor:grabbing; }
   ::-webkit-scrollbar { width:5px; }
   ::-webkit-scrollbar-thumb { background:#D1D5DB; border-radius:3px; }
+  .athlete-card { transition: all .12s; }
+  .athlete-card.selected {
+    background: #FFF3F0 !important;
+    border-color: #F4511E !important;
+    box-shadow: 0 0 0 1.5px #F4511E;
+  }
+  .athlete-card.selected .check-icon { display:flex !important; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -38,17 +45,35 @@
   </div>
 </header>
 
+<!-- Multi-select action bar -->
+<div id="action-bar" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[100]
+  bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3
+  flex items-center gap-3 min-w-80">
+  <span id="sel-count" class="text-sm font-semibold"></span>
+  <span class="text-gray-500 text-sm">→ Assign to:</span>
+  <select id="bulk-group-sel"
+    class="bg-gray-800 text-white text-sm rounded-lg px-3 py-1.5 outline-none border border-gray-600 focus:border-brand">
+    <option value="">Pick group…</option>
+  </select>
+  <button onclick="bulkAssign()"
+    class="px-4 py-1.5 bg-brand rounded-lg text-sm font-semibold hover:bg-brand-dark transition">
+    Assign
+  </button>
+  <button onclick="clearSelection()"
+    class="text-gray-400 hover:text-white text-sm px-2">✕</button>
+</div>
+
 <div class="flex pt-14 min-h-screen">
   <aside class="fixed top-14 left-0 bottom-0 w-72 bg-white border-r border-gray-200 flex flex-col z-40">
     <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
       <div>
         <h2 class="font-bold text-sm">Unassigned</h2>
-        <p class="text-xs text-gray-400 mt-0.5">Drag athletes into group columns →</p>
+        <p class="text-xs text-gray-400 mt-0.5">Drag or click to select → assign</p>
       </div>
       <span id="unassigned-count" class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
     </div>
     <div class="px-3 py-2 border-b border-gray-100">
-      <input id="pool-search" type="text" placeholder="Search by name or club…"
+      <input id="pool-search" type="text" placeholder="Search…"
         class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-brand"
         oninput="filterPool()">
     </div>
@@ -65,16 +90,17 @@
   </main>
 </div>
 
-<div id="toast" class="fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
+<div id="toast" class="fixed bottom-20 right-5 z-[99] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
 
 <script>
-const COMP_ID   = {{comp.id}};
+const COMP_ID    = {{comp.id}};
 const GROUPS_KEY = `pw_groups_${COMP_ID}`;
 let allAthletes  = [];
 let groups       = [];
-let sortables    = {};   // group column sortables keyed by group name
-let poolSortables = [];  // array of pool sortable instances
+let sortables    = {};
+let poolSortables = [];
 let hasChanges   = false;
+let selectedIds  = new Set(); // set of reg_id strings
 
 function saveGroupsLS() { try{localStorage.setItem(GROUPS_KEY,JSON.stringify(groups));}catch(e){} }
 function loadGroupsLS() { try{return JSON.parse(localStorage.getItem(GROUPS_KEY))||[];}catch(e){return[];} }
@@ -93,6 +119,74 @@ async function init() {
   renderGroupColumns();
   renderPool();
   updateCounter();
+  updateBulkGroupSel();
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────────
+function toggleSelect(regId, el) {
+  const id = String(regId);
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    el.classList.remove('selected');
+  } else {
+    selectedIds.add(id);
+    el.classList.add('selected');
+  }
+  updateActionBar();
+}
+
+function selectClub(club) {
+  const unassigned = allAthletes.filter(a => !a.group_name && a.club === club);
+  unassigned.forEach(a => selectedIds.add(String(a.id)));
+  // Re-render pool to show selection state
+  renderPool();
+  updateActionBar();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('.athlete-card.selected').forEach(el => el.classList.remove('selected'));
+  updateActionBar();
+}
+
+function updateActionBar() {
+  const bar = document.getElementById('action-bar');
+  if (selectedIds.size === 0) {
+    bar.classList.add('hidden');
+  } else {
+    bar.classList.remove('hidden');
+    document.getElementById('sel-count').textContent = `${selectedIds.size} selected`;
+  }
+}
+
+function updateBulkGroupSel() {
+  const sel = document.getElementById('bulk-group-sel');
+  sel.innerHTML = '<option value="">Pick group…</option>' +
+    groups.map(g => `<option value="${g}">${g}</option>`).join('');
+}
+
+function bulkAssign() {
+  const groupName = document.getElementById('bulk-group-sel').value;
+  if (!groupName) { toast('Pick a group first', 'error'); return; }
+
+  selectedIds.forEach(id => {
+    const a = allAthletes.find(x => String(x.id) === id);
+    if (a) a.group_name = groupName;
+  });
+
+  // Update group count badges
+  groups.forEach(g => {
+    const el = document.getElementById(`cnt-${g}`);
+    if (el) el.textContent = allAthletes.filter(x => x.group_name === g).length;
+  });
+
+  const count = selectedIds.size;
+  selectedIds.clear();
+  renderGroupColumns();
+  renderPool();
+  updateCounter();
+  markChanged();
+  toast(`✓ ${count} athletes assigned to ${groupName}`, 'success');
 }
 
 // ── Pool ──────────────────────────────────────────────────────────────────────
@@ -104,7 +198,6 @@ function renderPool() {
     !a.group_name && (!q || a.full_name.toLowerCase().includes(q) || a.club.toLowerCase().includes(q))
   );
 
-  // Destroy old pool sortables
   poolSortables.forEach(s => { try{s.destroy();}catch(e){} });
   poolSortables = [];
 
@@ -116,33 +209,39 @@ function renderPool() {
       <p class="text-sm">${q?'No matches':'All athletes assigned!'}</p>
     </div>`;
     document.getElementById('unassigned-count').textContent = 0;
+    // Clear selection of assigned athletes
+    selectedIds.forEach(id => {
+      const a = allAthletes.find(x => String(x.id) === id);
+      if (a && a.group_name) selectedIds.delete(id);
+    });
+    updateActionBar();
     return;
   }
 
-  // Group by club for display
   const byClub = {};
   unassigned.forEach(a => { byClub[a.club] = (byClub[a.club]||[]).concat(a); });
 
-  // Build HTML: club header (non-draggable div) + separate sortable list per club
   container.innerHTML = Object.entries(byClub).sort().map(([club, athletes]) => `
     <div class="mb-3">
-      <div class="text-xs font-bold uppercase tracking-wider text-gray-400 px-1 py-1 select-none pointer-events-none">
-        ${club} (${athletes.length})
+      <div class="flex items-center justify-between px-1 py-1">
+        <span class="text-xs font-bold uppercase tracking-wider text-gray-400 select-none">${club} (${athletes.length})</span>
+        <button onclick="selectClub('${club}')"
+          class="text-xs text-brand font-semibold hover:underline">Select all</button>
       </div>
       <div class="pool-club-list space-y-1" data-club="${club}">
-        ${athletes.map(athleteCard).join('')}
+        ${athletes.map(a => poolAthleteCard(a)).join('')}
       </div>
     </div>`).join('');
 
-  // Init a separate Sortable for each club's list
+  // Init sortables per club
   container.querySelectorAll('.pool-club-list').forEach(list => {
     const s = Sortable.create(list, {
-      group:        { name:'athletes', pull:true, put:false },
-      animation:    150,
-      ghostClass:   'sortable-ghost',
-      chosenClass:  'sortable-chosen',
-      handle:       '.drag-handle',
-      onEnd:        onDrop,
+      group:       { name:'athletes', pull:true, put:false },
+      animation:   150,
+      ghostClass:  'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      handle:      '.drag-handle',
+      onEnd:       onDrop,
     });
     poolSortables.push(s);
   });
@@ -150,8 +249,24 @@ function renderPool() {
   document.getElementById('unassigned-count').textContent = unassigned.length;
 }
 
-function athleteCard(a) {
-  return `<div class="bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 cursor-default"
+function poolAthleteCard(a) {
+  const isSelected = selectedIds.has(String(a.id));
+  return `<div class="athlete-card bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer ${isSelected?'selected':''}"
+    data-reg-id="${a.id}"
+    onclick="toggleSelect('${a.id}', this)">
+    <span class="drag-handle text-gray-400 select-none text-base leading-none" onclick="event.stopPropagation()">⠿</span>
+    <div class="check-icon ${isSelected?'flex':'hidden'} w-4 h-4 bg-brand rounded-full items-center justify-center flex-shrink-0">
+      <span class="text-white text-xs leading-none">✓</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="text-sm font-semibold truncate">${a.full_name}</div>
+      <div class="text-xs mono text-gray-400">${a.club} · ${a.gender||'—'}</div>
+    </div>
+  </div>`;
+}
+
+function groupAthleteCard(a) {
+  return `<div class="athlete-card bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 cursor-default"
     data-reg-id="${a.id}">
     <span class="drag-handle text-gray-400 select-none text-base leading-none">⠿</span>
     <div class="flex-1 min-w-0">
@@ -179,7 +294,7 @@ function renderGroupColumns() {
       </div>
       <div class="group-list min-h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-1.5 space-y-1"
         data-group="${g}">
-        ${athletes.map(athleteCard).join('')}
+        ${athletes.map(groupAthleteCard).join('')}
       </div>
     </div>`;
   }).join('');
@@ -194,6 +309,8 @@ function renderGroupColumns() {
       onEnd:       onDrop,
     });
   });
+
+  updateBulkGroupSel();
 }
 
 // ── Drop ──────────────────────────────────────────────────────────────────────
@@ -204,17 +321,13 @@ function onDrop(evt) {
   const a = allAthletes.find(x => String(x.id) === String(regId));
   if (a) a.group_name = groupName;
 
-  // Update group count badges
   groups.forEach(g => {
     const el = document.getElementById(`cnt-${g}`);
     if (el) el.textContent = allAthletes.filter(x => x.group_name === g).length;
   });
 
   updateCounter();
-
-  // Re-render pool after a short delay so sortable finishes cleanup
   setTimeout(() => renderPool(), 100);
-
   markChanged();
 }
 
@@ -305,7 +418,7 @@ async function seedHeats() {
 function toast(msg, type='') {
   const t = document.getElementById('toast');
   const c = {success:'bg-green-600',error:'bg-red-600','':'bg-gray-900'};
-  t.className=`fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${c[type]||c['']}`;
+  t.className=`fixed bottom-20 right-5 z-[99] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${c[type]||c['']}`;
   t.textContent=msg; t.style.opacity='1'; t.style.transform='translateY(0)';
   clearTimeout(t._t); t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);
 }
