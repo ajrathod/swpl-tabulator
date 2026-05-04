@@ -79,6 +79,14 @@ let sortables     = {};   // sortable instances keyed by group name
 let poolSortables = {};   // per-club pool sortables
 let saving        = false;
 
+function saveGroupsToStorage() {
+  try { localStorage.setItem(`pw_groups_${COMP_ID}`, JSON.stringify(groups)); } catch(e) {}
+}
+
+function loadGroupsFromStorage() {
+  try { return JSON.parse(localStorage.getItem(`pw_groups_${COMP_ID}`)) || []; } catch(e) { return []; }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   const r = await fetch(`/api/comp/${COMP_ID}/group_assignments`);
@@ -87,12 +95,11 @@ async function init() {
   updateCounter();
   renderPool();
 
-  // Load existing group columns (from assigned athletes)
-  const existingGroups = [...new Set(allAthletes.filter(a => a.group_name).map(a => a.group_name))].sort();
-  if (existingGroups.length) {
-    groups = existingGroups;
-    renderGroupColumns();
-  }
+  // Restore groups: merge assigned groups + saved groups from localStorage
+  const assignedGroups = [...new Set(allAthletes.filter(a => a.group_name).map(a => a.group_name))];
+  const savedGroups    = loadGroupsFromStorage();
+  groups = [...new Set([...assignedGroups, ...savedGroups])].sort();
+  if (groups.length) renderGroupColumns();
 }
 
 // ── Pool ──────────────────────────────────────────────────────────────────────
@@ -245,16 +252,17 @@ function addGroup() {
   if (groups.includes(g)) { toast('Group already exists', 'error'); return; }
   groups.push(g);
   groups.sort();
+  saveGroupsToStorage();
   renderGroupColumns();
 }
 
 function removeGroup(name) {
   const inGroup = allAthletes.filter(a => a.group_name === name);
   if (inGroup.length && !confirm(`Move ${inGroup.length} athletes back to unassigned?`)) return;
-  // Unassign all athletes in this group
   inGroup.forEach(a => a.group_name = "");
   Promise.all(inGroup.map(a => saveAssignment(a.id, "")));
   groups = groups.filter(g => g !== name);
+  saveGroupsToStorage();
   renderGroupColumns();
   renderPool();
   updateCounter();
@@ -267,6 +275,7 @@ async function loadPrevGroups() {
   const newGroups = d.groups.filter(g => !groups.includes(g));
   if (!newGroups.length) { toast('All groups already added', 'error'); return; }
   groups = [...new Set([...groups, ...d.groups])].sort();
+  saveGroupsToStorage();
   renderGroupColumns();
   document.getElementById('prev-label').textContent = `Loaded from: ${d.from_comp}`;
   toast(`✓ Loaded ${newGroups.length} groups from ${d.from_comp}`, 'success');
