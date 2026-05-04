@@ -129,19 +129,23 @@ function renderPool() {
   unassigned.forEach(a => { byClub[a.club] = (byClub[a.club] || []).concat(a); });
 
   list.innerHTML = Object.entries(byClub).sort().map(([club, athletes]) => `
-    <div class="mb-1">
-      <div class="text-xs font-bold uppercase tracking-wider text-gray-400 px-1 py-1">${club} (${athletes.length})</div>
+    <div class="club-section mb-1">
+      <div class="text-xs font-bold uppercase tracking-wider text-gray-400 px-1 py-1 select-none">${club} (${athletes.length})</div>
       ${athletes.map(athleteCard).join('')}
     </div>`).join('');
 
   document.getElementById('unassigned-count').textContent = unassigned.length;
 
-  // Re-init pool sortable (destroy old one first)
-  if (poolSortable) { try { poolSortable.destroy(); } catch(e){} }
+  // Destroy old pool sortable first
+  if (poolSortable) { try { poolSortable.destroy(); } catch(e){} poolSortable = null; }
+
+  // Create sortable only on the pool list — use item selector to only drag athlete cards
   poolSortable = Sortable.create(list, {
     group: 'athletes', animation: 120,
     ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-    handle: '.drag-handle', onEnd: onDrop,
+    handle: '.drag-handle',
+    draggable: '[data-reg-id]',   // ← only drag elements with data-reg-id, not club headers
+    onEnd: onDrop,
   });
 }
 
@@ -184,7 +188,9 @@ function renderGroupColumns() {
     sortables[list.dataset.group] = Sortable.create(list, {
       group: 'athletes', animation: 120,
       ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-      handle: '.drag-handle', onEnd: onDrop,
+      handle: '.drag-handle',
+      draggable: '[data-reg-id]',
+      onEnd: onDrop,
     });
   });
 }
