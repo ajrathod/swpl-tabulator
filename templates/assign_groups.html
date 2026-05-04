@@ -9,21 +9,18 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  body { font-family: 'Inter', system-ui, sans-serif; }
-  .mono { font-family: 'DM Mono', monospace; }
+  body { font-family:'Inter',system-ui,sans-serif; }
+  .mono { font-family:'DM Mono',monospace; }
   .sortable-ghost  { opacity:.35; }
   .sortable-chosen { box-shadow:0 0 0 2px #F4511E; border-radius:8px; }
   .drag-handle { cursor:grab; }
   .drag-handle:active { cursor:grabbing; }
-  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar { width:5px; }
   ::-webkit-scrollbar-thumb { background:#D1D5DB; border-radius:3px; }
-  .unsaved-dot { display:none; width:7px; height:7px; border-radius:50%; background:#F4511E; }
-  .has-changes .unsaved-dot { display:inline-block; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-<!-- Header -->
 <header class="fixed top-0 inset-x-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4 gap-3 shadow-sm">
   <a href="/comp/{{comp.id}}" class="text-gray-400 hover:text-gray-700 text-sm">← Back to Operator</a>
   <span class="text-gray-300">/</span>
@@ -31,8 +28,7 @@
   <div class="ml-auto flex items-center gap-3">
     <span id="counter" class="text-sm text-gray-500"></span>
     <button id="save-btn" onclick="saveAssignments()"
-      class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition flex items-center gap-2">
-      <span class="unsaved-dot" id="unsaved-dot"></span>
+      class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">
       💾 Save Assignments
     </button>
     <button id="seed-btn" onclick="seedHeats()" disabled
@@ -42,10 +38,7 @@
   </div>
 </header>
 
-<!-- Layout -->
 <div class="flex pt-14 min-h-screen">
-
-  <!-- Left: Unassigned pool -->
   <aside class="fixed top-14 left-0 bottom-0 w-72 bg-white border-r border-gray-200 flex flex-col z-40">
     <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
       <div>
@@ -59,10 +52,12 @@
         class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-brand"
         oninput="renderPool()">
     </div>
-    <div class="flex-1 overflow-y-auto px-3 py-2" id="pool-container"></div>
+    <!-- Single sortable pool list (all unassigned, no club re-grouping after drops) -->
+    <div class="flex-1 overflow-y-auto px-3 py-2">
+      <div id="pool-list" class="space-y-1"></div>
+    </div>
   </aside>
 
-  <!-- Right: Group columns -->
   <main class="ml-72 flex-1 p-4 overflow-x-auto">
     <div class="flex items-center gap-2 mb-3 flex-wrap">
       <button onclick="addGroup()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">+ Add Group</button>
@@ -73,15 +68,24 @@
   </main>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
 
 <script>
 const COMP_ID = {{comp.id}};
-let allAthletes = [];  // [{id, athlete_id, full_name, club, usars_no, gender, group_name}]
-let groups      = [];  // ordered list of group name strings
-let sortables   = {};  // SortableJS instances
+const GROUPS_KEY = `pw_groups_${COMP_ID}`;
+let allAthletes = [];
+let groups      = [];
+let sortables   = {};  // group sortables
+let poolSortable = null;
 let hasChanges  = false;
+
+// ── localStorage helpers ──────────────────────────────────────────────────────
+function saveGroupsLS() {
+  try { localStorage.setItem(GROUPS_KEY, JSON.stringify(groups)); } catch(e) {}
+}
+function loadGroupsLS() {
+  try { return JSON.parse(localStorage.getItem(GROUPS_KEY)) || []; } catch(e) { return []; }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -89,30 +93,30 @@ async function init() {
   const d = await r.json();
   allAthletes = d.athletes || [];
 
-  // Restore groups from DB assignments first
-  const fromDB = [...new Set(allAthletes.filter(a => a.group_name).map(a => a.group_name))].sort();
-  groups = fromDB;
+  // Merge groups from DB + localStorage (preserves empty groups across refreshes)
+  const fromDB  = [...new Set(allAthletes.filter(a => a.group_name).map(a => a.group_name))];
+  const fromLS  = loadGroupsLS();
+  groups = [...new Set([...fromDB, ...fromLS])].sort();
+  saveGroupsLS();
+
   renderGroupColumns();
   renderPool();
   updateCounter();
 }
 
-function markChanged() {
-  hasChanges = true;
-  document.getElementById('save-btn').classList.add('has-changes');
-  document.getElementById('unsaved-dot').style.display = 'inline-block';
-}
-
-// ── Pool ──────────────────────────────────────────────────────────────────────
+// ── Pool — single list, no club re-grouping ───────────────────────────────────
 function renderPool() {
   const q = document.getElementById('pool-search').value.toLowerCase();
   const unassigned = allAthletes.filter(a =>
     !a.group_name && (!q || a.full_name.toLowerCase().includes(q) || a.club.toLowerCase().includes(q))
   );
-  const container = document.getElementById('pool-container');
+
+  const list = document.getElementById('pool-list');
 
   if (!unassigned.length) {
-    container.innerHTML = `<div class="text-center py-8 text-gray-400">
+    // Destroy pool sortable if no items — pool is empty
+    if (poolSortable) { try { poolSortable.destroy(); } catch(e){} poolSortable = null; }
+    list.innerHTML = `<div class="text-center py-8 text-gray-400">
       <div class="text-2xl mb-2">${q ? '🔍' : '✅'}</div>
       <p class="text-sm">${q ? 'No matches' : 'All athletes assigned!'}</p>
     </div>`;
@@ -120,44 +124,41 @@ function renderPool() {
     return;
   }
 
-  // Group by club
+  // Group by club for display but keep single flat list for sortable
   const byClub = {};
   unassigned.forEach(a => { byClub[a.club] = (byClub[a.club] || []).concat(a); });
 
-  container.innerHTML = Object.entries(byClub).sort().map(([club, athletes]) => `
-    <div class="mb-3">
-      <div class="text-xs font-bold uppercase tracking-wider text-gray-400 px-1 mb-1.5">
-        ${club} <span class="font-normal">(${athletes.length})</span>
-      </div>
-      <div class="pool-list space-y-1" data-pool="1">
-        ${athletes.map(athleteCard).join('')}
-      </div>
+  list.innerHTML = Object.entries(byClub).sort().map(([club, athletes]) => `
+    <div class="mb-1">
+      <div class="text-xs font-bold uppercase tracking-wider text-gray-400 px-1 py-1">${club} (${athletes.length})</div>
+      ${athletes.map(athleteCard).join('')}
     </div>`).join('');
 
-  container.querySelectorAll('.pool-list').forEach(list => {
-    Sortable.create(list, {
-      group:'athletes', animation:120,
-      ghostClass:'sortable-ghost', chosenClass:'sortable-chosen',
-      handle:'.drag-handle', onEnd: onDrop,
-    });
-  });
-
   document.getElementById('unassigned-count').textContent = unassigned.length;
+
+  // Re-init pool sortable (destroy old one first)
+  if (poolSortable) { try { poolSortable.destroy(); } catch(e){} }
+  poolSortable = Sortable.create(list, {
+    group: 'athletes', animation: 120,
+    ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+    handle: '.drag-handle', onEnd: onDrop,
+  });
 }
 
 function athleteCard(a) {
-  return `<div class="bg-white border border-gray-100 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm"
+  return `<div class="bg-white border border-gray-100 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm mb-1"
     data-reg-id="${a.id}">
-    <span class="drag-handle text-gray-300 select-none">⠿</span>
+    <span class="drag-handle text-gray-300 select-none text-sm">⠿</span>
     <div class="flex-1 min-w-0">
       <div class="text-sm font-semibold truncate">${a.full_name}</div>
-      <div class="text-xs mono text-gray-400">${a.usars_no||'—'} · ${a.gender||'—'}</div>
+      <div class="text-xs mono text-gray-400">${a.club} · ${a.gender||'—'}</div>
     </div>
   </div>`;
 }
 
 // ── Group Columns ─────────────────────────────────────────────────────────────
 function renderGroupColumns() {
+  // Destroy old group sortables
   Object.values(sortables).forEach(s => { try{s.destroy();}catch(e){} });
   sortables = {};
 
@@ -169,10 +170,10 @@ function renderGroupColumns() {
         <span class="text-xs font-bold uppercase tracking-wider text-gray-500">${g}</span>
         <div class="flex items-center gap-1">
           <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full" id="cnt-${g}">${athletes.length}</span>
-          <button onclick="removeGroup('${g}')" class="text-gray-300 hover:text-red-500 text-xs">×</button>
+          <button onclick="removeGroup('${g}')" class="text-gray-300 hover:text-red-500 text-xs px-1">×</button>
         </div>
       </div>
-      <div class="group-list min-h-24 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-1.5 space-y-1"
+      <div class="group-list min-h-24 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-1.5"
         data-group="${g}">
         ${athletes.map(athleteCard).join('')}
       </div>
@@ -181,55 +182,66 @@ function renderGroupColumns() {
 
   cols.querySelectorAll('.group-list').forEach(list => {
     sortables[list.dataset.group] = Sortable.create(list, {
-      group:'athletes', animation:120,
-      ghostClass:'sortable-ghost', chosenClass:'sortable-chosen',
-      handle:'.drag-handle', onEnd: onDrop,
+      group: 'athletes', animation: 120,
+      ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+      handle: '.drag-handle', onEnd: onDrop,
     });
   });
 }
 
-// ── Drop ──────────────────────────────────────────────────────────────────────
+// ── Drop handler ──────────────────────────────────────────────────────────────
 function onDrop(evt) {
   const regId     = evt.item.dataset.regId;
   const groupName = evt.to.dataset.group || '';
 
+  // Update local state
   const a = allAthletes.find(x => String(x.id) === String(regId));
   if (a) a.group_name = groupName;
 
-  // Update count badges
+  // Update count badge for affected groups
   groups.forEach(g => {
     const el = document.getElementById(`cnt-${g}`);
     if (el) el.textContent = allAthletes.filter(x => x.group_name === g).length;
   });
 
   updateCounter();
-  renderPool();
+
+  // Update pool counter without full re-render (preserves sortable)
+  const unassignedCount = allAthletes.filter(x => !x.group_name).length;
+  document.getElementById('unassigned-count').textContent = unassignedCount;
+
+  // Only re-render pool if athlete moved TO a group (left pool)
+  // or FROM a group back to pool — but avoid destroying sortable mid-drag
+  setTimeout(() => renderPool(), 50);
+
   markChanged();
 }
 
 function updateCounter() {
   const u = allAthletes.filter(a => !a.group_name).length;
-  const assigned = allAthletes.length - u;
-  document.getElementById('counter').textContent = `${u} unassigned · ${assigned} assigned`;
-  document.getElementById('unassigned-count').textContent = u;
+  document.getElementById('counter').textContent = `${u} unassigned · ${allAthletes.length - u} assigned`;
   document.getElementById('seed-btn').disabled = u > 0 || allAthletes.length === 0;
+}
+
+function markChanged() {
+  hasChanges = true;
+  const btn = document.getElementById('save-btn');
+  if (btn) btn.textContent = '💾 Save Assignments *';
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 async function saveAssignments() {
   const btn = document.getElementById('save-btn');
   btn.disabled = true;
-  btn.innerHTML = '⏳ Saving…';
+  btn.textContent = '⏳ Saving…';
 
-  // Build all assignments from current DOM state
   const assignments = allAthletes.map(a => ({
     reg_id: a.id,
     group_name: a.group_name || ''
   }));
 
   const r = await fetch(`/api/comp/${COMP_ID}/save_group_assignments`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({assignments})
   });
   const d = await r.json();
@@ -237,13 +249,11 @@ async function saveAssignments() {
   btn.disabled = false;
   if (d.ok) {
     hasChanges = false;
-    btn.innerHTML = '✓ Saved';
-    btn.classList.remove('has-changes');
-    document.getElementById('unsaved-dot').style.display = 'none';
-    setTimeout(() => { btn.innerHTML = '💾 Save Assignments'; }, 2000);
+    btn.textContent = '✓ Saved';
+    setTimeout(() => { btn.textContent = '💾 Save Assignments'; }, 2000);
     toast('✓ Group assignments saved', 'success');
   } else {
-    btn.innerHTML = '💾 Save Assignments';
+    btn.textContent = '💾 Save Assignments';
     toast(d.error || 'Save failed', 'error');
   }
 }
@@ -253,8 +263,9 @@ function addGroup() {
   const name = prompt('Group name (e.g. 2A, 3B):');
   if (!name?.trim()) return;
   const g = name.trim().toUpperCase();
-  if (groups.includes(g)) { toast('Already exists','error'); return; }
+  if (groups.includes(g)) { toast('Already exists', 'error'); return; }
   groups.push(g); groups.sort();
+  saveGroupsLS();
   renderGroupColumns();
   markChanged();
 }
@@ -264,6 +275,7 @@ function removeGroup(name) {
   if (inGroup.length && !confirm(`Move ${inGroup.length} athletes back to unassigned?`)) return;
   inGroup.forEach(a => a.group_name = '');
   groups = groups.filter(g => g !== name);
+  saveGroupsLS();
   renderGroupColumns();
   renderPool();
   updateCounter();
@@ -273,10 +285,11 @@ function removeGroup(name) {
 async function loadPrevGroups() {
   const r = await fetch(`/api/comp/${COMP_ID}/prev_groups`);
   const d = await r.json();
-  if (!d.groups?.length) { toast('No previous competition found','error'); return; }
+  if (!d.groups?.length) { toast('No previous competition found', 'error'); return; }
   const added = d.groups.filter(g => !groups.includes(g));
-  if (!added.length) { toast('All groups already loaded','error'); return; }
-  groups = [...new Set([...groups,...d.groups])].sort();
+  if (!added.length) { toast('All groups already loaded', 'error'); return; }
+  groups = [...new Set([...groups, ...d.groups])].sort();
+  saveGroupsLS();
   renderGroupColumns();
   document.getElementById('prev-label').textContent = `From: ${d.from_comp}`;
   toast(`✓ ${added.length} groups loaded from ${d.from_comp}`, 'success');
@@ -285,10 +298,7 @@ async function loadPrevGroups() {
 
 // ── Seed ──────────────────────────────────────────────────────────────────────
 async function seedHeats() {
-  if (hasChanges) {
-    toast('Please save assignments first', 'error');
-    return;
-  }
+  if (hasChanges) { toast('Save assignments first', 'error'); return; }
   if (!confirm('Seed heats from group assignments?\nThis will replace any existing event data.')) return;
   const btn = document.getElementById('seed-btn');
   btn.disabled = true; btn.textContent = '⏳ Seeding…';
@@ -298,7 +308,7 @@ async function seedHeats() {
     toast(`✓ ${d.skater_count} athletes seeded into ${d.groups.length} groups`, 'success');
     setTimeout(() => window.location = `/comp/${COMP_ID}`, 1200);
   } else {
-    toast(d.error||'Error','error');
+    toast(d.error || 'Error', 'error');
     btn.disabled = false; btn.textContent = '⚡ Seed Heats';
   }
 }
@@ -306,17 +316,14 @@ async function seedHeats() {
 function toast(msg, type='') {
   const t = document.getElementById('toast');
   const c = {success:'bg-green-600',error:'bg-red-600','':'bg-gray-900'};
-  t.className = `fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${c[type]||c['']}`;
+  t.className=`fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${c[type]||c['']}`;
   t.textContent = msg;
   t.style.opacity='1'; t.style.transform='translateY(0)';
   clearTimeout(t._t);
   t._t = setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);
 }
 
-// Warn before leaving with unsaved changes
-window.addEventListener('beforeunload', e => {
-  if (hasChanges) { e.preventDefault(); e.returnValue=''; }
-});
+window.addEventListener('beforeunload', e => { if(hasChanges){e.preventDefault();e.returnValue='';} });
 
 init();
 </script>
