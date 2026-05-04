@@ -1551,7 +1551,11 @@ async function showRegistrations() {
   document.getElementById('grp-view').innerHTML = `
     <div class="flex items-center gap-3 mb-5 flex-wrap">
       <h2 class="text-xl font-bold">🔗 Registrations</h2>
-      <div class="ml-auto">
+      <div class="ml-auto flex gap-2">
+        <a href="/assign_groups/${COMP_ID}"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+          🗂 Assign Groups
+        </a>
         <button onclick="seedFromRegistrations()"
           class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
           ⚡ Seed from Registrations
