@@ -1948,6 +1948,25 @@ def get_group_assignments(comp_id):
     return jsonify({"athletes": athletes})
 
 
+@app.route("/api/comp/<int:comp_id>/save_group_assignments", methods=["POST"])
+def save_group_assignments(comp_id):
+    """Bulk save all group assignments at once."""
+    data = request.json
+    assignments = data.get("assignments", [])
+    session = db()
+    try:
+        for item in assignments:
+            reg = session.query(Registration).get(item["reg_id"])
+            if reg:
+                reg.group_name = item.get("group_name") or None
+        session.commit()
+        return jsonify({"ok": True, "saved": len(assignments)})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
 def seed_from_registrations(comp_id):
     """
     Create Skater entries for all 'attending' athletes with group assignments
