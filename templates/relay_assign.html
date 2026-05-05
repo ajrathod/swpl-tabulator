@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#F4511E',dark:'#BF360C'}}}}}</script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   body { font-family:'Inter',system-ui,sans-serif; }
   .mono { font-family:'DM Mono',monospace; }
@@ -18,8 +18,8 @@
   ::-webkit-scrollbar { width:5px; }
   ::-webkit-scrollbar-thumb { background:#D1D5DB; border-radius:3px; }
   .athlete-card.selected { background:#FFF3F0 !important; border-color:#F4511E !important; box-shadow:0 0 0 1.5px #F4511E; }
-  .tab-btn { transition:all .15s; }
-  .tab-btn.active { background:#F4511E; color:#fff; }
+  .ev-tab { transition:all .15s; white-space:nowrap; }
+  .ev-tab.active { background:#F4511E; color:#fff; border-color:#F4511E; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -39,15 +39,15 @@
 
 <!-- Multi-select action bar -->
 <div id="action-bar" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[100]
-  bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3 min-w-96">
+  bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3">
   <span id="sel-count" class="text-sm font-semibold whitespace-nowrap"></span>
-  <span class="text-gray-500 text-sm">→ Add to team:</span>
+  <span class="text-gray-500 text-sm">→ Add to:</span>
   <select id="bulk-team-sel"
-    class="bg-gray-800 text-white text-sm rounded-lg px-3 py-1.5 outline-none border border-gray-600 focus:border-brand flex-1">
+    class="bg-gray-800 text-white text-sm rounded-lg px-3 py-1.5 outline-none border border-gray-600 focus:border-brand">
     <option value="">Pick team…</option>
   </select>
   <button onclick="bulkAddToTeam()"
-    class="px-4 py-1.5 bg-brand rounded-lg text-sm font-semibold hover:bg-brand-dark transition whitespace-nowrap">
+    class="px-4 py-1.5 bg-brand rounded-lg text-sm font-semibold hover:bg-brand-dark whitespace-nowrap">
     Add to Team
   </button>
   <button onclick="clearSelection()" class="text-gray-400 hover:text-white text-sm px-2">✕</button>
@@ -60,7 +60,7 @@
     <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
       <div>
         <h2 class="font-bold text-sm">Athletes</h2>
-        <p class="text-xs text-gray-400 mt-0.5">Drag or click → add to teams</p>
+        <p class="text-xs text-gray-400 mt-0.5">Drag or click to select → add to teams</p>
       </div>
       <span id="total-count" class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
     </div>
@@ -73,36 +73,78 @@
   </aside>
 
   <!-- Right: Relay events + teams -->
-  <main class="ml-72 flex-1 flex flex-col">
-    <!-- Event tabs -->
-    <div class="bg-white border-b border-gray-200 px-4 py-2 flex gap-2 flex-wrap" id="event-tabs"></div>
-    <!-- Teams for selected event -->
-    <div class="flex-1 p-4 overflow-auto">
-      <div class="flex items-center gap-2 mb-4">
-        <h2 class="font-bold text-base" id="event-title"></h2>
-        <span class="text-xs text-gray-400" id="event-subtitle"></span>
-        <div class="ml-auto flex gap-2">
-          <button onclick="openAddTeamModal()"
-            class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition">
-            + Add Team
-          </button>
-        </div>
+  <main class="ml-72 flex-1 flex flex-col min-h-0">
+    <!-- Event tabs + controls -->
+    <div class="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
+      <div class="flex gap-1 flex-wrap flex-1" id="event-tabs">
+        <span class="text-xs text-gray-400 self-center">No relay events yet</span>
       </div>
-      <div class="flex gap-4 flex-wrap items-start" id="teams-container"></div>
+      <div class="flex gap-2 flex-shrink-0">
+        <button onclick="loadPrevRelayEvents()"
+          class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">
+          📋 Load Previous Events
+        </button>
+        <button onclick="openAddEventModal()"
+          class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">
+          + Add Event
+        </button>
+      </div>
+    </div>
+
+    <!-- Teams panel -->
+    <div class="flex-1 p-4 overflow-auto">
+      <div id="no-event-msg" class="text-center py-16 text-gray-400">
+        <div class="text-3xl mb-3">🔄</div>
+        <p class="font-semibold">No relay events yet</p>
+        <p class="text-sm mt-1">Click "Load Previous Events" or "+ Add Event" to get started</p>
+      </div>
+      <div id="event-panel" class="hidden">
+        <div class="flex items-center gap-3 mb-4 flex-wrap">
+          <h2 class="font-bold text-base" id="event-title"></h2>
+          <span class="text-xs text-gray-400" id="event-team-count"></span>
+          <div class="ml-auto">
+            <button onclick="openAddTeamModal()"
+              class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700">
+              + Add Club Team
+            </button>
+          </div>
+        </div>
+        <div class="flex gap-4 flex-wrap items-start" id="teams-container"></div>
+      </div>
     </div>
   </main>
+</div>
+
+<!-- Add Event Modal -->
+<div id="add-event-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-bold text-base mb-4">+ Add Relay Event</h3>
+    <div>
+      <label class="text-xs text-gray-500 mb-1 block">Event Name *</label>
+      <input id="new-event-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"
+        placeholder="e.g. Elite Elementary 2 Boys 2000M Final">
+    </div>
+    <div class="flex justify-end gap-3 mt-5">
+      <button onclick="closeAddEventModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddEvent()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add Event</button>
+    </div>
+  </div>
 </div>
 
 <!-- Add Team Modal -->
 <div id="add-team-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-    <h3 class="font-bold text-base mb-4">+ Add Relay Team</h3>
+    <h3 class="font-bold text-base mb-1">+ Add Club Team</h3>
+    <p class="text-xs text-gray-400 mb-4" id="add-team-event-label"></p>
     <div class="space-y-3">
-      <div><label class="text-xs text-gray-500 mb-1 block">Club *</label>
-        <input id="at-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
-      <div><label class="text-xs text-gray-500 mb-1 block">Bib Color *</label>
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">Club *</label>
+        <input id="at-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR">
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">Bib Color *</label>
         <input type="hidden" id="at-color" value="">
-        <div class="flex gap-2 flex-wrap" id="at-color-swatches"></div>
+        <div class="flex gap-2 flex-wrap mt-1" id="at-color-swatches"></div>
         <div class="text-xs text-gray-400 mt-1" id="at-color-label">No color selected</div>
       </div>
     </div>
@@ -113,23 +155,20 @@
   </div>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="fixed bottom-20 right-5 z-[99] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
 
 <script>
 const COMP_ID = {{comp.id}};
-const COLORS  = {
-  'Green':'#2E7D32','Blue':'#1565C0','Yellow':'#F9A825',
-  'Pink':'#E91E8C','Light Blue':'#29B6F6','Black':'#212121','Red':'#C62828'
-};
+const COLORS  = {'Green':'#2E7D32','Blue':'#1565C0','Yellow':'#F9A825',
+                  'Pink':'#E91E8C','Light Blue':'#29B6F6','Black':'#212121','Red':'#C62828'};
 
-let allAthletes  = [];   // [{id, full_name, club, usars_no, gender}]
-let allEvents    = [];   // [{id, event_name, teams:[{id,club,color,members}]}]
-let curEventIdx  = 0;
-let selectedIds  = new Set();
+let allAthletes   = [];  // [{id, full_name, club, usars_no, gender}]
+let allEvents     = [];  // [{id, event_name, teams:[{id,club,color,members:[]}]}]
+let curEventIdx   = 0;
+let selectedIds   = new Set();
 let poolSortables = [];
-let teamSortables = {};  // team_id → Sortable
-let hasChanges   = false;
+let teamSortables = {};
+let hasChanges    = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -137,30 +176,33 @@ async function init() {
   const d = await r.json();
   allAthletes = d.athletes || [];
   allEvents   = d.events   || [];
-
+  document.getElementById('total-count').textContent = allAthletes.length;
+  initColorSwatches();
   renderTabs();
   renderPool();
   if (allEvents.length) showEvent(0);
-  document.getElementById('total-count').textContent = allAthletes.length;
-  initColorSwatches();
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function renderTabs() {
   const tabs = document.getElementById('event-tabs');
+  if (!allEvents.length) {
+    tabs.innerHTML = '<span class="text-xs text-gray-400 self-center">No relay events yet</span>';
+    return;
+  }
   tabs.innerHTML = allEvents.map((ev,i) => `
-    <button class="tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
+    <button class="ev-tab px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
       id="tab-${i}" onclick="showEvent(${i})">${ev.event_name}</button>`).join('');
 }
 
 function showEvent(idx) {
   curEventIdx = idx;
   const ev = allEvents[idx];
-  // Update active tab
-  document.querySelectorAll('.tab-btn').forEach((b,i) =>
-    b.classList.toggle('active', i === idx));
+  document.querySelectorAll('.ev-tab').forEach((b,i) => b.classList.toggle('active', i===idx));
+  document.getElementById('no-event-msg').classList.add('hidden');
+  document.getElementById('event-panel').classList.remove('hidden');
   document.getElementById('event-title').textContent = ev.event_name;
-  document.getElementById('event-subtitle').textContent = `${ev.teams.length} teams`;
+  document.getElementById('event-team-count').textContent = `${ev.teams.length} club teams`;
   renderTeams();
   updateBulkTeamSel();
 }
@@ -169,61 +211,55 @@ function showEvent(idx) {
 function renderPool() {
   const q = document.getElementById('pool-search').value.toLowerCase();
   const filtered = allAthletes.filter(a =>
-    !q || a.full_name.toLowerCase().includes(q) || a.club.toLowerCase().includes(q)
-  );
+    !q || a.full_name.toLowerCase().includes(q) || a.club.toLowerCase().includes(q));
 
   poolSortables.forEach(s => { try{s.destroy();}catch(e){} });
   poolSortables = [];
 
   const container = document.getElementById('pool-container');
-
   if (!filtered.length) {
     container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">No matches</div>`;
     return;
   }
 
-  // Count team memberships per athlete
-  const membershipCount = {};
+  // Count team memberships per athlete name across all events
+  const memberCount = {};
   allEvents.forEach(ev => ev.teams.forEach(t =>
-    t.members.forEach(name => { membershipCount[name] = (membershipCount[name]||0)+1; })
+    t.members.forEach(name => { memberCount[name] = (memberCount[name]||0)+1; })
   ));
 
   const byClub = {};
   filtered.forEach(a => { byClub[a.club] = (byClub[a.club]||[]).concat(a); });
 
-  container.innerHTML = Object.entries(byClub).sort().map(([club,athletes]) => `
+  container.innerHTML = Object.entries(byClub).sort().map(([club, athletes]) => `
     <div class="mb-3">
       <div class="flex items-center justify-between px-1 py-1">
         <span class="text-xs font-bold uppercase tracking-wider text-gray-400 select-none">${club} (${athletes.length})</span>
         <button onclick="selectClub('${club}')" class="text-xs text-brand font-semibold hover:underline">Select all</button>
       </div>
       <div class="pool-club-list space-y-1" data-club="${club}">
-        ${athletes.map(a => poolCard(a, membershipCount[a.full_name]||0)).join('')}
+        ${athletes.map(a => poolCard(a, memberCount[a.full_name]||0)).join('')}
       </div>
     </div>`).join('');
 
   container.querySelectorAll('.pool-club-list').forEach(list => {
     const s = Sortable.create(list, {
       group:      { name:'relay-athletes', pull:'clone', put:false },
-      animation:  150,
-      ghostClass: 'sortable-ghost',
-      chosenClass:'sortable-chosen',
-      handle:     '.drag-handle',
-      onEnd:      onPoolDrop,
+      animation:  150, ghostClass:'sortable-ghost', chosenClass:'sortable-chosen',
+      handle:     '.drag-handle', onEnd: onPoolDrop,
     });
     poolSortables.push(s);
   });
 }
 
-function poolCard(a, teamCount) {
+function poolCard(a, count) {
   const sel = selectedIds.has(String(a.id));
-  const badge = teamCount > 0
-    ? `<span class="text-xs bg-blue-100 text-blue-600 font-semibold px-1.5 py-0.5 rounded-full ml-1">${teamCount}</span>`
-    : '';
+  const badge = count > 0
+    ? `<span class="text-xs bg-blue-100 text-blue-600 font-semibold px-1.5 py-0.5 rounded-full ml-1">${count}</span>` : '';
   return `<div class="athlete-card bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer ${sel?'selected':''}"
     data-athlete-name="${esc(a.full_name)}" data-athlete-id="${a.id}"
-    onclick="toggleSelect('${a.id}', this)">
-    <span class="drag-handle text-gray-400 select-none text-base leading-none" onclick="event.stopPropagation()">⠿</span>
+    onclick="toggleSelect('${a.id}',this)">
+    <span class="drag-handle text-gray-400 select-none text-base" onclick="event.stopPropagation()">⠿</span>
     <div class="flex-1 min-w-0">
       <div class="text-sm font-semibold truncate">${a.full_name}${badge}</div>
       <div class="text-xs mono text-gray-400">${a.club}${a.gender?' · '+a.gender:''}</div>
@@ -238,80 +274,63 @@ function renderTeams() {
 
   const ev = allEvents[curEventIdx];
   const container = document.getElementById('teams-container');
-  if (!ev) { container.innerHTML=''; return; }
+  document.getElementById('event-team-count').textContent = `${ev.teams.length} club teams`;
+
+  if (!ev.teams.length) {
+    container.innerHTML = `<div class="text-gray-400 text-sm py-8 text-center w-full">
+      No club teams yet — click "+ Add Club Team" to add teams for this event</div>`;
+    return;
+  }
 
   container.innerHTML = ev.teams.map(t => {
     const bibColor = COLORS[t.color] || '#9E9E9E';
     const memberCards = t.members.map(name => `
-      <div class="bg-white border border-gray-100 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm"
+      <div class="bg-white border border-gray-100 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm group"
         data-athlete-name="${esc(name)}">
-        <span class="drag-handle text-gray-400 select-none text-sm leading-none">⠿</span>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium truncate">${name}</div>
-        </div>
+        <span class="drag-handle text-gray-400 select-none text-sm">⠿</span>
+        <div class="flex-1 min-w-0 text-sm font-medium truncate">${name}</div>
         <button onclick="removeMember(${t.id},'${esc(name)}')"
-          class="text-gray-300 hover:text-red-500 text-xs transition opacity-0 group-hover:opacity-100">✕</button>
+          class="text-gray-300 hover:text-red-500 text-xs opacity-0 group-hover:opacity-100 transition">✕</button>
       </div>`).join('');
 
     return `<div class="flex flex-col w-52 flex-shrink-0">
-      <!-- Team header -->
-      <div class="rounded-t-xl px-3 py-2.5 flex items-center justify-between"
-        style="background:${bibColor}">
-        <span class="text-white font-bold text-sm">${t.club}</span>
-        <div class="flex items-center gap-2">
-          <span class="text-white/70 text-xs">${t.color}</span>
-          <button onclick="deleteTeam(${ev.id},${t.id})"
-            class="text-white/50 hover:text-white text-xs">✕</button>
+      <div class="rounded-t-xl px-3 py-2.5 flex items-center justify-between" style="background:${bibColor}">
+        <div>
+          <div class="text-white font-bold text-sm">${t.club}</div>
+          <div class="text-white/70 text-xs">${t.color} bib</div>
         </div>
+        <button onclick="deleteTeam(${ev.id},${t.id})" class="text-white/50 hover:text-white text-base leading-none">×</button>
       </div>
-      <!-- Drop zone -->
       <div class="team-drop min-h-20 bg-gray-50 border-2 border-dashed border-gray-200 border-t-0 rounded-b-xl p-1.5 space-y-1"
-        data-team-id="${t.id}" data-team-club="${esc(t.club)}" data-team-color="${esc(t.color)}">
+        data-team-id="${t.id}">
         ${memberCards}
-        ${t.members.length===0?'<p class="text-xs text-gray-400 text-center py-3">Drop athletes here</p>':''}
+        ${!t.members.length ? '<p class="text-xs text-gray-400 text-center py-3">Drop athletes here</p>' : ''}
       </div>
     </div>`;
-  }).join('') || `<div class="text-gray-400 text-sm py-8">No teams yet — click + Add Team</div>`;
+  }).join('');
 
-  // Init sortable on each team drop zone
   container.querySelectorAll('.team-drop').forEach(zone => {
     teamSortables[zone.dataset.teamId] = Sortable.create(zone, {
       group:      { name:'relay-athletes', pull:false, put:true },
-      animation:  150,
-      ghostClass: 'sortable-ghost',
-      handle:     '.drag-handle',
+      animation:  150, ghostClass:'sortable-ghost', handle:'.drag-handle',
       onAdd:      onTeamDrop,
     });
   });
 }
 
 // ── Drop handlers ─────────────────────────────────────────────────────────────
-function onPoolDrop(evt) {
-  // Pool uses clone — original stays, clone dropped into team
-  // The actual member add happens in onTeamDrop
-}
+function onPoolDrop(evt) { /* clone mode — actual add handled by onTeamDrop */ }
 
 function onTeamDrop(evt) {
-  const athleteName = evt.item.dataset.athleteName;
-  const teamId      = parseInt(evt.to.dataset.teamId);
-  const ev          = allEvents[curEventIdx];
-  const team        = ev.teams.find(t => t.id === teamId);
-  if (!team || !athleteName) return;
-
-  // Remove the dropped DOM clone (we manage members in JS state)
-  evt.item.remove();
-
-  if (team.members.includes(athleteName)) {
-    toast(`${athleteName} is already on this team`, 'error');
-    return;
-  }
-
-  team.members.push(athleteName);
-  hasChanges = true;
-  renderTeams();
-  renderPool();
-  updateTeamBadge(ev);
-  markChanged();
+  const name   = evt.item.dataset.athleteName;
+  const teamId = parseInt(evt.to.dataset.teamId);
+  evt.item.remove(); // remove clone
+  const ev   = allEvents[curEventIdx];
+  const team = ev.teams.find(t => t.id === teamId);
+  if (!team || !name) return;
+  if (team.members.includes(name)) { toast(`${name} already on this team`, 'error'); return; }
+  team.members.push(name);
+  renderTeams(); renderPool(); markChanged();
 }
 
 function removeMember(teamId, name) {
@@ -319,15 +338,7 @@ function removeMember(teamId, name) {
   const team = ev.teams.find(t => t.id === teamId);
   if (!team) return;
   team.members = team.members.filter(m => m !== name);
-  hasChanges = true;
-  renderTeams();
-  renderPool();
-  updateTeamBadge(ev);
-  markChanged();
-}
-
-function updateTeamBadge(ev) {
-  document.getElementById('event-subtitle').textContent = `${ev.teams.length} teams`;
+  renderTeams(); renderPool(); markChanged();
 }
 
 // ── Selection ─────────────────────────────────────────────────────────────────
@@ -340,8 +351,7 @@ function toggleSelect(id, el) {
 
 function selectClub(club) {
   allAthletes.filter(a => a.club === club).forEach(a => selectedIds.add(String(a.id)));
-  renderPool();
-  updateActionBar();
+  renderPool(); updateActionBar();
 }
 
 function clearSelection() {
@@ -366,36 +376,77 @@ function updateBulkTeamSel() {
 
 function bulkAddToTeam() {
   const teamId = parseInt(document.getElementById('bulk-team-sel').value);
-  if (!teamId) { toast('Pick a team first','error'); return; }
+  if (!teamId) { toast('Pick a team first', 'error'); return; }
   const ev   = allEvents[curEventIdx];
   const team = ev.teams.find(t => t.id === teamId);
   if (!team) return;
-
   let added = 0;
   selectedIds.forEach(id => {
     const a = allAthletes.find(x => String(x.id) === id);
-    if (a && !team.members.includes(a.full_name)) {
-      team.members.push(a.full_name);
-      added++;
-    }
+    if (a && !team.members.includes(a.full_name)) { team.members.push(a.full_name); added++; }
   });
-
-  clearSelection();
-  renderTeams();
-  renderPool();
-  markChanged();
+  clearSelection(); renderTeams(); renderPool(); markChanged();
   toast(`✓ ${added} athletes added to ${team.club} ${team.color}`, 'success');
 }
 
-// ── Add Team Modal ─────────────────────────────────────────────────────────────
+// ── Add Event Modal ───────────────────────────────────────────────────────────
+function openAddEventModal() {
+  document.getElementById('new-event-name').value = '';
+  document.getElementById('add-event-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('new-event-name').focus(), 100);
+}
+function closeAddEventModal() { document.getElementById('add-event-modal').classList.add('hidden'); }
+
+async function doAddEvent() {
+  const name = document.getElementById('new-event-name').value.trim();
+  if (!name) { toast('Enter event name', 'error'); return; }
+  const r = await fetch(`/api/comp/${COMP_ID}/create_relay_event`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({event_name: name})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    if (!d.existed) allEvents.push({...d.event, teams: []});
+    closeAddEventModal();
+    renderTabs();
+    showEvent(allEvents.length - 1);
+    toast(`✓ "${name}" added`, 'success');
+  } else toast(d.error || 'Error', 'error');
+}
+
+async function loadPrevRelayEvents() {
+  const r = await fetch(`/api/comp/${COMP_ID}/prev_relay_events`);
+  const d = await r.json();
+  if (!d.events?.length) { toast('No previous relay events found', 'error'); return; }
+  const existing = new Set(allEvents.map(e => e.event_name));
+  const toAdd    = d.events.filter(name => !existing.has(name));
+  if (!toAdd.length) { toast('All events already added', 'error'); return; }
+
+  // Create each missing event
+  for (const name of toAdd) {
+    const r2 = await fetch(`/api/comp/${COMP_ID}/create_relay_event`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({event_name: name})
+    });
+    const d2 = await r2.json();
+    if (d2.ok && !d2.existed) allEvents.push({...d2.event, teams: []});
+  }
+
+  // Sort events alphabetically
+  allEvents.sort((a,b) => a.event_name.localeCompare(b.event_name));
+  renderTabs();
+  if (allEvents.length) showEvent(0);
+  toast(`✓ ${toAdd.length} events loaded from ${d.from_comp}`, 'success');
+}
+
+// ── Add Team Modal ────────────────────────────────────────────────────────────
 function initColorSwatches() {
-  const container = document.getElementById('at-color-swatches');
-  container.innerHTML = Object.entries(COLORS).map(([name, hex]) =>
+  const c = document.getElementById('at-color-swatches');
+  c.innerHTML = Object.entries(COLORS).map(([name,hex]) =>
     `<button type="button" title="${name}" data-color="${name}"
       onclick="pickColor(this,'${name}')"
-      style="width:26px;height:26px;border-radius:50%;background:${hex};
-             border:2px solid transparent;transition:all .1s"
-      class="hover:scale-110"></button>`
+      style="width:26px;height:26px;border-radius:50%;background:${hex};border:2px solid transparent;transition:all .1s"
+      class="hover:scale-110 flex-shrink-0"></button>`
   ).join('');
 }
 
@@ -407,37 +458,34 @@ function pickColor(btn, name) {
 }
 
 function openAddTeamModal() {
+  const ev = allEvents[curEventIdx];
+  document.getElementById('add-team-event-label').textContent = ev ? ev.event_name : '';
   document.getElementById('at-club').value = '';
   document.getElementById('at-color').value = '';
   document.getElementById('at-color-label').textContent = 'No color selected';
   document.querySelectorAll('#at-color-swatches button').forEach(b => b.style.borderColor='transparent');
   document.getElementById('add-team-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('at-club').focus(), 100);
 }
-
-function closeAddTeamModal() {
-  document.getElementById('add-team-modal').classList.add('hidden');
-}
+function closeAddTeamModal() { document.getElementById('add-team-modal').classList.add('hidden'); }
 
 async function doAddTeam() {
   const club  = document.getElementById('at-club').value.trim();
   const color = document.getElementById('at-color').value;
-  if (!club)  { toast('Enter club name','error'); return; }
-  if (!color) { toast('Select a color','error'); return; }
+  if (!club)  { toast('Enter club name', 'error'); return; }
+  if (!color) { toast('Select a bib color', 'error'); return; }
   const ev = allEvents[curEventIdx];
-
   const r = await fetch(`/api/comp/${COMP_ID}/relay_event/${ev.id}/add_team`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({club, color, members:[]})
   });
   const d = await r.json();
   if (d.ok) {
-    ev.teams.push(d.team);
+    ev.teams.push({...d.team, members: d.team.members || []});
     closeAddTeamModal();
-    renderTeams();
-    updateBulkTeamSel();
-    updateTeamBadge(ev);
-    toast(`✓ ${club} ${color} team added`,'success');
-  } else toast(d.error||'Error','error');
+    renderTeams(); updateBulkTeamSel();
+    toast(`✓ ${club} ${color} team added`, 'success');
+  } else toast(d.error || 'Error', 'error');
 }
 
 async function deleteTeam(eventId, teamId) {
@@ -448,45 +496,35 @@ async function deleteTeam(eventId, teamId) {
   const d = await r.json();
   if (d.ok) {
     ev.teams = ev.teams.filter(t => t.id !== teamId);
-    renderTeams();
-    updateBulkTeamSel();
-    toast('✓ Team deleted','success');
-  } else toast(d.error,'error');
+    renderTeams(); updateBulkTeamSel();
+    toast('✓ Team deleted', 'success');
+  } else toast(d.error, 'error');
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 async function saveAll() {
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = '⏳ Saving…';
-
-  // Save all teams across all events
   const saves = [];
-  allEvents.forEach(ev => {
-    ev.teams.forEach(team => {
-      saves.push(
-        fetch(`/api/relay_team/${team.id}/set_members`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({members: team.members, color: team.color})
-        })
-      );
-    });
-  });
-
+  allEvents.forEach(ev => ev.teams.forEach(team =>
+    saves.push(fetch(`/api/relay_team/${team.id}/set_members`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({members:team.members, color:team.color})
+    }))
+  ));
   try {
     const results = await Promise.all(saves);
     const jsons   = await Promise.all(results.map(r => r.json()));
     const errors  = jsons.filter(d => !d.ok);
-    if (errors.length) {
-      toast(`${errors.length} teams failed to save`, 'error');
-    } else {
+    if (errors.length) { toast(`${errors.length} teams failed to save`, 'error'); }
+    else {
       hasChanges = false;
       btn.textContent = '✓ Saved';
       setTimeout(() => { btn.textContent = '💾 Save All Teams'; }, 2000);
-      toast(`✓ All relay teams saved`, 'success');
+      toast('✓ All relay teams saved', 'success');
+      renderPool(); // refresh team count badges
     }
-  } catch(e) {
-    toast('Save failed','error');
-  }
+  } catch(e) { toast('Save failed', 'error'); }
   btn.disabled = false;
 }
 
@@ -507,9 +545,9 @@ function toast(msg, type='') {
 function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 window.addEventListener('beforeunload',e=>{if(hasChanges){e.preventDefault();e.returnValue='';}});
-document.getElementById('add-team-modal').addEventListener('click',e=>{
-  if(e.target===document.getElementById('add-team-modal')) closeAddTeamModal();
-});
+[document.getElementById('add-event-modal'), document.getElementById('add-team-modal')].forEach(m =>
+  m.addEventListener('click', e => { if(e.target===m) m.classList.add('hidden'); }));
+
 init();
 </script>
 </body>
