@@ -1658,6 +1658,7 @@ async function exportCSV(filter) {
 }
 
 
+async function overrideReg(regId, status) {
   const r = await fetch(`/api/registration/${regId}/override`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({status})
