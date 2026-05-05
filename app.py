@@ -2222,22 +2222,15 @@ def seed_from_registrations(comp_id):
 
         # Collect attending registrations that have a group assigned
         regs_with_group = []
-        regs_without_group = []
         for link in links:
             for reg in link.registrations:
                 if reg.status == "attending" and reg.athlete:
                     if reg.group_name:
                         regs_with_group.append(reg)
-                    else:
-                        regs_without_group.append(reg)
+                    # silently skip athletes with no group assigned
 
-        if not regs_with_group and not regs_without_group:
-            return jsonify({"error": "No attending athletes found"}), 400
-
-        if regs_without_group:
-            names = ", ".join(r.athlete.full_name for r in regs_without_group[:5])
-            extra = f" (+{len(regs_without_group)-5} more)" if len(regs_without_group) > 5 else ""
-            return jsonify({"error": f"{len(regs_without_group)} athletes have no group assigned: {names}{extra}"}), 400
+        if not regs_with_group:
+            return jsonify({"error": "No athletes with group assignments found. Assign groups first."}), 400
 
         comp_events_q = session.query(CompEvent).filter_by(competition_id=comp_id)\
             .filter(CompEvent.category != 'relay').all()
