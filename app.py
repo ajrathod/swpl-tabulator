@@ -2239,8 +2239,10 @@ def seed_from_registrations(comp_id):
             extra = f" (+{len(regs_without_group)-5} more)" if len(regs_without_group) > 5 else ""
             return jsonify({"error": f"{len(regs_without_group)} athletes have no group assigned: {names}{extra}"}), 400
 
-        comp_events_q = session.query(CompEvent).filter_by(competition_id=comp_id).all()
-        event_names = [ce.name for ce in comp_events_q]
+        comp_events_q = session.query(CompEvent).filter_by(competition_id=comp_id)\
+            .filter(CompEvent.category != 'relay').all()
+        event_names = [ce.event_name for ce in comp_events_q]
+        points_events = {ce.event_name for ce in comp_events_q if ce.points_event}
         if not event_names:
             return jsonify({"error": "No events configured for this competition"}), 400
 
@@ -2275,7 +2277,7 @@ def seed_from_registrations(comp_id):
             for ev_name in event_names:
                 ev = Event(competition_id=comp_id, group_name=group,
                            name=ev_name, event_type="heat_based",
-                           points_event=1 if ev_name in ("Short Distance","Medium Distance","Long Distance") else 0)
+                           points_event=1 if ev_name in points_events else 0)
                 session.add(ev)
                 session.flush()
                 panels = [r.athlete.usars_no or str(r.athlete.id) for r in regs]
