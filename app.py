@@ -960,7 +960,47 @@ def relay_assign_page(comp_id):
     return render_template("relay_assign.html", comp=comp.to_dict())
 
 
-@app.route("/api/comp/<int:comp_id>/relay_assign_data")
+@app.route("/api/comp/<int:comp_id>/prev_relay_events")
+def get_prev_relay_events(comp_id):
+    """Return relay event names from the most recent other competition."""
+    session = db()
+    prev = session.query(Competition)\
+        .filter(Competition.id != comp_id)\
+        .order_by(Competition.created_at.desc()).first()
+    events = []
+    if prev:
+        rows = session.query(RelayEvent.event_name)\
+            .filter_by(competition_id=prev.id).all()
+        events = sorted([r[0] for r in rows if r[0]])
+    session.close()
+    return jsonify({"events": events, "from_comp": prev.name if prev else None})
+
+
+@app.route("/api/comp/<int:comp_id>/create_relay_event", methods=["POST"])
+def create_relay_event_for_comp(comp_id):
+    """Create a new relay event for this competition."""
+    data       = request.json
+    event_name = data.get("event_name", "").strip()
+    if not event_name:
+        return jsonify({"error": "Event name required"}), 400
+    session = db()
+    try:
+        # Check if already exists
+        existing = session.query(RelayEvent).filter_by(
+            competition_id=comp_id, event_name=event_name).first()
+        if existing:
+            return jsonify({"ok": True, "event": existing.to_dict(), "existed": True})
+        ev = RelayEvent(competition_id=comp_id, event_name=event_name, event_type="relay")
+        session.add(ev)
+        session.commit()
+        return jsonify({"ok": True, "event": ev.to_dict(), "existed": False})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
 def relay_assign_data(comp_id):
     session = db()
     relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id)\
