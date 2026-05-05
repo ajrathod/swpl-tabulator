@@ -947,6 +947,99 @@ def set_tiebreaker(comp_id):
         session.close()
 
 
+# ── Relay Assignment Page ─────────────────────────────────────────────────────
+
+@app.route("/relay_assign/<int:comp_id>")
+def relay_assign_page(comp_id):
+    if not is_authed(comp_id):
+        return redirect(url_for('comp_view', comp_id=comp_id))
+    session = db()
+    comp = session.query(Competition).get(comp_id)
+    session.close()
+    if not comp: return "Not found", 404
+    return render_template("relay_assign.html", comp=comp.to_dict())
+
+
+@app.route("/api/comp/<int:comp_id>/relay_assign_data")
+def relay_assign_data(comp_id):
+    session = db()
+    relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id)\
+        .order_by(RelayEvent.event_name).all()
+    events_data = []
+    for re in relay_events:
+        active_teams = [t for t in re.teams if getattr(t,'status','active') != 'scratched']
+        events_data.append({
+            "id": re.id, "event_name": re.event_name,
+            "teams": [{"id":t.id,"club":t.club,"color":t.color or "",
+                       "members":[m.name for m in t.members]} for t in active_teams]
+        })
+    # Attending athletes
+    links    = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+    athletes = []
+    seen_ids = set()
+    for link in links:
+        for reg in link.registrations:
+            if reg.status == "attending" and reg.athlete and reg.athlete_id not in seen_ids:
+                seen_ids.add(reg.athlete_id)
+                a = reg.athlete
+                athletes.append({"id":a.id,"full_name":a.full_name,"club":a.club or "",
+                                  "usars_no":a.usars_no or "","gender":a.gender or ""})
+    # Relay pool extras not already in attending
+    pool_names = {a["full_name"] for a in athletes}
+    for p in session.query(RelayPoolAthlete).filter_by(competition_id=comp_id).all():
+        if p.full_name not in pool_names:
+            athletes.append({"id":f"pool_{p.id}","full_name":p.full_name,
+                              "club":p.club or "","usars_no":p.usars_no or "",
+                              "gender":p.gender or "","from_pool":True})
+    athletes.sort(key=lambda a:(a["club"],a["full_name"]))
+    session.close()
+    return jsonify({"events":events_data,"athletes":athletes})
+
+
+@app.route("/api/relay_team/<int:team_id>/set_members", methods=["POST"])
+def set_relay_team_members(team_id):
+    data    = request.json
+    members = data.get("members", [])
+    color   = data.get("color","").strip()
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error":"Team not found"}), 404
+        if color: team.color = color
+        for m in list(team.members): session.delete(m)
+        session.flush()
+        for name in members:
+            if name.strip(): session.add(RelayMember(team_id=team_id, name=name.strip()))
+        session.commit()
+        return jsonify({"ok":True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error":str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/relay_event/<int:event_id>/add_team", methods=["POST"])
+def quick_add_relay_team(comp_id, event_id):
+    data    = request.json
+    club    = data.get("club","").strip()
+    color   = data.get("color","").strip()
+    members = data.get("members",[])
+    session = db()
+    try:
+        re = session.query(RelayEvent).get(event_id)
+        if not re: return jsonify({"error":"Relay event not found"}), 404
+        team = RelayTeam(relay_event_id=event_id, club=club, color=color, status="active")
+        session.add(team); session.flush()
+        for name in members:
+            if name.strip(): session.add(RelayMember(team_id=team.id, name=name.strip()))
+        session.commit()
+        return jsonify({"ok":True,"team":{"id":team.id,"club":club,"color":color,"members":members}})
+    except Exception as e:
+        session.rollback(); return jsonify({"error":str(e)}), 500
+    finally:
+        session.close()
+
+
 @app.route("/api/<int:comp_id>/relays")
 def api_relays(comp_id):
     session = db()
@@ -1967,6 +2060,117 @@ def save_group_assignments(comp_id):
         session.close()
 
 
+# ── Relay Assignment Page ─────────────────────────────────────────────────────
+
+@app.route("/assign_relay/<int:comp_id>/<int:relay_event_id>")
+def assign_relay_page(comp_id, relay_event_id):
+    if not is_authed(comp_id):
+        return redirect(url_for('comp_view', comp_id=comp_id))
+    session = db()
+    comp = session.query(Competition).get(comp_id)
+    rev  = session.query(RelayEvent).get(relay_event_id)
+    session.close()
+    if not comp or not rev: return "Not found", 404
+    return render_template("assign_relay.html",
+                           comp=comp.to_dict(),
+                           relay_event={"id": rev.id, "name": rev.name})
+
+
+@app.route("/api/relay_event/<int:relay_event_id>/team_assignments")
+def get_relay_team_assignments(relay_event_id):
+    session = db()
+    rev = session.query(RelayEvent).get(relay_event_id)
+    if not rev: session.close(); return jsonify({"error":"Not found"}), 404
+    comp_id = rev.competition_id
+    links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+    # Build set of names already assigned to a team
+    assigned = set()
+    for t in rev.teams:
+        if getattr(t,'status','active') != 'scratched':
+            for m in t.members:
+                assigned.add(m.name.strip().lower())
+    athletes = []
+    for link in links:
+        for reg in link.registrations:
+            if reg.status == "attending" and reg.athlete:
+                a = reg.athlete
+                athletes.append({
+                    "id": reg.id, "athlete_id": a.id,
+                    "full_name": a.full_name, "club": a.club or "",
+                    "usars_no": a.usars_no or "", "gender": a.gender or "",
+                    "in_team": a.full_name.strip().lower() in assigned,
+                })
+    athletes.sort(key=lambda a: (a["club"], a["full_name"]))
+    COLORS = {"green":"#2E7D32","blue":"#1565C0","yellow":"#F9A825",
+               "pink":"#E91E8C","light blue":"#29B6F6","black":"#212121","red":"#C62828"}
+    teams = []
+    for t in rev.teams:
+        if getattr(t,'status','active') == 'scratched': continue
+        teams.append({"id":t.id,"club":t.club,"color":t.color or "",
+                      "color_hex":COLORS.get((t.color or "").lower(),"#9E9E9E"),
+                      "members":[m.name for m in t.members]})
+    session.close()
+    return jsonify({"teams": teams, "athletes": athletes})
+
+
+@app.route("/api/relay_event/<int:relay_event_id>/save_team_members", methods=["POST"])
+def save_relay_team_members_bulk(relay_event_id):
+    data  = request.json
+    teams = data.get("teams", [])
+    session = db()
+    try:
+        for item in teams:
+            team = session.query(RelayTeam).get(item["team_id"])
+            if not team: continue
+            for m in list(team.members): session.delete(m)
+            session.flush()
+            for name in item.get("members", []):
+                name = name.strip()
+                if name: session.add(RelayMember(team_id=team.id, name=name))
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_event/<int:relay_event_id>/add_team", methods=["POST"])
+def add_relay_team_for_event(relay_event_id):
+    data  = request.json
+    club  = data.get("club","").strip()
+    color = data.get("color","").strip()
+    session = db()
+    try:
+        rev = session.query(RelayEvent).get(relay_event_id)
+        if not rev: return jsonify({"error":"Not found"}), 404
+        team = RelayTeam(relay_event_id=relay_event_id, club=club, color=color, status="active")
+        session.add(team); session.commit()
+        COLORS = {"green":"#2E7D32","blue":"#1565C0","yellow":"#F9A825",
+                   "pink":"#E91E8C","light blue":"#29B6F6","black":"#212121","red":"#C62828"}
+        return jsonify({"ok":True,"team":{"id":team.id,"club":club,"color":color,
+                        "color_hex":COLORS.get(color.lower(),"#9E9E9E"),"members":[]}})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/relay_event/<int:relay_event_id>/delete_team/<int:team_id>", methods=["DELETE"])
+def delete_relay_team_assignment(relay_event_id, team_id):
+    session = db()
+    try:
+        team = session.query(RelayTeam).get(team_id)
+        if not team: return jsonify({"error":"Not found"}), 404
+        session.delete(team); session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/seed_from_reg", methods=["POST"])
 def seed_from_registrations(comp_id):
     """
     Create Skater entries for all 'attending' athletes with group assignments
