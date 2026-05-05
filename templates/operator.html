@@ -1554,6 +1554,10 @@ async function showRegistrations() {
     <div class="flex items-center gap-3 mb-5 flex-wrap">
       <h2 class="text-xl font-bold">🔗 Registrations</h2>
       <div class="ml-auto flex gap-2">
+        <a href="/relay_assign/${COMP_ID}"
+          class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">
+          🔄 Assign Relay Teams
+        </a>
         <a href="/assign_groups/${COMP_ID}"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
           🗂 Assign Groups
@@ -1639,6 +1643,65 @@ async function seedFromRegistrations() {
     const gs = Object.keys(allGroups);
     if (gs.length) selectGroup(gs[0]);
   } else toast(d.error || 'Error seeding', 'error');
+}
+
+
+// ── Transfer ──────────────────────────────────────────────────────────────────
+let xferGroup = null;
+async function openXfer(group) {
+  xferGroup = group;
+  document.getElementById('xfer-from').textContent = group;
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const evs = await r.json();
+  const firstEv = Object.values(evs)[0];
+  const seen = new Set(), skaters = [];
+  if (firstEv) [...(firstEv.heats||[]),...(firstEv.semis||[]),...(firstEv.finals||[])].forEach(h=>
+    h.skaters.forEach(s=>{if(!seen.has(s.panel)){seen.add(s.panel);skaters.push(s);}}));
+  skaters.sort((a,b)=>(a.last||'').localeCompare(b.last||''));
+  document.getElementById('xfer-sk-list').innerHTML = skaters.map(s=>`
+    <label class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition">
+      <input type="checkbox" value="${s.panel}" class="accent-brand w-4 h-4">
+      <div>
+        <div class="text-sm font-semibold">${s.full_name}</div>
+        <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club}</div>
+      </div>
+    </label>`).join('') || '<p class="text-sm text-gray-400 px-4 py-3">No skaters</p>';
+  const others = Object.keys(allGroups).filter(g=>g!==group).sort();
+  document.getElementById('xfer-to').innerHTML = others.map(g=>`<option value="${esc(g)}">${g}</option>`).join('');
+  openModal('xfer-modal');
+}
+
+async function doTransfer() {
+  const panels = [...document.querySelectorAll('#xfer-sk-list input:checked')].map(c=>c.value);
+  if (!panels.length) { toast('Select at least one skater','error'); return; }
+  const toGroup = document.getElementById('xfer-to').value;
+  const r = await fetch('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,panels,to_group:toGroup})});
+  const d = await r.json();
+  if (d.ok) { closeModal('xfer-modal'); toast(`✓ ${panels.length} skater(s) moved`,'success'); await refreshGroups(); selectGroup(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Add Event ─────────────────────────────────────────────────────────────────
+let addEvGroup = null;
+function openAddEv(group) {
+  addEvGroup = group;
+  document.getElementById('ev-name-inp').value = '';
+  document.getElementById('ev-points').checked = false;
+  document.querySelector('input[name="evtype"][value="heat_based"]').checked = true;
+  openModal('addEv-modal');
+}
+
+async function doAddEvent() {
+  const name = document.getElementById('ev-name-inp').value.trim();
+  if (!name) { toast('Enter event name','error'); return; }
+  const type = document.querySelector('input[name="evtype"]:checked').value;
+  const pts  = document.getElementById('ev-points').checked ? 1 : 0;
+  const r = await fetch('/api/add_event',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,group:addEvGroup,name,type,points_event:pts})});
+  const d = await r.json();
+  if (d.ok) { closeModal('addEv-modal'); curEvent=name; toast('✓ Created','success'); selectGroup(curGroup); }
+  else toast(d.error,'error');
 }
 
 
