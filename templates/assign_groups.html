@@ -39,7 +39,8 @@
       💾 Save Assignments
     </button>
     <button id="seed-btn" onclick="seedHeats()" disabled
-      class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+      class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+      title="Seeds heats for all assigned athletes — unassigned athletes are skipped">
       ⚡ Seed Heats
     </button>
   </div>
@@ -333,9 +334,11 @@ function onDrop(evt) {
 
 function updateCounter() {
   const u = allAthletes.filter(a => !a.group_name).length;
-  document.getElementById('counter').textContent = `${u} unassigned · ${allAthletes.length-u} assigned`;
+  const assigned = allAthletes.length - u;
+  document.getElementById('counter').textContent = `${u} unassigned · ${assigned} assigned`;
   document.getElementById('unassigned-count').textContent = u;
-  document.getElementById('seed-btn').disabled = u > 0 || allAthletes.length === 0;
+  // Enable seed button as long as at least one athlete is assigned
+  document.getElementById('seed-btn').disabled = assigned === 0;
 }
 
 function markChanged() {
