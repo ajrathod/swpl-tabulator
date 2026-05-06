@@ -1588,7 +1588,58 @@ def unscratch_relay_team():
 
 # ── Standby athletes ──────────────────────────────────────────────────────────
 
-@app.route("/api/add_standby", methods=["POST"])
+@app.route("/api/comp/<int:comp_id>/add_athlete_to_group", methods=["POST"])
+def add_athlete_to_group(comp_id):
+    """
+    Add an athlete from the registry to an existing group during competition.
+    Does NOT re-seed heats — athlete appears in DD editor Unassigned pool.
+    """
+    data       = request.json
+    group_name = data.get("group", "").strip()
+    athlete_id = data.get("athlete_id")
+    session    = db()
+    try:
+        # Get athlete from registry
+        athlete = session.query(AthleteRegistry).get(athlete_id)
+        if not athlete:
+            return jsonify({"error": "Athlete not found in registry"}), 404
+
+        panel = (athlete.usars_no or str(athlete.id)).strip()
+
+        # Check for duplicate in this competition
+        existing = session.query(Skater).filter_by(
+            competition_id=comp_id, panel=panel).first()
+        if existing:
+            return jsonify({"error": f"{athlete.full_name} is already in this competition (Panel #{panel})"}), 409
+
+        # Create skater record — no heat assignment, will appear in DD Unassigned pool
+        sk = Skater(
+            competition_id=comp_id,
+            panel=panel,
+            usars_no=athlete.usars_no or "",
+            first=athlete.first,
+            last=athlete.last,
+            gender=athlete.gender or "",
+            age=getattr(athlete, 'age', 0) or 0,
+            club=athlete.club or "",
+            group_name=group_name,
+            status="active",
+        )
+        session.add(sk)
+        session.commit()
+        return jsonify({"ok": True, "skater": {
+            "panel": panel,
+            "full_name": athlete.full_name,
+            "club": athlete.club or "",
+            "group_name": group_name,
+        }})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
 def add_standby():
     """
     Add a standby athlete to the competition roster.
