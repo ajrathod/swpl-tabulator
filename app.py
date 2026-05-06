@@ -9,7 +9,7 @@ from models import (
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
     AthleteRegistry, ScratchRecord, RelayPoolAthlete,
-    RegistrationLink, Registration,
+    RegistrationLink, Registration, ScheduleEvent,
 )
 from seeding import compute_stages, distribute
 
@@ -2340,7 +2340,143 @@ def seed_from_registrations(comp_id):
         session.close()
 
 
-if __name__ == "__main__":
+
+# ── Schedule ──────────────────────────────────────────────────────────────────
+
+def parse_schedule(filepath):
+    """Parse the Schedule sheet from a program Excel file."""
+    df = pd.read_excel(filepath, sheet_name='Schedule', header=None, engine='openpyxl')
+    events = []
+    cur_section = ""
+    cur_time    = ""
+    sort_order  = 0
+
+    for i, row in df.iterrows():
+        col0 = _clean(row.get(0, ""))
+        col1 = _clean(row.get(1, ""))
+        col2 = _clean(row.get(2, ""))
+        col3 = _clean(row.get(3, ""))
+        col4 = _clean(row.get(4, ""))
+
+        if not col0 and not col1: continue
+
+        # Section header: col0 is a time (HH:MM:SS or HH:MM), col2 is section name
+        try:
+            import datetime
+            if isinstance(row.get(0), datetime.time) or (col0 and ':' in col0 and len(col0) <= 8):
+                # Format time nicely
+                raw = row.get(0)
+                if hasattr(raw, 'hour'):
+                    h, m = raw.hour, raw.minute
+                else:
+                    parts = col0.split(':')
+                    h, m = int(parts[0]), int(parts[1])
+                period = 'AM' if h < 12 else 'PM'
+                disp_h = h if h <= 12 else h - 12
+                if disp_h == 0: disp_h = 12
+                cur_time = f"{disp_h}:{m:02d} {period}"
+                cur_section = col2 or col1 or ""
+                sort_order += 1
+                continue
+        except: pass
+
+        # Announcement rows (e.g. "5:00am Doors Open", "AWARDS") — skip
+        if not col1 and not col2 and col0:
+            if 'am' in col0.lower() or 'pm' in col0.lower() or col0.upper() == col0:
+                sort_order += 1
+                continue
+
+        # Race entry: col0 = race number(s), col1 = group/event name
+        if col0 and col1:
+            sort_order += 1
+            events.append({
+                "race_number":  col0,
+                "label":        col1,
+                "distance":     col2 or col4 or "",
+                "stage":        col3 or col4 or "",
+                "note":         col4 if col3 else "",
+                "section":      cur_section,
+                "section_time": cur_time,
+                "sort_order":   sort_order,
+            })
+
+    return events
+
+
+@app.route("/api/upload/schedule/<int:comp_id>", methods=["POST"])
+def upload_schedule(comp_id):
+    file = request.files.get('file')
+    if not file: return jsonify({"error": "No file"}), 400
+    import tempfile, os
+    suffix = os.path.splitext(file.filename)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        file.save(tmp.name)
+        try:
+            events = parse_schedule(tmp.name)
+        except Exception as e:
+            return jsonify({"error": f"Could not parse schedule: {e}"}), 400
+        finally:
+            os.unlink(tmp.name)
+
+    session = db()
+    try:
+        # Clear existing schedule for this competition
+        session.query(ScheduleEvent).filter_by(competition_id=comp_id).delete()
+        for ev in events:
+            session.add(ScheduleEvent(
+                competition_id=comp_id,
+                race_number=ev["race_number"],
+                label=ev["label"],
+                distance=ev["distance"],
+                stage=ev["stage"],
+                note=ev["note"],
+                section=ev["section"],
+                section_time=ev["section_time"],
+                sort_order=ev["sort_order"],
+                status="pending",
+            ))
+        session.commit()
+        return jsonify({"ok": True, "event_count": len(events)})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/schedule")
+def get_schedule(comp_id):
+    session = db()
+    events = session.query(ScheduleEvent).filter_by(competition_id=comp_id)\
+        .order_by(ScheduleEvent.sort_order).all()
+    session.close()
+    return jsonify([e.to_dict() for e in events])
+
+
+@app.route("/api/schedule/<int:event_id>/status", methods=["POST"])
+def update_schedule_status(event_id):
+    data   = request.json
+    status = data.get("status")  # pending / in_progress / done
+    if status not in ("pending", "in_progress", "done"):
+        return jsonify({"error": "Invalid status"}), 400
+    session = db()
+    try:
+        ev = session.query(ScheduleEvent).get(event_id)
+        if not ev: return jsonify({"error": "Not found"}), 404
+        # If marking in_progress, clear any other in_progress in same comp
+        if status == "in_progress":
+            session.query(ScheduleEvent).filter_by(
+                competition_id=ev.competition_id, status="in_progress"
+            ).update({"status": "pending"})
+        ev.status = status
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
     init_db()
     import socket
     try:

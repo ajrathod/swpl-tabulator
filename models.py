@@ -389,6 +389,29 @@ class Registration(Base):
                 "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M") if self.updated_at else ""}
 
 
+class ScheduleEvent(Base):
+    __tablename__ = "schedule_events"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    race_number    = Column(String(20))   # "100-101", "114", "400-401"
+    label          = Column(String(200))  # "Group 2F", "Elite Juvenile Any 3"
+    distance       = Column(String(20))   # "700M", "900M"
+    stage          = Column(String(50))   # "Heats", "Final"
+    note           = Column(String(200))  # "3 qualify for Final"
+    section        = Column(String(200))  # "Long Distance Events"
+    section_time   = Column(String(20))   # "6:00 AM"
+    sort_order     = Column(Integer, default=0)
+    status         = Column(String(20), default="pending")  # pending/in_progress/done
+
+    def to_dict(self):
+        return {"id":self.id,"competition_id":self.competition_id,
+                "race_number":self.race_number or "","label":self.label or "",
+                "distance":self.distance or "","stage":self.stage or "",
+                "note":self.note or "","section":self.section or "",
+                "section_time":self.section_time or "",
+                "sort_order":self.sort_order,"status":self.status or "pending"}
+
+
 def init_db():
     Base.metadata.create_all(engine)
 
