@@ -43,6 +43,10 @@ tailwind.config = {
   <span class="font-bold text-gray-900 text-sm truncate max-w-xs">{{comp.name}}</span>
   <div class="ml-auto flex items-center gap-2">
     <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+      📋 Schedule
+      <input type="file" id="up-sched" accept=".xlsx,.xls" class="hidden">
+    </label>
+    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
       📋 Individual Master
       <input type="file" id="up-ind" accept=".xlsx,.xls" class="hidden">
     </label>
@@ -67,6 +71,13 @@ tailwind.config = {
     <div class="px-3 pt-4 pb-2">
       <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
       <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-2">
+      <button onclick="showSchedule()"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+        📅 <span>Schedule</span>
+      </button>
     </div>
     <div class="border-t border-gray-100 mx-3 my-2"></div>
     <div class="px-3 pb-2">
@@ -1655,7 +1666,111 @@ function renderRelayPoolPanel() {
 }
 
 
-// ── Registrations ─────────────────────────────────────────────────────────────
+document.getElementById('up-sched').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  toast('Loading schedule…');
+  const r = await fetch(`/api/upload/schedule/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) { toast(`✓ ${d.event_count} schedule events loaded`, 'success'); showSchedule(); }
+  else toast(d.error || 'Error loading schedule', 'error');
+  e.target.value = '';
+});
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
+async function showSchedule() {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn text-gray-700 hover:bg-gray-100`;
+  });
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+
+  document.getElementById('grp-view').innerHTML = `
+    <div class="flex items-center gap-3 mb-5">
+      <h2 class="text-xl font-bold">📅 Schedule</h2>
+      <span class="text-xs text-gray-400">Click a row to update status</span>
+    </div>
+    <div id="sched-body"><div class="text-gray-400 text-sm py-4">Loading…</div></div>`;
+
+  const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
+  const events = await r.json();
+  renderScheduleOperator(events);
+}
+
+function renderScheduleOperator(events) {
+  const body = document.getElementById('sched-body');
+  if (!events.length) {
+    body.innerHTML = `<div class="text-center py-16 text-gray-400">
+      <div class="text-4xl mb-3">📋</div>
+      <p class="font-semibold">No schedule loaded yet</p>
+      <p class="text-sm mt-1">Upload a Program Excel file using the 📋 Schedule button in the header</p>
+    </div>`;
+    return;
+  }
+
+  let html = '';
+  let curSection = '';
+
+  events.forEach(ev => {
+    if (ev.section !== curSection) {
+      curSection = ev.section;
+      html += `<div class="flex items-center gap-3 mt-6 mb-3">
+        <span class="text-xs font-bold bg-gray-100 text-gray-500 px-3 py-1 rounded-full whitespace-nowrap">${ev.section_time}</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-gray-400">${ev.section}</span>
+        <div class="flex-1 h-px bg-gray-200"></div>
+      </div>`;
+    }
+
+    const statusStyles = {
+      pending:     'bg-white border-gray-200',
+      in_progress: 'bg-amber-50 border-amber-300',
+      done:        'bg-green-50 border-green-300',
+    };
+    const badgeStyles = {
+      pending:     'bg-gray-100 text-gray-500',
+      in_progress: 'bg-amber-100 text-amber-800',
+      done:        'bg-green-100 text-green-800',
+    };
+    const badgeLabel = {pending:'Upcoming', in_progress:'In Progress', done:'Done'};
+
+    html += `<div class="flex items-center gap-3 px-4 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
+      <span class="text-xs font-mono text-gray-400 w-16 flex-shrink-0">${ev.race_number}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold">${ev.label}</div>
+        <div class="text-xs text-gray-400">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
+      </div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button onclick="setSchedStatus(${ev.id},'pending')"
+          class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='pending'?'bg-gray-200 border-gray-300 font-semibold':'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}">
+          Upcoming
+        </button>
+        <button onclick="setSchedStatus(${ev.id},'in_progress')"
+          class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='in_progress'?'bg-amber-200 border-amber-300 font-semibold text-amber-900':'bg-white border-gray-200 text-gray-500 hover:bg-amber-50'}">
+          ⚡ In Progress
+        </button>
+        <button onclick="setSchedStatus(${ev.id},'done')"
+          class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='done'?'bg-green-200 border-green-300 font-semibold text-green-900':'bg-white border-gray-200 text-gray-500 hover:bg-green-50'}">
+          ✓ Done
+        </button>
+      </div>
+    </div>`;
+  });
+
+  body.innerHTML = html;
+}
+
+async function setSchedStatus(eventId, status) {
+  const r = await fetch(`/api/schedule/${eventId}/status`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  const d = await r.json();
+  if (d.ok) { showSchedule(); }
+  else toast(d.error || 'Error', 'error');
+}
+
+
 async function showRegistrations() {
   curGroup = null;
   document.querySelectorAll('.group-btn').forEach(b => {

@@ -235,8 +235,35 @@ body {
 .lineup-placeholder {
   padding: 14px 16px; text-align: center;
   font-size: 12px; color: var(--text-faint); font-style: italic;
-} position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-faint); z-index: 99; }
+}
+.rbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-faint); z-index: 99; }
 .rbar button { font-size: 12px; font-weight: 700; color: var(--orange); background: none; border: none; cursor: pointer; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+/* Schedule view */
+.sched-section-hdr { display:flex; align-items:center; gap:10px; margin:24px 0 10px; }
+.sched-time { font-size:11px; font-weight:600; color:var(--text-faint);
+  background:var(--input-bg); border:1px solid var(--border);
+  border-radius:20px; padding:2px 10px; white-space:nowrap; }
+.sched-section-hdr .sched-name { font-size:10px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-faint); white-space:nowrap; }
+.sched-section-hdr::after { content:''; flex:1; height:1px; background:var(--border); }
+.sched-row { display:flex; align-items:center; gap:12px; padding:12px 16px;
+  border-radius:14px; border:1px solid var(--border);
+  background:var(--card-bg); margin-bottom:8px; transition:all .2s; }
+.sched-row.in_progress { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.4); }
+.sched-row.done { background:rgba(34,197,94,.07); border-color:rgba(34,197,94,.3); }
+.sched-num { font-size:11px; font-family:'DM Mono',monospace;
+  color:var(--text-faint); width:52px; flex-shrink:0; }
+.sched-info { flex:1; min-width:0; }
+.sched-label { font-size:14px; font-weight:600; color:var(--text); }
+.sched-meta { font-size:11px; color:var(--text-faint); margin-top:2px; }
+.sched-badge { display:inline-flex; align-items:center; gap:5px;
+  padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+.sched-badge.pending { background:var(--input-bg); color:var(--text-faint); border:1px solid var(--border); }
+.sched-badge.in_progress { background:rgba(245,158,11,.15); color:#D97706; border:1px solid rgba(245,158,11,.3); }
+.sched-badge.done { background:rgba(34,197,94,.12); color:#16A34A; border:1px solid rgba(34,197,94,.3); }
+.sched-live-dot { width:7px; height:7px; border-radius:50%; background:#F59E0B;
+  animation:pulse 1.2s ease-in-out infinite; flex-shrink:0; }
 
 @keyframes result-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
 .sk-row, .standings-row { animation: result-in .25s ease both; }
@@ -261,6 +288,7 @@ body {
       <div class="mode-toggle">
         <button class="mode-btn active" id="mode-results" onclick="setMode('results')">📊 Results</button>
         <button class="mode-btn" id="mode-program" onclick="setMode('program')">📋 Program</button>
+      <button class="mode-btn" id="mode-schedule" onclick="setMode('schedule')">📅 Schedule</button>
       </div>
       <div class="search-wrap" style="flex:1">
         <span class="search-icon">🔍</span>
@@ -323,11 +351,19 @@ function setMode(mode) {
   curMode = mode;
   document.getElementById('mode-results').classList.toggle('active', mode === 'results');
   document.getElementById('mode-program').classList.toggle('active', mode === 'program');
-  // In program mode, event dropdown is hidden (show all events)
-  document.getElementById('event-sel').style.display = mode === 'program' ? 'none' : '';
-  // Clear search
+  document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
   document.getElementById('search-inp').value = '';
-  // Re-render current view
+
+  if (mode === 'schedule') {
+    document.getElementById('event-sel').style.display = 'none';
+    document.getElementById('filter-row').style.display = 'none';
+    renderSchedulePublic();
+    return;
+  }
+
+  document.getElementById('filter-row').style.display = '';
+  document.getElementById('event-sel').style.display = mode === 'program' ? 'none' : '';
+
   if (curGroup) {
     if (curGroup.startsWith('__relay__')) {
       const name = curGroup.slice(9);
@@ -339,6 +375,41 @@ function setMode(mode) {
     }
   }
 }
+
+async function renderSchedulePublic() {
+  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading schedule…</p></div>');
+  const r  = await fetch(`/api/comp/${COMP_ID}/schedule`);
+  const evs = await r.json().catch(() => []);
+  if (!evs.length) {
+    setContent('<div class="waiting"><div class="wi">📅</div><p>No schedule uploaded yet</p></div>');
+    return;
+  }
+  let html = ''; let curSection = '';
+  evs.forEach(ev => {
+    if (ev.section !== curSection) {
+      curSection = ev.section;
+      html += `<div class="sched-section-hdr">
+        <span class="sched-time">${ev.section_time}</span>
+        <span class="sched-name">${ev.section}</span>
+      </div>`;
+    }
+    const badge = ev.status === 'in_progress'
+      ? `<span class="sched-badge in_progress"><span class="sched-live-dot"></span>In Progress</span>`
+      : ev.status === 'done'
+      ? `<span class="sched-badge done">✓ Done</span>`
+      : `<span class="sched-badge pending">Upcoming</span>`;
+    html += `<div class="sched-row ${ev.status}">
+      <div class="sched-num">${ev.race_number}</div>
+      <div class="sched-info">
+        <div class="sched-label">${ev.label}</div>
+        <div class="sched-meta">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
+      </div>
+      ${badge}
+    </div>`;
+  });
+  setContent(html);
+}
+
 
 
 // ── Boot ────────────────────────────────────────────────────────────────────
@@ -897,6 +968,7 @@ function progHCard(heat, cls, label) {
 async function doRefresh() {
   const q = document.getElementById('search-inp').value.trim();
   if (q) { doSearch(q.toLowerCase()); return; }
+  if (curMode === 'schedule') { renderSchedulePublic(); return; }
   if (curGroup?.startsWith('__relay__')) {
     const rr = await fetch(`/api/${COMP_ID}/relays`);
     allRelays = await rr.json().catch(() => allRelays);
