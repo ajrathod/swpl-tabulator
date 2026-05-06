@@ -2344,9 +2344,19 @@ def seed_from_registrations(comp_id):
 # ── Schedule ──────────────────────────────────────────────────────────────────
 
 def parse_schedule(filepath):
-    """Parse the Schedule sheet from a program Excel file."""
-    df = pd.read_excel(filepath, sheet_name='Schedule', header=None, engine='openpyxl')
-    events = []
+    """
+    Parse a dedicated schedule Excel file.
+    Expected format (any sheet name):
+    - Time header rows: col0 = time (e.g. 06:00:00), col2 = section name
+    - Race rows: col0 = race number(s), col1 = group/event, col2 = distance, col3 = stage, col4 = note
+    - Announcement rows (5:00am Doors Open etc.) are skipped
+    """
+    import datetime as dt_mod
+    xl = pd.ExcelFile(filepath, engine='openpyxl')
+    # Use the first sheet
+    df = pd.read_excel(filepath, sheet_name=xl.sheet_names[0], header=None, engine='openpyxl')
+
+    events      = []
     cur_section = ""
     cur_time    = ""
     sort_order  = 0
@@ -2358,43 +2368,57 @@ def parse_schedule(filepath):
         col3 = _clean(row.get(3, ""))
         col4 = _clean(row.get(4, ""))
 
-        if not col0 and not col1: continue
+        if not col0 and not col1:
+            continue
 
-        # Section header: col0 is a time (HH:MM:SS or HH:MM), col2 is section name
-        try:
-            import datetime
-            if isinstance(row.get(0), datetime.time) or (col0 and ':' in col0 and len(col0) <= 8):
-                # Format time nicely
-                raw = row.get(0)
-                if hasattr(raw, 'hour'):
-                    h, m = raw.hour, raw.minute
+        # Section header: col0 is a time value
+        raw0 = row.get(0)
+        is_time = isinstance(raw0, dt_mod.time) or isinstance(raw0, dt_mod.datetime)
+        if not is_time and col0 and ':' in col0:
+            try:
+                parts = col0.split(':')
+                is_time = len(parts) >= 2 and all(p.strip().isdigit() for p in parts[:2])
+            except: pass
+
+        if is_time:
+            try:
+                if isinstance(raw0, (dt_mod.time, dt_mod.datetime)):
+                    h = raw0.hour; m = raw0.minute
                 else:
                     parts = col0.split(':')
                     h, m = int(parts[0]), int(parts[1])
                 period = 'AM' if h < 12 else 'PM'
-                disp_h = h if h <= 12 else h - 12
-                if disp_h == 0: disp_h = 12
-                cur_time = f"{disp_h}:{m:02d} {period}"
+                dh = h % 12 or 12
+                cur_time    = f"{dh}:{m:02d} {period}"
                 cur_section = col2 or col1 or ""
-                sort_order += 1
-                continue
-        except: pass
+            except: pass
+            sort_order += 1
+            continue
 
-        # Announcement rows (e.g. "5:00am Doors Open", "AWARDS") — skip
-        if not col1 and not col2 and col0:
-            if 'am' in col0.lower() or 'pm' in col0.lower() or col0.upper() == col0:
-                sort_order += 1
-                continue
+        # Skip announcement rows (e.g. "5:00am Doors Open", "AWARDS", title rows)
+        if col0 and not col1:
+            sort_order += 1
+            continue
 
-        # Race entry: col0 = race number(s), col1 = group/event name
+        # Race entry: col0 = race number(s), col1 = label
         if col0 and col1:
             sort_order += 1
+            # Distinguish distance vs stage when col4 has note and col3 has stage
+            distance = col2
+            stage    = col3
+            note     = col4
+            # Handle relay format where distance is in col4
+            if not col2 and col4:
+                distance = col4
+                stage    = col3
+                note     = ""
+
             events.append({
                 "race_number":  col0,
                 "label":        col1,
-                "distance":     col2 or col4 or "",
-                "stage":        col3 or col4 or "",
-                "note":         col4 if col3 else "",
+                "distance":     distance,
+                "stage":        stage,
+                "note":         note,
                 "section":      cur_section,
                 "section_time": cur_time,
                 "sort_order":   sort_order,
