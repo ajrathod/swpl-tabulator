@@ -357,12 +357,14 @@ function setMode(mode) {
   if (mode === 'schedule') {
     document.getElementById('event-sel').style.display = 'none';
     document.getElementById('filter-row').style.display = 'none';
+    savePubState();
     renderSchedulePublic();
     return;
   }
 
   document.getElementById('filter-row').style.display = '';
   document.getElementById('event-sel').style.display = mode === 'program' ? 'none' : '';
+  savePubState();
 
   if (curGroup) {
     if (curGroup.startsWith('__relay__')) {
@@ -413,6 +415,19 @@ async function renderSchedulePublic() {
 
 
 // ── Boot ────────────────────────────────────────────────────────────────────
+// ── State persistence ─────────────────────────────────────────────────────────
+const PUB_STATE_KEY = `pw_pub_state_${COMP_ID}`;
+function savePubState() {
+  try {
+    localStorage.setItem(PUB_STATE_KEY, JSON.stringify({
+      mode: curMode, group: curGroup, event: curEvent
+    }));
+  } catch(e) {}
+}
+function loadPubState() {
+  try { return JSON.parse(localStorage.getItem(PUB_STATE_KEY)); } catch(e) { return null; }
+}
+
 async function init() {
   try {
     const [gr, rr] = await Promise.all([
@@ -427,9 +442,40 @@ async function init() {
 
   populateGroupSel();
 
-  // Auto-select first group
-  const groups = Object.keys(allGroups).sort();
-  if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+  // Restore previous state or auto-select first group
+  const state = loadPubState();
+  if (state) {
+    // Restore mode first
+    if (state.mode === 'schedule') {
+      setMode('schedule');
+    } else if (state.mode === 'program') {
+      setMode('program');
+    }
+    // Restore group/relay
+    if (state.group) {
+      curGroup = state.group;
+      curEvent = state.event;
+      if (state.group.startsWith('__relay__')) {
+        const name = state.group.slice(9);
+        if (allRelays[name]) {
+          document.getElementById('group-sel').value = state.group;
+          if (state.mode === 'program') renderRelayProgram(name, allRelays[name]);
+          else showRelay(name, allRelays[name]);
+        }
+      } else if (allGroups[state.group]) {
+        await selectGroup(state.group);
+      } else {
+        const groups = Object.keys(allGroups).sort();
+        if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+      }
+    } else if (state.mode !== 'schedule') {
+      const groups = Object.keys(allGroups).sort();
+      if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+    }
+  } else {
+    const groups = Object.keys(allGroups).sort();
+    if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+  }
 
   document.getElementById('last-upd').textContent = 'Updated ' + timestamp();
   timer = setInterval(doRefresh, 15000);
@@ -461,10 +507,12 @@ async function onGroupChange() {
     curGroup = val; curEvent = null;
     updateEventSel([], true);
     updatePills();
+    savePubState();
     if (curMode === 'program') renderRelayProgram(name, allRelays[name]);
     else showRelay(name, allRelays[name]);
   } else {
     curGroup = val; curEvent = null;
+    savePubState();
     await selectGroup(val);
   }
 }
@@ -505,6 +553,7 @@ function onEventChange() {
   const val = document.getElementById('event-sel').value;
   if (!val) return;
   curEvent = val;
+  savePubState();
   renderCurrentEvent();
   updatePills();
 }

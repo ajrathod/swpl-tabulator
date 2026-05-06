@@ -1973,11 +1973,66 @@ async function doAddEvent() {
 }
 
 
-refreshGroups().then(() => {
-  const gs = Object.keys(allGroups);
-  if (gs.length) selectGroup(gs[0]);
+
+// ── State persistence ─────────────────────────────────────────────────────────
+const STATE_KEY = `pw_op_state_${COMP_ID}`;
+
+function saveState(type, value) {
+  try { localStorage.setItem(STATE_KEY, JSON.stringify({type, value})); } catch(e) {}
+}
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY)); } catch(e) { return null; }
+}
+
+// Patch selectGroup, showRelayByName, showRegistrations, showSchedule to save state
+const _origSelectGroup = selectGroup;
+selectGroup = async function(group) {
+  saveState('group', group);
+  return _origSelectGroup(group);
+};
+
+const _origShowRelayByName = showRelayByName;
+showRelayByName = function(name) {
+  saveState('relay', name);
+  return _origShowRelayByName(name);
+};
+
+const _origShowRegistrations = showRegistrations;
+showRegistrations = async function() {
+  saveState('section', 'registrations');
+  return _origShowRegistrations();
+};
+
+const _origShowSchedule = showSchedule;
+showSchedule = async function() {
+  saveState('section', 'schedule');
+  return _origShowSchedule();
+};
+
+refreshGroups().then(async () => {
+  const state = loadState();
+  if (state) {
+    if (state.type === 'group' && allGroups[state.value]) {
+      await selectGroup(state.value);
+    } else if (state.type === 'relay') {
+      await refreshRelays();
+      showRelayByName(state.value);
+    } else if (state.type === 'section' && state.value === 'registrations') {
+      showRegistrations();
+    } else if (state.type === 'section' && state.value === 'schedule') {
+      showSchedule();
+    } else {
+      const gs = Object.keys(allGroups);
+      if (gs.length) selectGroup(gs[0]);
+    }
+  } else {
+    const gs = Object.keys(allGroups);
+    if (gs.length) selectGroup(gs[0]);
+  }
 });
 refreshRelays();
+
 </script>
 </body>
 </html>
