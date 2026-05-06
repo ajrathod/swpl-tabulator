@@ -145,6 +145,42 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- ── Add Athlete to Group Modal ── -->
+<div id="add-athlete-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold">+ Add Athlete</h2>
+        <p class="text-xs text-gray-400 mt-0.5" id="add-athlete-group-label"></p>
+      </div>
+      <button onclick="closeModal('add-athlete-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Search Registry</label>
+        <input id="add-athlete-search"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"
+          placeholder="Name or USARS No…" oninput="searchAddAthlete()">
+        <div id="add-athlete-results" class="mt-1 border border-gray-200 rounded-lg overflow-hidden hidden max-h-48 overflow-y-auto"></div>
+      </div>
+      <div id="add-athlete-selected" class="hidden bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
+        <div class="font-bold text-sm" id="add-athlete-name"></div>
+        <div class="text-xs text-gray-500 mt-0.5 font-mono" id="add-athlete-meta"></div>
+      </div>
+      <p class="text-xs text-gray-400">
+        ℹ️ Athlete will be added to the group roster. Use <strong>✏️ Edit Heats</strong> to drag them into a specific heat.
+      </p>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('add-athlete-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddAthlete()" id="add-athlete-confirm" disabled
+        class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed">
+        + Add to Group
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Transfer Modal ── -->
 <div id="xfer-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
@@ -467,6 +503,8 @@ function renderGroupView(group, events) {
       <h2 class="text-xl font-bold text-gray-900">${group}</h2>
       <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">${info.skater_count||0} skaters</span>
       <div class="ml-auto flex gap-2">
+        <button onclick="openAddAthleteModal('${esc(group)}')"
+          class="px-3 py-1.5 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">+ Add Athlete</button>
         <button onclick="openXfer('${esc(group)}')"
           class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">↔ Transfer</button>
       </div>
@@ -1440,7 +1478,69 @@ async function doAddTeam() {
   } else toast(d.error, 'error');
 }
 
-// ── Relay Pool ────────────────────────────────────────────────────────────────
+// ── Add Athlete to Group ──────────────────────────────────────────────────────
+let _addAthleteGroup = null, _addAthleteId = null;
+let _addAthleteSearchTimer = null;
+
+function openAddAthleteModal(group) {
+  _addAthleteGroup = group;
+  _addAthleteId = null;
+  document.getElementById('add-athlete-group-label').textContent = `Adding to group: ${group}`;
+  document.getElementById('add-athlete-search').value = '';
+  document.getElementById('add-athlete-results').classList.add('hidden');
+  document.getElementById('add-athlete-selected').classList.add('hidden');
+  document.getElementById('add-athlete-confirm').disabled = true;
+  openModal('add-athlete-modal');
+  setTimeout(() => document.getElementById('add-athlete-search').focus(), 100);
+}
+
+function searchAddAthlete() {
+  clearTimeout(_addAthleteSearchTimer);
+  const q = document.getElementById('add-athlete-search').value.trim();
+  const res = document.getElementById('add-athlete-results');
+  if (!q) { res.classList.add('hidden'); return; }
+  _addAthleteSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json().catch(() => ({athletes:[]}));
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0, 8).map(a => `
+      <div onclick="selectAddAthlete(${a.id},'${esc(a.full_name)}','${esc(a.usars_no||'')}','${esc(a.club||'')}','${esc(a.gender||'')}')"
+        class="px-4 py-2.5 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function selectAddAthlete(id, name, usars, club, gender) {
+  _addAthleteId = id;
+  document.getElementById('add-athlete-search').value = name;
+  document.getElementById('add-athlete-results').classList.add('hidden');
+  document.getElementById('add-athlete-name').textContent = name;
+  document.getElementById('add-athlete-meta').textContent = `${usars} · ${club}${gender ? ' · ' + gender : ''}`;
+  document.getElementById('add-athlete-selected').classList.remove('hidden');
+  document.getElementById('add-athlete-confirm').disabled = false;
+}
+
+async function doAddAthlete() {
+  if (!_addAthleteId || !_addAthleteGroup) return;
+  const btn = document.getElementById('add-athlete-confirm');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  const r = await fetch(`/api/comp/${COMP_ID}/add_athlete_to_group`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({group: _addAthleteGroup, athlete_id: _addAthleteId})
+  });
+  const d = await r.json();
+  btn.disabled = false; btn.textContent = '+ Add to Group';
+  if (d.ok) {
+    closeModal('add-athlete-modal');
+    toast(`✓ ${d.skater.full_name} added to ${_addAthleteGroup}`, 'success');
+    selectGroup(curGroup); // refresh group view
+  } else toast(d.error, 'error');
+}
+
+
 let _relayPool = [];
 
 async function loadRelayPool() {
