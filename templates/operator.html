@@ -592,6 +592,24 @@ function renderEvent(ev, group) {
     html += `<div class="flex gap-4 flex-wrap mb-3">${ev.finals.map(h=>hCard(h,'final',ev.id,'individual')).join('')}</div>`;
   }
 
+  // Check for unassigned skaters (in group but not in any heat)
+  const assignedPanels = new Set([
+    ...ev.heats.flatMap(h => h.skaters.map(s => s.panel)),
+    ...ev.semis.flatMap(h => h.skaters.map(s => s.panel)),
+    ...ev.finals.flatMap(h => h.skaters.map(s => s.panel)),
+  ]);
+  const unassigned = (ev.skaters||[]).filter(s => !assignedPanels.has(s.panel) && (s.status||'active') !== 'scratched');
+  if (unassigned.length) {
+    html += `<div class="flex items-center gap-3 mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
+      <span class="text-orange-600 font-semibold text-sm">⚠️ ${unassigned.length} skater${unassigned.length>1?'s':''} not assigned to any heat:</span>
+      <span class="text-orange-500 text-sm">${unassigned.map(s=>s.full_name).join(', ')}</span>
+      <button onclick="openDDModal(${ev.id},'${ev.heats.length?'Heat':ev.semis.length?'Semi':'Final'}','individual')"
+        class="ml-auto px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition">
+        ✏️ Edit Heats
+      </button>
+    </div>`;
+  }
+
   html += `<div class="flex items-center gap-3 mt-2">
     <button onclick="reseedEv(${ev.id},'individual')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🔄 Re-seed All Heats</button>
     <span class="text-xs text-gray-400">Rebuilds from current roster · Saved results preserved</span>
