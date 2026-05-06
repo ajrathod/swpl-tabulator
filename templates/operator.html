@@ -2018,6 +2018,7 @@ refreshGroups().then(async () => {
     } else if (state.type === 'relay') {
       await refreshRelays();
       showRelayByName(state.value);
+      return; // refreshRelays already called
     } else if (state.type === 'section' && state.value === 'registrations') {
       showRegistrations();
     } else if (state.type === 'section' && state.value === 'schedule') {
@@ -2030,8 +2031,8 @@ refreshGroups().then(async () => {
     const gs = Object.keys(allGroups);
     if (gs.length) selectGroup(gs[0]);
   }
+  refreshRelays();
 });
-refreshRelays();
 
 </script>
 </body>

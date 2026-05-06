@@ -442,33 +442,33 @@ async function init() {
 
   populateGroupSel();
 
-  // Restore previous state or auto-select first group
   const state = loadPubState();
   if (state) {
-    // Restore mode first
-    if (state.mode === 'schedule') {
-      setMode('schedule');
-    } else if (state.mode === 'program') {
-      setMode('program');
-    }
-    // Restore group/relay
-    if (state.group) {
+    // Apply mode silently without triggering re-renders
+    curMode = state.mode || 'results';
+    document.getElementById('mode-results').classList.toggle('active', curMode === 'results');
+    document.getElementById('mode-program').classList.toggle('active', curMode === 'program');
+    document.getElementById('mode-schedule').classList.toggle('active', curMode === 'schedule');
+    document.getElementById('event-sel').style.display = (curMode === 'program' || curMode === 'schedule') ? 'none' : '';
+    document.getElementById('filter-row').style.display = curMode === 'schedule' ? 'none' : '';
+
+    if (curMode === 'schedule') {
+      renderSchedulePublic();
+    } else if (state.group?.startsWith('__relay__')) {
+      const name = state.group.slice(9);
       curGroup = state.group;
-      curEvent = state.event;
-      if (state.group.startsWith('__relay__')) {
-        const name = state.group.slice(9);
-        if (allRelays[name]) {
-          document.getElementById('group-sel').value = state.group;
-          if (state.mode === 'program') renderRelayProgram(name, allRelays[name]);
-          else showRelay(name, allRelays[name]);
-        }
-      } else if (allGroups[state.group]) {
-        await selectGroup(state.group);
+      if (allRelays[name]) {
+        document.getElementById('group-sel').value = state.group;
+        if (curMode === 'program') renderRelayProgram(name, allRelays[name]);
+        else showRelay(name, allRelays[name]);
       } else {
         const groups = Object.keys(allGroups).sort();
         if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
       }
-    } else if (state.mode !== 'schedule') {
+    } else if (state.group && allGroups[state.group]) {
+      curEvent = state.event;
+      await selectGroup(state.group);
+    } else {
       const groups = Object.keys(allGroups).sort();
       if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
     }
