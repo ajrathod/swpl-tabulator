@@ -209,13 +209,9 @@
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div>
             <div style="font-weight:600;font-size:13px;color:var(--g700)">🎂 Calculate Ages</div>
-            <div style="font-size:11px;color:var(--g400);margin-top:2px">Updates age for all athletes with a DOB using Jan 1st rule</div>
+            <div style="font-size:11px;color:var(--g400);margin-top:2px">Updates age for all athletes with a DOB using Jan 1st of current year</div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
-            <input id="calc-year" type="number" value="" placeholder="Year"
-              style="width:80px;padding:5px 8px;border:1px solid var(--g300);border-radius:8px;font-size:13px;outline:none">
-            <button class="btn btn-outline" onclick="calcAges()" style="white-space:nowrap">Calculate Ages</button>
-          </div>
+          <button class="btn btn-outline" onclick="calcAges()" style="margin-left:auto;white-space:nowrap">Calculate Ages</button>
         </div>
         <div id="calc-result" style="font-size:12px;color:var(--g500);margin-top:6px"></div>
       </div>
@@ -280,9 +276,6 @@ const COLORS = ['#F4511E','#1565C0','#2E7D32','#6A1B9A','#F9A825','#00838F','#AD
 let currentId = null;
 let allAthletes = [];
 let searchTimer = null;
-
-// Set default year for Calculate Ages
-document.getElementById('calc-year').value = new Date().getFullYear();
 
 function toast(msg,type=''){
   const t=document.getElementById('toast');t.textContent=msg;
@@ -512,28 +505,29 @@ async function addAthlete() {
 
 // ── Auto-calculate age from DOB ───────────────────────────────────────────────
 function autoCalcAge(prefix) {
-  const dobEl  = document.getElementById(`${prefix}-dob`);
-  const ageEl  = document.getElementById(`${prefix}-age`);
+  const dobEl = document.getElementById(`${prefix}-dob`);
+  const ageEl = document.getElementById(`${prefix}-age`);
   if (!dobEl || !ageEl || !dobEl.value) return;
   const year = new Date().getFullYear();
-  const dobYear = parseInt(dobEl.value.slice(0,4));
-  if (!isNaN(dobYear)) ageEl.value = year - dobYear;
+  const parts = dobEl.value.split('-');
+  const dobYear = parseInt(parts[0]);
+  const dobMon  = parseInt(parts[1] || '1');
+  const dobDay  = parseInt(parts[2] || '1');
+  if (isNaN(dobYear)) return;
+  // Jan 1st rule: only those born exactly on Jan 1 get full year credit
+  ageEl.value = (dobMon === 1 && dobDay === 1) ? year - dobYear : year - dobYear - 1;
 }
 
 // ── Calculate ages for all athletes ──────────────────────────────────────────
 async function calcAges() {
-  const yearInp = document.getElementById('calc-year').value.trim();
-  const year    = yearInp ? parseInt(yearInp) : new Date().getFullYear();
-  if (isNaN(year) || year < 2000 || year > 2100) {
-    toast('Enter a valid year (e.g. 2026)', 'error'); return;
-  }
+  const year = new Date().getFullYear();
   const r = await fetch('/api/registry/calculate_ages', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({year})
   });
   const d = await r.json();
   if (d.ok) {
-    document.getElementById('calc-result').textContent = `✓ Updated ${d.updated} athletes using Jan 1, ${year} as reference`;
+    document.getElementById('calc-result').textContent = `✓ Updated ${d.updated} athletes using Jan 1, ${year}`;
     toast(`✓ ${d.updated} athletes updated`, 'success');
     await loadAthletes(document.getElementById('search-inp').value.trim());
   } else toast(d.error || 'Error', 'error');
