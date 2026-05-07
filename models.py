@@ -80,6 +80,8 @@ class AthleteRegistry(Base):
     last       = Column(String(100), nullable=False)
     gender     = Column(String(5))
     dob        = Column(String(20))     # YYYY-MM-DD
+    age        = Column(Integer)        # stored, updated via Calculate Ages button
+    lap_time   = Column(Float)          # 100M lap time in seconds e.g. 43.2
     club       = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -94,6 +96,7 @@ class AthleteRegistry(Base):
             "first": self.first, "last": self.last,
             "full_name": self.full_name,
             "gender": self.gender or "", "dob": self.dob or "",
+            "age": self.age or "", "lap_time": self.lap_time or "",
             "club": self.club or "",
             "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else "",
         }
@@ -384,6 +387,9 @@ class Registration(Base):
                 "panel": "", "club": a.club if a else "",
                 "usars_no": a.usars_no if a else "",
                 "gender": a.gender if a else "",
+                "dob": a.dob if a else "",
+                "age": a.age if a else "",
+                "lap_time": a.lap_time if a else "",
                 "status": self.status,
                 "group_name": self.group_name or "",
                 "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M") if self.updated_at else ""}

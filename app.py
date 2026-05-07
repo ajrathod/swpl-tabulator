@@ -445,15 +445,18 @@ def registry_add():
         existing = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
         if existing:
             return jsonify({"error": f"USARS No. {usars} already exists ({existing.full_name})"}), 409
+        age_val = data.get("age")
+        lap_val = data.get("lap_time")
         a = AthleteRegistry(
             usars_no=usars, first=first, last=last,
             gender=(data.get("gender") or "").strip(),
             dob=(data.get("dob") or "").strip(),
             club=(data.get("club") or "").strip(),
+            age=int(age_val) if age_val not in (None, "") else None,
+            lap_time=float(lap_val) if lap_val not in (None, "") else None,
         )
         session.add(a); session.commit()
-        result = a.to_dict()
-        return jsonify({"ok": True, "athlete": result})
+        return jsonify({"ok": True, "athlete": a.to_dict()})
     except Exception as e:
         session.rollback(); return jsonify({"error": str(e)}), 500
     finally:
@@ -470,12 +473,44 @@ def registry_update(athlete_id):
         for field in ("first","last","gender","dob","club"):
             if field in data:
                 setattr(a, field, (data[field] or "").strip())
+        if "age" in data:
+            a.age = int(data["age"]) if data["age"] not in (None,"") else None
+        if "lap_time" in data:
+            a.lap_time = float(data["lap_time"]) if data["lap_time"] not in (None,"") else None
         session.commit()
         return jsonify({"ok": True, "athlete": a.to_dict()})
     except Exception as e:
         session.rollback(); return jsonify({"error": str(e)}), 500
     finally:
         session.close()
+
+
+@app.route("/api/registry/calculate_ages", methods=["POST"])
+def calculate_ages():
+    """Bulk update age for all athletes with a DOB using Jan 1st rule."""
+    data = request.json or {}
+    year = int(data.get("year", __import__('datetime').datetime.now().year))
+    session = db()
+    try:
+        athletes = session.query(AthleteRegistry).filter(
+            AthleteRegistry.dob.isnot(None),
+            AthleteRegistry.dob != ""
+        ).all()
+        updated = 0
+        for a in athletes:
+            try:
+                dob_year = int(a.dob[:4])
+                a.age = year - dob_year
+                updated += 1
+            except: pass
+        session.commit()
+        return jsonify({"ok": True, "updated": updated, "year": year})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
 
 
 @app.route("/api/registry/<int:athlete_id>", methods=["DELETE"])
