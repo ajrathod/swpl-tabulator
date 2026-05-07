@@ -194,6 +194,8 @@
         <span class="col-tag opt">Gender</span>
         <span class="col-tag opt">DOB</span>
         <span class="col-tag opt">Club</span>
+        <span class="col-tag opt">Age</span>
+        <span class="col-tag opt">Lap Time</span>
       </p>
       <label class="upload-zone" style="display:block">
         <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none" onchange="doImport()">
@@ -202,6 +204,21 @@
         <div style="font-size:12px;color:var(--g400);margin-top:3px">Columns auto-detected from header row</div>
       </label>
       <div id="import-result" style="margin-top:10px"></div>
+      <!-- Calculate Ages button -->
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--g200)">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:600;font-size:13px;color:var(--g700)">🎂 Calculate Ages</div>
+            <div style="font-size:11px;color:var(--g400);margin-top:2px">Updates age for all athletes with a DOB using Jan 1st rule</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <input id="calc-year" type="number" value="" placeholder="Year"
+              style="width:80px;padding:5px 8px;border:1px solid var(--g300);border-radius:8px;font-size:13px;outline:none">
+            <button class="btn btn-outline" onclick="calcAges()" style="white-space:nowrap">Calculate Ages</button>
+          </div>
+        </div>
+        <div id="calc-result" style="font-size:12px;color:var(--g500);margin-top:6px"></div>
+      </div>
     </div>
 
     <!-- Add athlete form -->
@@ -234,7 +251,15 @@
         </div>
         <div class="form-grp">
           <label class="form-lbl">Date of Birth</label>
-          <input class="form-inp" id="add-dob" type="date">
+          <input class="form-inp" id="add-dob" type="date" onchange="autoCalcAge('add')">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Age <span style="font-weight:400;color:var(--g400)">(auto-fills from DOB)</span></label>
+          <input class="form-inp" id="add-age" type="number" placeholder="e.g. 12">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Lap Time (sec) <span style="font-weight:400;color:var(--g400)">100M</span></label>
+          <input class="form-inp" id="add-lap" type="number" step="0.1" placeholder="e.g. 43.2">
         </div>
       </div>
       <div class="form-actions">
@@ -255,6 +280,9 @@ const COLORS = ['#F4511E','#1565C0','#2E7D32','#6A1B9A','#F9A825','#00838F','#AD
 let currentId = null;
 let allAthletes = [];
 let searchTimer = null;
+
+// Set default year for Calculate Ages
+document.getElementById('calc-year').value = new Date().getFullYear();
 
 function toast(msg,type=''){
   const t=document.getElementById('toast');t.textContent=msg;
@@ -352,6 +380,8 @@ async function selectAthlete(id) {
         <div class="detail-item"><label>Gender</label><div class="val">${a.gender||'—'}</div></div>
         <div class="detail-item"><label>Club</label><div class="val">${a.club||'—'}</div></div>
         <div class="detail-item"><label>Date of Birth</label><div class="val">${a.dob||'—'}</div></div>
+        <div class="detail-item"><label>Age</label><div class="val">${a.age||'—'}</div></div>
+        <div class="detail-item"><label>Lap Time (100M)</label><div class="val">${a.lap_time ? a.lap_time+'s' : '—'}</div></div>
         <div class="detail-item"><label>Added</label><div class="val">${a.created_at||'—'}</div></div>
       </div>
     </div>
@@ -406,7 +436,15 @@ function startEdit(id) {
         </div>
         <div class="form-grp">
           <label class="form-lbl">Date of Birth</label>
-          <input class="form-inp" id="edit-dob" type="date" value="${a.dob||''}">
+          <input class="form-inp" id="edit-dob" type="date" value="${a.dob||''}" onchange="autoCalcAge('edit')">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Age <span style="font-weight:400;color:var(--g400)">(auto-fills from DOB)</span></label>
+          <input class="form-inp" id="edit-age" type="number" value="${a.age||''}" placeholder="e.g. 12">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Lap Time (sec) <span style="font-weight:400;color:var(--g400)">100M</span></label>
+          <input class="form-inp" id="edit-lap" type="number" step="0.1" value="${a.lap_time||''}" placeholder="e.g. 43.2">
         </div>
       </div>
       <div class="form-actions">
@@ -422,7 +460,9 @@ async function saveEdit(id) {
     last:   document.getElementById('edit-last').value.trim(),
     gender: document.getElementById('edit-gender').value,
     club:   document.getElementById('edit-club').value.trim(),
-    dob:    document.getElementById('edit-dob').value,
+    dob:      document.getElementById('edit-dob').value,
+    age:      document.getElementById('edit-age').value,
+    lap_time: document.getElementById('edit-lap').value,
   };
   if (!payload.first || !payload.last) { toast('First and Last name required','error'); return; }
   const r = await fetch(`/api/registry/${id}`, {
@@ -433,7 +473,6 @@ async function saveEdit(id) {
   if (d.ok) {
     toast('✓ Saved','success');
     await loadAthletes(document.getElementById('search-inp').value.trim());
-    // Update local cache
     const idx = allAthletes.findIndex(a=>a.id===id);
     if (idx>=0) allAthletes[idx] = d.athlete;
     selectAthlete(id);
@@ -449,6 +488,8 @@ async function addAthlete() {
     gender:   document.getElementById('add-gender').value,
     dob:      document.getElementById('add-dob').value,
     club:     document.getElementById('add-club').value.trim(),
+    age:      document.getElementById('add-age').value,
+    lap_time: document.getElementById('add-lap').value,
   };
   if (!payload.usars_no||!payload.first||!payload.last) {
     toast('USARS No., First and Last are required','error'); return;
@@ -460,7 +501,7 @@ async function addAthlete() {
   const d = await r.json();
   if (d.ok) {
     toast('✓ Athlete added','success');
-    ['add-usars','add-first','add-last','add-club','add-dob'].forEach(id=>document.getElementById(id).value='');
+    ['add-usars','add-first','add-last','add-club','add-dob','add-age','add-lap'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('add-gender').value='';
     await loadAthletes();
     currentId = d.athlete.id;
@@ -468,6 +509,37 @@ async function addAthlete() {
     selectAthlete(d.athlete.id);
   } else toast(d.error,'error');
 }
+
+// ── Auto-calculate age from DOB ───────────────────────────────────────────────
+function autoCalcAge(prefix) {
+  const dobEl  = document.getElementById(`${prefix}-dob`);
+  const ageEl  = document.getElementById(`${prefix}-age`);
+  if (!dobEl || !ageEl || !dobEl.value) return;
+  const year = new Date().getFullYear();
+  const dobYear = parseInt(dobEl.value.slice(0,4));
+  if (!isNaN(dobYear)) ageEl.value = year - dobYear;
+}
+
+// ── Calculate ages for all athletes ──────────────────────────────────────────
+async function calcAges() {
+  const yearInp = document.getElementById('calc-year').value.trim();
+  const year    = yearInp ? parseInt(yearInp) : new Date().getFullYear();
+  if (isNaN(year) || year < 2000 || year > 2100) {
+    toast('Enter a valid year (e.g. 2026)', 'error'); return;
+  }
+  const r = await fetch('/api/registry/calculate_ages', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({year})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById('calc-result').textContent = `✓ Updated ${d.updated} athletes using Jan 1, ${year} as reference`;
+    toast(`✓ ${d.updated} athletes updated`, 'success');
+    await loadAthletes(document.getElementById('search-inp').value.trim());
+  } else toast(d.error || 'Error', 'error');
+}
+
+
 
 // ── Delete athlete ───────────────────────────────────────────────────────────
 async function deleteAthlete(id, name) {

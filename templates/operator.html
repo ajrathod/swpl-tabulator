@@ -1864,29 +1864,42 @@ async function exportCSV(filter) {
   const r = await fetch(`/api/comp/${COMP_ID}/registrations`);
   const data = await r.json();
 
-  const rows = [['Name', 'Club', 'USARS No', 'Gender', 'Status', 'Race Group']];
+  // Flatten all athletes
+  const allAthletes = [];
   Object.entries(data).sort().forEach(([club, d]) => {
     d.athletes.forEach(a => {
       if (filter === 'attending' && a.status !== 'attending') return;
-      rows.push([
-        a.full_name,
-        a.club || club,
-        a.usars_no || '',
-        a.gender || '',
-        a.status === 'attending' ? 'Attending' : a.status === 'not_attending' ? 'Not Going' : 'No Response',
-        a.group_name || '',
-      ]);
+      allAthletes.push(a);
     });
   });
 
-  const csv = rows.map(r => r.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  // Sort: age ASC (nulls last) → lap_time ASC (nulls last) → name
+  allAthletes.sort((a, b) => {
+    const ageA = a.age !== '' && a.age != null ? Number(a.age) : Infinity;
+    const ageB = b.age !== '' && b.age != null ? Number(b.age) : Infinity;
+    if (ageA !== ageB) return ageA - ageB;
+    const lapA = a.lap_time !== '' && a.lap_time != null ? Number(a.lap_time) : Infinity;
+    const lapB = b.lap_time !== '' && b.lap_time != null ? Number(b.lap_time) : Infinity;
+    if (lapA !== lapB) return lapA - lapB;
+    return (a.full_name||'').localeCompare(b.full_name||'');
+  });
+
+  const rows = [['Name','Club','USARS No','Gender','Age','Lap Time (sec)','DOB','Status','Race Group']];
+  allAthletes.forEach(a => {
+    rows.push([
+      a.full_name, a.club||'', a.usars_no||'', a.gender||'',
+      a.age||'', a.lap_time||'', a.dob||'',
+      a.status==='attending'?'Attending':a.status==='not_attending'?'Not Going':'No Response',
+      a.group_name||'',
+    ]);
+  });
+
+  const csv = rows.map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url;
-  a.download = `registrations_${filter}_${COMP_ID}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = `registrations_${filter}_${COMP_ID}.csv`;
+  a.click(); URL.revokeObjectURL(url);
   toast('✓ CSV downloaded', 'success');
 }
 
