@@ -499,8 +499,17 @@ def calculate_ages():
         updated = 0
         for a in athletes:
             try:
-                dob_year = int(a.dob[:4])
-                a.age = year - dob_year
+                parts    = a.dob.split('-')
+                dob_year = int(parts[0])
+                dob_mon  = int(parts[1]) if len(parts) > 1 else 1
+                dob_day  = int(parts[2]) if len(parts) > 2 else 1
+                # Jan 1st rule: age = years completed as of Jan 1 of reference year
+                # Only counts if birthday falls ON Jan 1st (i.e. month=1, day=1)
+                # Everyone else: reference_year - birth_year - 1
+                if dob_mon == 1 and dob_day == 1:
+                    a.age = year - dob_year
+                else:
+                    a.age = year - dob_year - 1
                 updated += 1
             except: pass
         session.commit()
