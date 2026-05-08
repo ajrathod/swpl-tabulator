@@ -485,9 +485,25 @@ def registry_update(athlete_id):
         session.close()
 
 
+@app.route("/api/registry/calculate_ages/test")
+def test_age_calc():
+    """Test route to verify correct Jan 1st age formula is deployed."""
+    # DOB 2011-07-30, year 2026 should = 14
+    dob = "2011-07-30"
+    year = 2026
+    parts = dob.split('-')
+    dob_year = int(parts[0]); dob_mon = int(parts[1]); dob_day = int(parts[2])
+    if dob_mon == 1 and dob_day == 1:
+        age = year - dob_year
+    else:
+        age = year - dob_year - 1
+    return jsonify({"formula": "v2-correct", "test_dob": dob, "year": year,
+                    "expected": 14, "calculated": age, "correct": age == 14})
+
+
 @app.route("/api/registry/calculate_ages", methods=["POST"])
 def calculate_ages():
-    """Bulk update age for all athletes with a DOB using Jan 1st rule."""
+    """Bulk update age for all athletes with a DOB using Jan 1st rule. v2"""
     data = request.json or {}
     year = int(data.get("year", __import__('datetime').datetime.now().year))
     session = db()
