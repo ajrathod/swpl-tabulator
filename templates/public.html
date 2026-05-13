@@ -1006,13 +1006,16 @@ async function renderAllProgram() {
   setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading program…</p></div>');
 
   const groups = Object.keys(allGroups).sort();
-  // Don't pre-fetch all groups — load lazily on expand
+  // Pre-fetch all group data since cards start expanded
+  await Promise.all(groups.map(g => loadGroupData(g)));
+
   let html = '<div id="program-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">';
 
-  // Individual race groups
+  // Individual race groups — start expanded
   for (const group of groups) {
     const events = allGroupData[group] || {};
     const skaterCount = allGroups[group]?.skater_count || allGroups[group] || '';
+    const bodyContent = renderGroupProgramInline(group, events);
     html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
       <div class="prog-group-hdr" onclick="toggleProgCard(this,'group','${esc(group)}')"
         style="display:flex;align-items:center;justify-content:space-between;
@@ -1022,13 +1025,15 @@ async function renderAllProgram() {
           <span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400">${group}</span>
           <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${skaterCount} skaters</span>
         </div>
-        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
+        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s;transform:rotate(180deg)">▼</span>
       </div>
-      <div class="prog-group-body" style="display:none;padding:10px" data-group="${esc(group)}"></div>
+      <div class="prog-group-body" style="display:block;padding:10px" data-group="${esc(group)}" data-rendered="1">
+        ${bodyContent}
+      </div>
     </div>`;
   }
 
-  // Relay events
+  // Relay events — start expanded
   const relayNames = Object.keys(allRelays).sort();
   for (const name of relayNames) {
     const ev = allRelays[name];
@@ -1037,6 +1042,7 @@ async function renderAllProgram() {
       ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
       ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
     ];
+    const bodyContent = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
     html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
       <div class="prog-group-hdr" onclick="toggleProgCard(this,'relay','${esc(name)}')"
         style="display:flex;align-items:center;justify-content:space-between;
@@ -1046,9 +1052,11 @@ async function renderAllProgram() {
           <span style="font-size:11px;color:var(--blue-stage);font-weight:400">🔄 RELAY</span>
           <span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400;margin-left:6px">${name}</span>
         </div>
-        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
+        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s;transform:rotate(180deg)">▼</span>
       </div>
-      <div class="prog-group-body" style="display:none;padding:10px" data-relay="${esc(name)}"></div>
+      <div class="prog-group-body" style="display:block;padding:10px" data-relay="${esc(name)}" data-rendered="1">
+        ${bodyContent}
+      </div>
     </div>`;
   }
 
