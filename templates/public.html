@@ -338,7 +338,8 @@ function toggleTheme() {
 (function() {
   try {
     const saved = localStorage.getItem('pw_theme');
-    if (saved === 'light') applyTheme('light');
+    if (saved === 'dark') applyTheme('dark');
+    else applyTheme('light'); // default to light
   } catch(e) {}
 })();
 
@@ -354,8 +355,10 @@ function setMode(mode) {
   document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
   document.getElementById('search-inp').value = '';
 
+  // Always hide event dropdown — results shows all events, program shows all groups
+  document.getElementById('event-sel').style.display = 'none';
+
   if (mode === 'schedule') {
-    document.getElementById('event-sel').style.display = 'none';
     document.getElementById('filter-row').style.display = 'none';
     savePubState();
     renderSchedulePublic();
@@ -363,18 +366,19 @@ function setMode(mode) {
   }
 
   document.getElementById('filter-row').style.display = '';
-  document.getElementById('event-sel').style.display = mode === 'program' ? 'none' : '';
   savePubState();
 
-  if (curGroup) {
-    if (curGroup.startsWith('__relay__')) {
-      const name = curGroup.slice(9);
-      if (mode === 'program') renderRelayProgram(name, allRelays[name]);
-      else showRelay(name, allRelays[name]);
-    } else {
-      if (mode === 'program') renderGroupProgram(curGroup);
-      else renderCurrentEvent();
-    }
+  if (mode === 'program') {
+    renderAllProgram();
+    return;
+  }
+
+  // Results mode — show all events for selected group
+  if (curGroup && !curGroup.startsWith('__relay__')) {
+    renderGroupAllResults(curGroup);
+  } else if (curGroup?.startsWith('__relay__')) {
+    const name = curGroup.slice(9);
+    showRelay(name, allRelays[name]);
   }
 }
 
@@ -454,19 +458,19 @@ async function init() {
 
     if (curMode === 'schedule') {
       renderSchedulePublic();
+    } else if (curMode === 'program') {
+      renderAllProgram();
     } else if (state.group?.startsWith('__relay__')) {
       const name = state.group.slice(9);
       curGroup = state.group;
       if (allRelays[name]) {
         document.getElementById('group-sel').value = state.group;
-        if (curMode === 'program') renderRelayProgram(name, allRelays[name]);
-        else showRelay(name, allRelays[name]);
+        showRelay(name, allRelays[name]);
       } else {
         const groups = Object.keys(allGroups).sort();
         if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
       }
     } else if (state.group && allGroups[state.group]) {
-      curEvent = state.event;
       await selectGroup(state.group);
     } else {
       const groups = Object.keys(allGroups).sort();
@@ -502,17 +506,16 @@ async function onGroupChange() {
   if (!val) return;
   document.getElementById('search-inp').value = '';
   clearSearch();
+  curGroup = val; curEvent = null;
+  savePubState();
   if (val.startsWith('__relay__')) {
     const name = val.slice(9);
-    curGroup = val; curEvent = null;
     updateEventSel([], true);
     updatePills();
-    savePubState();
-    if (curMode === 'program') renderRelayProgram(name, allRelays[name]);
+    if (curMode === 'program') renderAllProgram();
     else showRelay(name, allRelays[name]);
   } else {
-    curGroup = val; curEvent = null;
-    savePubState();
+    updatePills();
     await selectGroup(val);
   }
 }
@@ -528,23 +531,14 @@ async function loadGroupData(group) {
 }
 
 async function selectGroup(group) {
-  const events = await loadGroupData(group);
-  const evNames = Object.keys(events);
-  const hasPoints = Object.values(events).some(e => e.points_event);
-  const evOptions = [...evNames];
-  if (hasPoints) evOptions.push('__standings__');
-
-  updateEventSel(evOptions);
-  if (!curEvent || !evOptions.includes(curEvent)) curEvent = evOptions[0];
-  document.getElementById('event-sel').value = curEvent;
+  await loadGroupData(group);
   document.getElementById('group-sel').value = group;
+  document.getElementById('event-sel').style.display = 'none';
 
   if (curMode === 'program') {
-    document.getElementById('event-sel').style.display = 'none';
-    renderGroupProgram(group);
+    renderAllProgram();
   } else {
-    document.getElementById('event-sel').style.display = '';
-    renderCurrentEvent();
+    renderGroupAllResults(group);
   }
   updatePills();
 }
@@ -889,94 +883,200 @@ function hCard(heat, hdrCls) {
 
 function waiting(msg) { return `<div class="waiting"><div class="wi">⏳</div><p>${msg}</p></div>`; }
 
-// ── Program view ─────────────────────────────────────────────────────────────
-function renderGroupProgram(group) {
+// ── Results: show all events for selected group ───────────────────────────────
+async function renderGroupAllResults(group) {
   const events = allGroupData[group] || {};
   if (!Object.keys(events).length) {
-    setContent('<div class="waiting"><div class="wi">⏳</div><p>No events loaded yet</p></div>');
-    return;
+    setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>');
+    await loadGroupData(group);
+    return renderGroupAllResults(group);
   }
+
+  // Order: Short Distance → Medium Distance → Long Distance → Standings
+  const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
+  const evNames = Object.keys(events);
+  const ordered = [
+    ...ORDER.filter(n => evNames.includes(n)),
+    ...evNames.filter(n => !ORDER.includes(n))
+  ];
+
   let html = '';
-  for (const [evName, ev] of Object.entries(events)) {
-    if (evName === '__standings__') continue;
+  for (const evName of ordered) {
+    const ev = events[evName];
+    if (!ev) continue;
+    const isPoints = ev.points_event;
     html += `<div class="prog-event">
-      <div class="prog-event-title">
-        ${evName}
-        ${ev.points_event ? '<span class="prog-pts-badge">🏆 POINTS</span>' : ''}
-      </div>`;
+      <div class="prog-event-title">${evName}${isPoints?'<span class="prog-pts-badge">🏆 POINTS</span>':''}</div>`;
+
     if (ev.type === 'direct_final') {
       html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
-      html += (ev.finals||[]).map(h => progHCard(h, 'fh', 'Final')).join('');
+      html += (ev.finals||[]).map(h => progHCard(h,'fh','Final')).join('');
     } else {
       const allStages = [
-        ...(ev.heats||[]).map(h => ({...h, _cls:'hh', _label:`Heat ${h.number}`})),
-        ...(ev.semis||[]).map(h => ({...h, _cls:'sh', _label:`Semi ${h.number}`})),
-        ...(ev.finals||[]).map(h => ({...h, _cls:'fh', _label:'Final'})),
+        ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
+        ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
+        ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
       ];
-      if (!allStages.length) {
-        html += `<div class="waiting" style="padding:16px"><p>No heats seeded yet</p></div>`;
-      } else {
-        html += allStages.map(h => progHCard(h, h._cls, h._label)).join('');
-      }
+      html += allStages.map(h=>progHCard(h,h._cls,h._label)).join('');
     }
     html += '</div>';
   }
+
+  // Standings at the bottom
+  const hasPoints = Object.values(events).some(e => e.points_event);
+  if (hasPoints) {
+    const standingsHtml = renderStandingsHtml(group, events);
+    if (standingsHtml) html += standingsHtml;
+  }
+
   setContent(html);
 }
 
-function renderRelayProgram(evName, ev) {
-  if (!ev) { setContent('<div class="waiting"><div class="wi">⏳</div><p>No relay data</p></div>'); return; }
-  const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
-  let html = `<div class="prog-event">
-    <div class="prog-event-title">🔄 ${evName}</div>`;
+function renderStandingsHtml(group, events) {
+  // Collect standings from events that have them
+  const pointsEvs = Object.values(events).filter(e => e.points_event && e.standings?.length);
+  if (!pointsEvs.length) return '';
 
-  const allStages = [
-    ...(ev.heats||[]).map(h => ({...h, _cls:'hh', _label:`Heat ${h.number}`})),
-    ...(ev.semis||[]).map(h => ({...h, _cls:'sh', _label:`Semi ${h.number}`})),
-    ...(ev.finals||[]).map(h => ({...h, _cls:'fh', _label:'Final'})),
-  ];
+  // Use first event's standings (they should all reference same overall standings)
+  const ev = pointsEvs[0];
+  const standings = ev.standings || [];
+  if (!standings.length) return '';
 
-  if (!allStages.length) {
-    html += `<div class="waiting" style="padding:16px"><p>No heats seeded yet</p></div>`;
-  } else {
-    html += allStages.map(heat => {
-      const label = heat._label, cls = heat._cls;
-      const teams = heat.teams || [];
-      if (!teams.length) {
-        return `<div class="hcard">
-          <div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">—</span></div>
-          <div class="lineup-placeholder">Lineup not yet posted</div>
-        </div>`;
-      }
-      const rows = teams.map((t, i) => {
-        const pl = t.placement, num = parseInt(pl), ranked = !isNaN(num);
-        const rc = num===1?'r1':num===2?'r2':num===3?'r3':'';
-        const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
-        const bibColor = COLORS[t.color?.toLowerCase()] || '#9E9E9E';
-        const memberList = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
-        const plEl = ranked
-          ? `<div class="sk-place"><div class="place-num ${pcls}">${pl}</div></div>`
-          : `<div class="sk-place"><div class="place-wait">—</div></div>`;
-        return `<div class="sk-row ${rc}">
-          <div class="rank-num rn">${i+1}</div>
-          <div class="sk-info">
-            <div class="sk-name" style="display:flex;align-items:center;gap:8px">
-              <span>${t.club}</span>
-              <span style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;background:${bibColor}">${t.color||''}</span>
-            </div>
-            ${memberList ? `<div class="sk-meta">${memberList}</div>` : ''}
-          </div>${plEl}
-        </div>`;
-      }).join('');
-      return `<div class="hcard">
-        <div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">${teams.length} TEAMS</span></div>
-        ${rows}
-      </div>`;
-    }).join('');
+  const rows = standings.map((s, i) => {
+    const pos = i + 1;
+    const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    return `<div class="standings-row ${pos<=3?'r'+pos:''}">
+      <div class="st-pos ${pcls}">${pos}</div>
+      <div class="st-info">
+        <div class="st-name">${s.full_name}</div>
+        <div class="st-breakdown">${s.breakdown||''}</div>
+      </div>
+      <div>
+        <div class="st-pts">${s.points}</div>
+        <div class="st-pts-label">PTS</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="standings-card">
+    <div class="standings-head">
+      <h3>🏆 Overall Standings — ${group}</h3>
+      <span class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// ── Program: all groups + relays, collapsible, 3 per row ─────────────────────
+async function renderAllProgram() {
+  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading program…</p></div>');
+
+  // Load all group data
+  const groups = Object.keys(allGroups).sort();
+  await Promise.all(groups.map(g => loadGroupData(g)));
+
+  let html = '<div id="program-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">';
+
+  // Individual race groups
+  for (const group of groups) {
+    const events = allGroupData[group] || {};
+    const evCount = Object.keys(events).length;
+    html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div class="prog-group-hdr" onclick="toggleProgCard(this)"
+        style="display:flex;align-items:center;justify-content:space-between;
+               padding:12px 16px;cursor:pointer;user-select:none;
+               background:var(--input-bg);border-bottom:1px solid var(--border)">
+        <div>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${group}</span>
+          <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${allGroups[group]} skaters</span>
+        </div>
+        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
+      </div>
+      <div class="prog-group-body" style="display:none;padding:10px">
+        ${renderGroupProgramInline(group, events)}
+      </div>
+    </div>`;
   }
+
+  // Relay events
+  const relayNames = Object.keys(allRelays).sort();
+  for (const name of relayNames) {
+    const ev = allRelays[name];
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
+      ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
+      ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
+    ];
+    html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div class="prog-group-hdr" onclick="toggleProgCard(this)"
+        style="display:flex;align-items:center;justify-content:space-between;
+               padding:12px 16px;cursor:pointer;user-select:none;
+               background:rgba(79,195,247,.08);border-bottom:1px solid var(--border)">
+        <div>
+          <span style="font-size:11px;color:var(--blue-stage);font-weight:700">🔄 RELAY</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;margin-left:6px">${name}</span>
+        </div>
+        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
+      </div>
+      <div class="prog-group-body" style="display:none;padding:10px">
+        ${allStages.map(h => progRelayHCard(h, h._cls, h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>'}
+      </div>
+    </div>`;
+  }
+
   html += '</div>';
   setContent(html);
 }
+
+function toggleProgCard(hdr) {
+  const body = hdr.nextElementSibling;
+  const chevron = hdr.querySelector('.prog-chevron');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function renderGroupProgramInline(group, events) {
+  if (!Object.keys(events).length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No events seeded yet</p>';
+  const ORDER = ['Short Distance','Medium Distance','Long Distance'];
+  const evNames = Object.keys(events);
+  const ordered = [...ORDER.filter(n=>evNames.includes(n)),...evNames.filter(n=>!ORDER.includes(n))];
+  return ordered.map(evName => {
+    const ev = events[evName];
+    if (!ev) return '';
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
+      ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
+      ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
+    ];
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);margin:8px 0 4px">${evName}</div>
+      ${allStages.map(h=>progHCard(h,h._cls,h._label)).join('') || '<div class="lineup-placeholder">Lineup not yet posted</div>'}
+    </div>`;
+  }).join('');
+}
+
+function progRelayHCard(heat, cls, label) {
+  const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+  const teams = heat.teams || [];
+  if (!teams.length) return `<div class="hcard"><div class="hcard-head ${cls}"><h3>${label}</h3></div><div class="lineup-placeholder">Lineup not yet posted</div></div>`;
+  const rows = teams.map((t,i) => {
+    const bib = COLORS[t.color?.toLowerCase()] || '#9E9E9E';
+    const members = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
+    return `<div class="sk-row">
+      <div class="rank-num rn">${i+1}</div>
+      <div class="sk-info">
+        <div class="sk-name" style="display:flex;align-items:center;gap:8px">
+          ${t.club}
+          <span style="background:${bib};color:#fff;font-size:10px;font-weight:700;padding:1px 8px;border-radius:20px">${t.color||''}</span>
+        </div>
+        ${members?`<div class="sk-meta">${members}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="hcard"><div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">${teams.length} TEAMS</span></div>${rows}</div>`;
+}
+
 
 // Shared heat card for program view (individual)
 function progHCard(heat, cls, label) {
@@ -1018,17 +1118,20 @@ async function doRefresh() {
   const q = document.getElementById('search-inp').value.trim();
   if (q) { doSearch(q.toLowerCase()); return; }
   if (curMode === 'schedule') { renderSchedulePublic(); return; }
+  if (curMode === 'program') {
+    const rr = await fetch(`/api/${COMP_ID}/relays`);
+    allRelays = await rr.json().catch(() => allRelays);
+    renderAllProgram(); return;
+  }
   if (curGroup?.startsWith('__relay__')) {
     const rr = await fetch(`/api/${COMP_ID}/relays`);
     allRelays = await rr.json().catch(() => allRelays);
     const name = curGroup.slice(9);
-    if (curMode === 'program') renderRelayProgram(name, allRelays[name]);
-    else showRelay(name, allRelays[name]);
+    showRelay(name, allRelays[name]);
   } else if (curGroup) {
     delete allGroupData[curGroup];
     await loadGroupData(curGroup);
-    if (curMode === 'program') renderGroupProgram(curGroup);
-    else await selectGroup(curGroup);
+    renderGroupAllResults(curGroup);
   }
   document.getElementById('last-upd').textContent = 'Updated ' + timestamp();
 }
