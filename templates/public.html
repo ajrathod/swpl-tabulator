@@ -892,7 +892,7 @@ async function renderGroupAllResults(group) {
     return renderGroupAllResults(group);
   }
 
-  // Order: Short Distance → Medium Distance → Long Distance
+  // Order: Short → Medium → Long Distance
   const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
   const evNames = Object.keys(events);
   const ordered = [
@@ -907,7 +907,6 @@ async function renderGroupAllResults(group) {
     const isPoints = ev.points_event;
     html += `<div class="prog-event">
       <div class="prog-event-title">${evName}${isPoints?'<span class="prog-pts-badge">🏆 POINTS</span>':''}</div>`;
-
     if (ev.type === 'direct_final') {
       html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
       html += (ev.finals||[]).map(h => progHCard(h,'fh','Final')).join('');
@@ -926,43 +925,45 @@ async function renderGroupAllResults(group) {
     html += '</div>';
   }
 
-  setContent(html);
-
-  // Fetch and append standings if this group has points events
+  // Fetch standings and append
   const hasPoints = Object.values(events).some(e => e.points_event);
   if (hasPoints) {
     try {
       const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
-      const data = await r.json();
-      if (data?.length) {
-        const rows = data.map((s,i) => {
-          const pos = i+1;
+      const d = await r.json();
+      const data = d.standings || [];
+      const tbEv = d.tiebreaker_event || '';
+      if (data.length) {
+        const rows = data.map(row => {
+          const pos = row.position;
           const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
-          return `<div class="standings-row ${pos<=3?'r'+pos:''}">
+          const rc   = pos===1?'r1':pos===2?'r2':pos===3?'r3':'';
+          const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+            const s = ['st','nd','rd'][info.place-1]||'th';
+            return `${ev.replace(' Distance','')}: ${info.pts}pts (${info.place}${s})`;
+          }).join(' · ');
+          const tie = row.tb_needed ? '<span class="tie-badge">TIE</span>' : '';
+          return `<div class="standings-row ${rc}">
             <div class="st-pos ${pcls}">${pos}</div>
             <div class="st-info">
-              <div class="st-name">${s.full_name}</div>
-              <div class="st-breakdown">${s.breakdown||''}</div>
+              <div class="st-name">${row.name}${tie}</div>
+              ${bd?`<div class="st-breakdown">${bd}</div>`:''}
             </div>
-            <div>
-              <div class="st-pts">${s.points}</div>
-              <div class="st-pts-label">PTS</div>
-            </div>
+            <div><div class="st-pts">${row.points}</div><div class="st-pts-label">PTS</div></div>
           </div>`;
         }).join('');
-        const standingsCard = `<div class="standings-card">
+        html += `<div class="standings-card">
           <div class="standings-head">
             <h3>🏆 Overall Standings — ${group}</h3>
             <span class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</span>
-          </div>
-          ${rows}
+          </div>${rows}
         </div>`;
-        // Append to existing content
-        const content = document.getElementById('content');
-        if (content) content.innerHTML += standingsCard;
+        if (tbEv) html += `<div style="font-size:11px;color:var(--text-faint);text-align:center;padding:6px">⚖ Tiebreaker: ${tbEv}</div>`;
       }
     } catch(e) {}
   }
+
+  setContent(html);
 }
 
 function renderStandingsHtml(group, events) {
@@ -1070,23 +1071,28 @@ function toggleProgCard(hdr) {
 }
 
 function renderGroupProgramInline(group, events) {
-  if (!Object.keys(events).length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No events seeded yet</p>';
-  const ORDER = ['Short Distance','Medium Distance','Long Distance'];
-  const evNames = Object.keys(events);
-  const ordered = [...ORDER.filter(n=>evNames.includes(n)),...evNames.filter(n=>!ORDER.includes(n))];
-  return ordered.map(evName => {
-    const ev = events[evName];
-    if (!ev) return '';
-    const allStages = [
-      ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
-      ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
-      ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
-    ];
-    return `<div style="margin-bottom:8px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);margin:8px 0 4px">${evName}</div>
-      ${allStages.map(h=>progHCard(h,h._cls,h._label)).join('') || '<div class="lineup-placeholder">Lineup not yet posted</div>'}
-    </div>`;
-  }).join('');
+  // Collect all unique skaters across all events
+  const skaterMap = {};
+  Object.values(events).forEach(ev => {
+    const allHeats = [...(ev.heats||[]),...(ev.semis||[]),...(ev.finals||[])];
+    allHeats.forEach(h => {
+      (h.skaters||[]).forEach(s => {
+        if (s.panel && !skaterMap[s.panel]) {
+          skaterMap[s.panel] = s;
+        }
+      });
+    });
+  });
+  const skaters = Object.values(skaterMap).sort((a,b) => (a.full_name||'').localeCompare(b.full_name||''));
+  if (!skaters.length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No skaters seeded yet</p>';
+  return skaters.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--row-sep)">
+      <span style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text-faint);width:36px">#${s.panel}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${s.full_name}</div>
+        <div style="font-size:11px;color:var(--text-faint)">${s.club}</div>
+      </div>
+    </div>`).join('');
 }
 
 function progRelayHCard(heat, cls, label) {
