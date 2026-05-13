@@ -892,12 +892,12 @@ async function renderGroupAllResults(group) {
     return renderGroupAllResults(group);
   }
 
-  // Order: Short Distance → Medium Distance → Long Distance → Standings
+  // Order: Short Distance → Medium Distance → Long Distance
   const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
   const evNames = Object.keys(events);
   const ordered = [
     ...ORDER.filter(n => evNames.includes(n)),
-    ...evNames.filter(n => !ORDER.includes(n))
+    ...evNames.filter(n => !ORDER.includes(n) && n !== '__standings__')
   ];
 
   let html = '';
@@ -917,19 +917,52 @@ async function renderGroupAllResults(group) {
         ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
         ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
       ];
-      html += allStages.map(h=>progHCard(h,h._cls,h._label)).join('');
+      if (!allStages.length) {
+        html += `<div class="waiting" style="padding:16px"><p>No heats seeded yet</p></div>`;
+      } else {
+        html += allStages.map(h=>progHCard(h,h._cls,h._label)).join('');
+      }
     }
     html += '</div>';
   }
 
-  // Standings at the bottom
+  setContent(html);
+
+  // Fetch and append standings if this group has points events
   const hasPoints = Object.values(events).some(e => e.points_event);
   if (hasPoints) {
-    const standingsHtml = renderStandingsHtml(group, events);
-    if (standingsHtml) html += standingsHtml;
+    try {
+      const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+      const data = await r.json();
+      if (data?.length) {
+        const rows = data.map((s,i) => {
+          const pos = i+1;
+          const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+          return `<div class="standings-row ${pos<=3?'r'+pos:''}">
+            <div class="st-pos ${pcls}">${pos}</div>
+            <div class="st-info">
+              <div class="st-name">${s.full_name}</div>
+              <div class="st-breakdown">${s.breakdown||''}</div>
+            </div>
+            <div>
+              <div class="st-pts">${s.points}</div>
+              <div class="st-pts-label">PTS</div>
+            </div>
+          </div>`;
+        }).join('');
+        const standingsCard = `<div class="standings-card">
+          <div class="standings-head">
+            <h3>🏆 Overall Standings — ${group}</h3>
+            <span class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</span>
+          </div>
+          ${rows}
+        </div>`;
+        // Append to existing content
+        const content = document.getElementById('content');
+        if (content) content.innerHTML += standingsCard;
+      }
+    } catch(e) {}
   }
-
-  setContent(html);
 }
 
 function renderStandingsHtml(group, events) {
@@ -987,8 +1020,8 @@ async function renderAllProgram() {
                padding:12px 16px;cursor:pointer;user-select:none;
                background:var(--input-bg);border-bottom:1px solid var(--border)">
         <div>
-          <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800">${group}</span>
-          <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${allGroups[group]} skaters</span>
+          <span style="font-family:'Inter',sans-serif;font-size:16px;font-weight:700">${group}</span>
+          <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${allGroups[group]?.skater_count || allGroups[group] || ''} skaters</span>
         </div>
         <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
       </div>
