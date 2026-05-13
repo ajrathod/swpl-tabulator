@@ -1014,21 +1014,19 @@ async function renderAllProgram() {
   // Individual race groups
   for (const group of groups) {
     const events = allGroupData[group] || {};
-    const evCount = Object.keys(events).length;
+    const skaterCount = allGroups[group]?.skater_count || allGroups[group] || '';
     html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-      <div class="prog-group-hdr" onclick="toggleProgCard(this)"
+      <div class="prog-group-hdr" onclick="toggleProgCard(this,'group','${esc(group)}')"
         style="display:flex;align-items:center;justify-content:space-between;
                padding:12px 16px;cursor:pointer;user-select:none;
-               background:var(--input-bg);border-bottom:1px solid var(--border)">
+               background:var(--input-bg)">
         <div>
           <span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400">${group}</span>
-          <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${allGroups[group]?.skater_count || allGroups[group] || ''} skaters</span>
+          <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${skaterCount} skaters</span>
         </div>
         <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
       </div>
-      <div class="prog-group-body" style="display:none;padding:10px">
-        ${renderGroupProgramInline(group, events)}
-      </div>
+      <div class="prog-group-body" style="display:none;padding:10px" data-group="${esc(group)}"></div>
     </div>`;
   }
 
@@ -1042,19 +1040,17 @@ async function renderAllProgram() {
       ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
     ];
     html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
-      <div class="prog-group-hdr" onclick="toggleProgCard(this)"
+      <div class="prog-group-hdr" onclick="toggleProgCard(this,'relay','${esc(name)}')"
         style="display:flex;align-items:center;justify-content:space-between;
                padding:12px 16px;cursor:pointer;user-select:none;
-               background:rgba(79,195,247,.08);border-bottom:1px solid var(--border)">
+               background:rgba(79,195,247,.08)">
         <div>
           <span style="font-size:11px;color:var(--blue-stage);font-weight:400">🔄 RELAY</span>
           <span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400;margin-left:6px">${name}</span>
         </div>
         <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s">▼</span>
       </div>
-      <div class="prog-group-body" style="display:none;padding:10px">
-        ${allStages.map(h => progRelayHCard(h, h._cls, h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>'}
-      </div>
+      <div class="prog-group-body" style="display:none;padding:10px" data-relay="${esc(name)}"></div>
     </div>`;
   }
 
@@ -1062,59 +1058,73 @@ async function renderAllProgram() {
   setContent(html);
 }
 
-function toggleProgCard(hdr) {
+function toggleProgCard(hdr, type, key) {
   const body = hdr.nextElementSibling;
   const chevron = hdr.querySelector('.prog-chevron');
   const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
-  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+
+  if (isOpen) {
+    body.style.display = 'none';
+    chevron.style.transform = '';
+  } else {
+    // Lazy render on first open
+    if (!body.dataset.rendered) {
+      if (type === 'group') {
+        const events = allGroupData[key] || {};
+        body.innerHTML = renderGroupProgramInline(key, events);
+      } else if (type === 'relay') {
+        const ev = allRelays[key];
+        const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+        if (!ev) { body.innerHTML = '<p style="color:var(--text-faint);font-size:12px;padding:8px">No relay data</p>'; }
+        else {
+          const allStages = [
+            ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
+            ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
+            ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
+          ];
+          body.innerHTML = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
+        }
+      }
+      body.dataset.rendered = '1';
+    }
+    body.style.display = 'block';
+    chevron.style.transform = 'rotate(180deg)';
+  }
 }
 
 function renderGroupProgramInline(group, events) {
-  // Show skaters organized by their heat assignments
+  // Just show heats from Short Distance (all distances have same heats)
+  // Pick first available event to get the heat structure
   const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
   const evNames = Object.keys(events);
-  const ordered = [...ORDER.filter(n => evNames.includes(n)), ...evNames.filter(n => !ORDER.includes(n) && n !== '__standings__')];
+  const firstEv = ORDER.find(n => evNames.includes(n)) || evNames.find(n => n !== '__standings__');
+  if (!firstEv || !events[firstEv]) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
 
-  if (!ordered.length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No events seeded yet</p>';
+  const ev = events[firstEv];
+  const allStages = [
+    ...(ev.heats||[]).map(h => ({...h, _label:`Heat ${h.number}`})),
+    ...(ev.semis||[]).map(h => ({...h, _label:`Semi ${h.number}`})),
+    ...(ev.finals||[]).map(h => ({...h, _label:'Final'})),
+  ];
 
-  return ordered.map(evName => {
-    const ev = events[evName];
-    if (!ev) return '';
-    const allStages = [
-      ...(ev.heats||[]).map(h => ({...h, _cls:'hh', _label:`Heat ${h.number}`})),
-      ...(ev.semis||[]).map(h => ({...h, _cls:'sh', _label:`Semi ${h.number}`})),
-      ...(ev.finals||[]).map(h => ({...h, _cls:'fh', _label:'Final'})),
-    ];
-    if (!allStages.length) return `
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);padding:6px 0 4px">${evName}</div>
-        <div class="lineup-placeholder">Lineup not yet posted</div>
+  if (!allStages.length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
+
+  return allStages.map(h => {
+    const skaters = h.skaters || [];
+    if (!skaters.length) return `
+      <div style="margin-bottom:8px">
+        <div style="font-size:11px;color:var(--text-faint);padding:4px 0;letter-spacing:.04em;text-transform:uppercase">${h._label}</div>
+        <div class="lineup-placeholder">No skaters assigned</div>
       </div>`;
-
-    const heatsHtml = allStages.map(h => {
-      const skaters = h.skaters || [];
-      if (!skaters.length) return `
-        <div style="margin-bottom:6px">
-          <div style="font-size:11px;color:var(--text-faint);padding:4px 0">${h._label}</div>
-          <div class="lineup-placeholder">No skaters assigned</div>
-        </div>`;
-      return `
-        <div style="margin-bottom:8px">
-          <div style="font-size:11px;color:var(--text-faint);padding:4px 0;letter-spacing:.04em;text-transform:uppercase">${h._label}</div>
-          ${skaters.map(s => `
-            <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--row-sep)">
-              <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-faint);width:32px">#${s.panel}</span>
-              <span style="font-size:13px;color:var(--text)">${s.full_name}</span>
-              <span style="font-size:11px;color:var(--text-faint);margin-left:auto">${s.club}</span>
-            </div>`).join('')}
-        </div>`;
-    }).join('');
-
     return `
-      <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">
-        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);padding:6px 0 6px">${evName}</div>
-        ${heatsHtml}
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text-faint);padding:4px 0;letter-spacing:.04em;text-transform:uppercase">${h._label}</div>
+        ${skaters.map(s => `
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--row-sep)">
+            <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-faint);width:32px">#${s.panel}</span>
+            <span style="font-size:13px;color:var(--text)">${s.full_name}</span>
+            <span style="font-size:11px;color:var(--text-faint);margin-left:auto">${s.club}</span>
+          </div>`).join('')}
       </div>`;
   }).join('');
 }
