@@ -1005,10 +1005,8 @@ function renderStandingsHtml(group, events) {
 async function renderAllProgram() {
   setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading program…</p></div>');
 
-  // Load all group data
   const groups = Object.keys(allGroups).sort();
-  await Promise.all(groups.map(g => loadGroupData(g)));
-
+  // Don't pre-fetch all groups — load lazily on expand
   let html = '<div id="program-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">';
 
   // Individual race groups
@@ -1058,7 +1056,7 @@ async function renderAllProgram() {
   setContent(html);
 }
 
-function toggleProgCard(hdr, type, key) {
+async function toggleProgCard(hdr, type, key) {
   const body = hdr.nextElementSibling;
   const chevron = hdr.querySelector('.prog-chevron');
   const isOpen = body.style.display !== 'none';
@@ -1067,14 +1065,18 @@ function toggleProgCard(hdr, type, key) {
     body.style.display = 'none';
     chevron.style.transform = '';
   } else {
+    body.style.display = 'block';
+    chevron.style.transform = 'rotate(180deg)';
+
     // Lazy render on first open
     if (!body.dataset.rendered) {
+      body.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:12px">Loading…</div>';
       if (type === 'group') {
+        await loadGroupData(key);
         const events = allGroupData[key] || {};
         body.innerHTML = renderGroupProgramInline(key, events);
       } else if (type === 'relay') {
         const ev = allRelays[key];
-        const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
         if (!ev) { body.innerHTML = '<p style="color:var(--text-faint);font-size:12px;padding:8px">No relay data</p>'; }
         else {
           const allStages = [
@@ -1087,8 +1089,6 @@ function toggleProgCard(hdr, type, key) {
       }
       body.dataset.rendered = '1';
     }
-    body.style.display = 'block';
-    chevron.style.transform = 'rotate(180deg)';
   }
 }
 
