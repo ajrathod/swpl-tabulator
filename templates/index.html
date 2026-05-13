@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>PacWest Inline Racing — Race Manager</title>
+<title>South West Pacific League — Race Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -514,7 +514,7 @@ body {
 
 <!-- Nav -->
 <nav class="nav">
-  <a href="/" class="nav-logo">PACWEST<span class="slash">/</span>RACING</a>
+  <a href="/" class="nav-logo">SWPL<span class="slash">/</span>RACING</a>
   <div class="nav-links">
     <a href="/registry" class="nav-link">🗂 Registry</a>
     <a href="/athletes" class="nav-link">⛸️ Athletes</a>
@@ -525,13 +525,13 @@ body {
 <section class="hero">
   <div class="hero-inner">
     <div>
-      <div class="hero-kicker">Inline Speed Skating</div>
+      <div class="hero-kicker">South West Pacific League</div>
       <h1 class="hero-title">
         Race
         <span class="accent">Manager.</span>
       </h1>
       <p class="hero-desc">
-        Manage competitions, seed heats automatically, track live results and standings — built for PacWest meet operators.
+        Manage competitions, seed heats automatically, track live results and standings — built for SWPL meet operators.
       </p>
       <div class="feature-pills">
         <span class="fpill">⚡ Auto Heat Seeding</span>
@@ -559,65 +559,84 @@ body {
 
     <!-- Skater SVG -->
     <div class="hero-visual">
-      <svg viewBox="0 0 400 380" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Outer track oval -->
-        <ellipse cx="200" cy="320" rx="180" ry="40" stroke="rgba(244,81,30,.15)" stroke-width="1.5" stroke-dasharray="10 6"/>
-        <ellipse cx="200" cy="310" rx="150" ry="32" stroke="rgba(244,81,30,.1)" stroke-width="1" stroke-dasharray="8 5"/>
-
-        <!-- Glow behind skater -->
-        <ellipse cx="210" cy="310" rx="90" ry="20" fill="rgba(244,81,30,.12)"/>
+      <svg viewBox="0 0 400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Track glow -->
+        <ellipse cx="200" cy="370" rx="180" ry="38" stroke="rgba(244,81,30,.12)" stroke-width="1.5" stroke-dasharray="10 6"/>
+        <ellipse cx="200" cy="362" rx="150" ry="30" stroke="rgba(244,81,30,.08)" stroke-width="1" stroke-dasharray="8 5"/>
+        <ellipse cx="220" cy="362" rx="100" ry="22" fill="rgba(244,81,30,.1)"/>
+        <!-- Ground shadow -->
+        <ellipse cx="230" cy="368" rx="70" ry="10" fill="rgba(0,0,0,.2)"/>
 
         <!-- Speed lines -->
-        <line x1="80"  y1="180" x2="20"  y2="195" stroke="rgba(244,81,30,.5)" stroke-width="2"   stroke-linecap="round"/>
-        <line x1="90"  y1="195" x2="15"  y2="212" stroke="rgba(244,81,30,.3)" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="95"  y1="210" x2="30"  y2="228" stroke="rgba(244,81,30,.18)"stroke-width="1"   stroke-linecap="round"/>
-        <line x1="100" y1="225" x2="45"  y2="238" stroke="rgba(244,81,30,.1)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="72"  y1="210" x2="10"  y2="228" stroke="rgba(244,81,30,.55)" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="78"  y1="228" x2="8"   y2="248" stroke="rgba(244,81,30,.35)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="82"  y1="246" x2="22"  y2="264" stroke="rgba(244,81,30,.2)"  stroke-width="1"   stroke-linecap="round"/>
+        <circle cx="58" cy="235" r="3"   fill="var(--orange)" opacity=".6"/>
+        <circle cx="44" cy="248" r="2"   fill="var(--orange)" opacity=".4"/>
+        <circle cx="34" cy="260" r="1.5" fill="var(--orange)" opacity=".22"/>
 
-        <!-- Shadow on ground -->
-        <ellipse cx="225" cy="318" rx="65" ry="10" fill="rgba(0,0,0,.25)"/>
+        <!-- ── REAR INLINE SKATE ── -->
+        <!-- Cuff -->
+        <path d="M142 320 Q145 312 158 310 L178 312 Q185 313 184 320 L180 330 Q168 333 152 331 Q140 329 142 324 Z" fill="#1e2a4a"/>
+        <!-- Frame bar -->
+        <rect x="136" y="328" width="56" height="5" rx="2.5" fill="#37474F"/>
+        <!-- 4 inline wheels -->
+        <circle cx="145" cy="337" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="145" cy="337" r="2.5" fill="#222"/>
+        <circle cx="158" cy="337" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="158" cy="337" r="2.5" fill="#222"/>
+        <circle cx="171" cy="337" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="171" cy="337" r="2.5" fill="#222"/>
+        <circle cx="184" cy="337" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="184" cy="337" r="2.5" fill="#222"/>
+        <!-- Brake toe stop -->
+        <ellipse cx="138" cy="335" rx="5" ry="4" fill="#555" transform="rotate(-15 138 335)"/>
 
-        <!-- ── Lead skater ── -->
-        <!-- Rear blade + boot -->
-        <rect x="145" y="296" width="52" height="7" rx="3.5" fill="#FF8A65" opacity=".9"/>
-        <rect x="152" y="285" width="34" height="14" rx="4" fill="#1A237E"/>
-        <!-- Rear leg -->
-        <path d="M175 248 L165 280 L185 285" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Rear leg (deep push) -->
+        <path d="M172 278 Q158 298 155 318 L175 325" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 
-        <!-- Front blade + boot -->
-        <rect x="220" y="282" width="56" height="7" rx="3.5" fill="#FF8A65" opacity=".9"/>
-        <rect x="224" y="270" width="36" height="14" rx="4" fill="#1A237E"/>
+        <!-- ── FRONT INLINE SKATE ── -->
+        <!-- Cuff -->
+        <path d="M218 300 Q222 292 236 290 L258 292 Q264 293 263 300 L258 311 Q246 314 228 312 Q216 310 218 305 Z" fill="#1e2a4a"/>
+        <!-- Frame bar -->
+        <rect x="212" y="309" width="58" height="5" rx="2.5" fill="#37474F"/>
+        <!-- 4 inline wheels -->
+        <circle cx="221" cy="318" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="221" cy="318" r="2.5" fill="#222"/>
+        <circle cx="234" cy="318" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="234" cy="318" r="2.5" fill="#222"/>
+        <circle cx="247" cy="318" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="247" cy="318" r="2.5" fill="#222"/>
+        <circle cx="260" cy="318" r="6" fill="#F4511E" stroke="#222" stroke-width="1.2"/><circle cx="260" cy="318" r="2.5" fill="#222"/>
+
         <!-- Front leg -->
-        <path d="M210 240 L230 268 L248 272" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M218 268 Q232 286 240 303 L258 308" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 
-        <!-- Skinsuit body - aerodynamic crouch -->
-        <path d="M165 200 Q180 175 210 168 Q245 162 268 175 Q280 185 272 210 Q262 232 240 248 Q215 258 190 252 Q162 240 158 220 Z" fill="white"/>
-        <!-- Skinsuit stripe -->
-        <path d="M195 170 Q228 165 255 178 Q262 183 258 192 Q230 185 200 182 Z" fill="var(--orange)" opacity=".9"/>
+        <!-- ── BODY (deep aerodynamic crouch) ── -->
+        <path d="M162 228 Q175 195 208 182 Q248 170 278 184 Q295 195 290 224 Q278 252 252 268 Q224 282 196 276 Q162 264 158 242 Z" fill="white"/>
+        <!-- Skinsuit orange chest stripe -->
+        <path d="M198 183 Q234 172 265 186 Q275 193 270 205 Q240 196 208 192 Z" fill="var(--orange)" opacity=".9"/>
+        <!-- Suit seam lines -->
+        <path d="M200 192 Q215 230 220 270" stroke="rgba(200,200,200,.3)" stroke-width="1.5" fill="none"/>
+        <path d="M230 185 Q240 222 246 265" stroke="rgba(200,200,200,.3)" stroke-width="1.5" fill="none"/>
 
-        <!-- Back arm (trailing) -->
-        <path d="M175 210 Q155 230 140 252" stroke="white" stroke-width="9" stroke-linecap="round" fill="none"/>
-        <circle cx="138" cy="255" r="7" fill="white"/>
+        <!-- ── TRAILING ARM (stretched back) ── -->
+        <path d="M175 240 Q148 262 128 285" stroke="white" stroke-width="10" stroke-linecap="round" fill="none"/>
+        <circle cx="125" cy="289" r="9" fill="white"/>
 
-        <!-- Front arm (forward reach) -->
-        <path d="M255 195 Q285 185 310 178" stroke="white" stroke-width="9" stroke-linecap="round" fill="none"/>
-        <circle cx="313" cy="177" r="7" fill="white"/>
+        <!-- ── LEADING ARM (tucked low) ── -->
+        <path d="M272 210 Q300 205 320 200" stroke="white" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <circle cx="323" cy="199" r="8" fill="white"/>
 
-        <!-- Neck -->
-        <rect x="198" y="155" width="18" height="18" rx="4" fill="white"/>
+        <!-- ── NECK ── -->
+        <rect x="200" y="165" width="20" height="20" rx="5" fill="white"/>
 
-        <!-- Helmet -->
-        <ellipse cx="207" cy="148" rx="28" ry="22" fill="var(--orange)"/>
-        <!-- Helmet visor -->
-        <path d="M182 155 Q190 165 232 160 L228 148 Q200 145 182 155Z" fill="rgba(0,0,0,.6)"/>
-        <!-- Helmet vent lines -->
-        <line x1="193" y1="132" x2="192" y2="145" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
-        <line x1="200" y1="129" x2="200" y2="143" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
-        <line x1="207" y1="128" x2="208" y2="142" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
-
-        <!-- Motion dots -->
-        <circle cx="75"  cy="200" r="3" fill="var(--orange)" opacity=".7"/>
-        <circle cx="60"  cy="210" r="2" fill="var(--orange)" opacity=".45"/>
-        <circle cx="48"  cy="220" r="1.5" fill="var(--orange)" opacity=".25"/>
+        <!-- ── HELMET (aerodynamic teardrop) ── -->
+        <path d="M182 162 Q185 130 208 120 Q235 112 252 128 Q268 144 260 165 Q245 172 220 174 Q195 174 182 162 Z" fill="var(--orange)"/>
+        <!-- Helmet chin strap area -->
+        <path d="M183 163 Q195 175 230 173 Q248 170 258 162 Q252 172 238 176 Q210 180 190 172 Z" fill="rgba(0,0,0,.15)"/>
+        <!-- Visor -->
+        <path d="M184 162 Q192 172 236 168 L232 155 Q204 150 184 162 Z" fill="rgba(0,0,0,.65)"/>
+        <!-- Visor highlight -->
+        <path d="M190 158 Q205 154 225 156 L222 162 Q207 160 192 164 Z" fill="rgba(255,255,255,.12)"/>
+        <!-- Helmet vents -->
+        <line x1="200" y1="126" x2="198" y2="143" stroke="rgba(0,0,0,.2)" stroke-width="2"/>
+        <line x1="210" y1="122" x2="209" y2="140" stroke="rgba(0,0,0,.2)" stroke-width="2"/>
+        <line x1="220" y1="121" x2="220" y2="138" stroke="rgba(0,0,0,.2)" stroke-width="2"/>
+        <line x1="230" y1="122" x2="231" y2="138" stroke="rgba(0,0,0,.2)" stroke-width="2"/>
       </svg>
     </div>
   </div>
@@ -740,7 +759,7 @@ function renderStep1(){
   document.getElementById('wiz-body').innerHTML=`
     <div class="form-grp">
       <label class="form-lbl">Competition name *</label>
-      <input class="form-inp" id="c-name" placeholder="e.g. PacWest April 2026">
+      <input class="form-inp" id="c-name" placeholder="e.g. SWPL Meet April 2026">
     </div>
     <div class="form-row">
       <div class="form-grp"><label class="form-lbl">Venue</label>
