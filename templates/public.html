@@ -1126,14 +1126,14 @@ function progRelayHCard(heat, cls, label) {
   const rows = teams.map((t,i) => {
     const bib = COLORS[t.color?.toLowerCase()] || '#9E9E9E';
     const members = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
-    return `<div class="sk-row">
-      <div class="rank-num rn">${i+1}</div>
+    return `<div class="sk-row" style="font-family:'Inter',system-ui,sans-serif">
+      <div class="rank-num rn" style="font-family:'DM Mono',monospace">${i+1}</div>
       <div class="sk-info">
-        <div class="sk-name" style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:13px;font-weight:400;color:var(--text);display:flex;align-items:center;gap:8px">
           ${t.club}
           <span style="background:${bib};color:#fff;font-size:10px;font-weight:400;padding:1px 8px;border-radius:20px">${t.color||''}</span>
         </div>
-        ${members?`<div class="sk-meta">${members}</div>`:''}
+        ${members?`<div style="font-size:11px;color:var(--text-faint);margin-top:2px;font-family:'Inter',system-ui,sans-serif">${members}</div>`:''}
       </div>
     </div>`;
   }).join('');

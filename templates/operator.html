@@ -692,20 +692,20 @@ function hCard(heat, color, parentId, kind) {
       const colorOpts = ['Green','Blue','Yellow','Pink','Light Blue','Black','Red']
         .map(n => `<option value="${n}" ${(s.color||'').toLowerCase()===n.toLowerCase()?'selected':''}>${n}</option>`)
         .join('');
-      nameCell = `<div>
+      nameCell = `<div style="font-family:'Inter',system-ui,sans-serif">
         <div class="flex items-center gap-2">
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
-          <span class="font-semibold text-sm">${s.club}</span>
+          <span style="font-size:13px;font-weight:400">${s.club}</span>
           <select onchange="setTeamColor(${s.team_id},this.value)"
             class="text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
             <option value="" disabled ${!s.color?'selected':''}>— color —</option>
             ${colorOpts}
           </select>
         </div>
-        ${memberStr ? `<div class="text-xs text-gray-500 mt-0.5 ml-4">${memberStr}</div>` : ''}
+        ${memberStr ? `<div style="font-size:11px;color:#6B7280;margin-top:2px;margin-left:16px;font-family:'Inter',system-ui,sans-serif">${memberStr}</div>` : ''}
       </div>`;
     } else {
-      nameCell = `<span class="font-medium text-sm">${s.full_name}</span>`;
+      nameCell = `<span style="font-size:13px;font-weight:400;font-family:'Inter',system-ui,sans-serif">${s.full_name}</span>`;
     }
 
     // Scratch button
