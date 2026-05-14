@@ -1037,11 +1037,11 @@ async function renderAllProgram() {
   const relayNames = Object.keys(allRelays).sort();
   for (const name of relayNames) {
     const ev = allRelays[name];
-    const allStages = [
-      // Program shows heats only — finals/results are in the Results tab
-      ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
-    ];
-    const bodyContent = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
+    // Show heats if exist, else fall back to final (direct-final relay)
+    const allStages = ev.heats?.length
+      ? (ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`}))
+      : (ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'}));
+    const bodyContent = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No lineup yet</p>';
     html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
       <div class="prog-group-hdr" onclick="toggleProgCard(this,'relay','${esc(name)}')"
         style="display:flex;align-items:center;justify-content:space-between;
@@ -1086,11 +1086,11 @@ async function toggleProgCard(hdr, type, key) {
         const ev = allRelays[key];
         if (!ev) { body.innerHTML = '<p style="color:var(--text-faint);font-size:12px;padding:8px">No relay data</p>'; }
         else {
-          const allStages = [
-            // Program shows heats only
-            ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
-          ];
-          body.innerHTML = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
+          // Show heats if exist, else fall back to final (direct-final relay)
+          const allStages = ev.heats?.length
+            ? (ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`}))
+            : (ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'}));
+          body.innerHTML = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No lineup yet</p>';
         }
       }
       body.dataset.rendered = '1';
@@ -1107,12 +1107,12 @@ function renderGroupProgramInline(group, events) {
   if (!firstEv || !events[firstEv]) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
 
   const ev = events[firstEv];
-  // Program shows heats only — finals/results are in the Results tab
-  const allStages = [
-    ...(ev.heats||[]).map(h => ({...h, _label:`Heat ${h.number}`})),
-  ];
+  // Show heats if exist, else show final (direct final — ≤6 skaters)
+  const allStages = ev.heats?.length
+    ? (ev.heats||[]).map(h => ({...h, _label:`Heat ${h.number}`}))
+    : (ev.finals||[]).map(h => ({...h, _label:'Final'}));
 
-  if (!allStages.length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
+  if (!allStages.length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No lineup yet</p>';
 
   return allStages.map(h => {
     const skaters = h.skaters || [];
