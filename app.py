@@ -203,6 +203,29 @@ def parse_relay(filepath):
                 seen.add(m); deduped.append(m)
         t["members"] = deduped
 
+    # ── Auto-assign colors per event ─────────────────────────────────────────
+    # Round-robin from the standard color pool, skip teams that already have a color
+    COLOR_POOL = ["Green", "Blue", "Yellow", "Pink", "Light Blue", "Black", "Red"]
+    # Group teams by event
+    from collections import defaultdict
+    events_map = defaultdict(list)
+    for t in teams:
+        events_map[t["event_name"]].append(t)
+    # Assign colors per event
+    for ev_teams in events_map.values():
+        pool_idx = 0
+        used_colors = {t["color"].lower() for t in ev_teams if t.get("color")}
+        for t in ev_teams:
+            if not t.get("color"):
+                # Find next unused color in pool
+                while pool_idx < len(COLOR_POOL) * 2:
+                    candidate = COLOR_POOL[pool_idx % len(COLOR_POOL)]
+                    pool_idx += 1
+                    if candidate.lower() not in used_colors:
+                        t["color"] = candidate
+                        used_colors.add(candidate.lower())
+                        break
+
     return teams
 
 
