@@ -698,7 +698,7 @@ function hCard(heat, color, parentId, kind) {
           <span style="font-size:13px;font-weight:400">${s.club}</span>
           <select onchange="setTeamColor(${s.team_id},this.value)"
             class="text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
-            <option value="" disabled ${!s.color?'selected':''}>— color —</option>
+            <option value="" disabled ${!s.color?'selected':''}>No helmet cover</option>
             ${colorOpts}
           </select>
         </div>
