@@ -1361,6 +1361,22 @@ def advance_relay():
             for order, team in enumerate(bucket):
                 session.add(RelayHeatTeam(relay_heat_id=heat.id, team_id=team.id, seed_order=order))
 
+            # Resolve color conflicts within this advanced heat
+            # Keep original color if no conflict, assign new unused color if clash
+            COLOR_POOL = ["Green","Blue","Yellow","Pink","Light Blue","Black","Red"]
+            used_colors = {}  # color.lower() -> team_id that claimed it
+            for team in bucket:
+                col = (team.color or "").lower()
+                if col and col not in used_colors:
+                    used_colors[col] = team.id  # first team keeps its color
+                elif col:
+                    # Conflict — find next unused color
+                    for candidate in COLOR_POOL:
+                        if candidate.lower() not in used_colors:
+                            team.color = candidate
+                            used_colors[candidate.lower()] = team.id
+                            break
+
         session.commit()
         return jsonify({"ok":True, "message":f"{len(qualifiers)} teams advanced"})
     except Exception as e:
