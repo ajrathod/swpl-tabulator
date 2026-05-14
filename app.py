@@ -696,10 +696,56 @@ def create_competition():
 @app.route("/api/competitions/<int:comp_id>", methods=["DELETE"])
 def delete_competition(comp_id):
     session = db()
-    comp = session.query(Competition).get(comp_id)
-    if comp: session.delete(comp); session.commit()
-    session.close()
-    return jsonify({"ok": True})
+    try:
+        # Delete all related data explicitly to avoid FK constraint errors
+        # Registration data
+        links = session.query(RegistrationLink).filter_by(competition_id=comp_id).all()
+        for link in links:
+            session.query(Registration).filter_by(link_id=link.id).delete()
+        session.query(RegistrationLink).filter_by(competition_id=comp_id).delete()
+
+        # Schedule events
+        session.query(ScheduleEvent).filter_by(competition_id=comp_id).delete()
+
+        # Relay data
+        relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id).all()
+        for re in relay_events:
+            for team in re.teams:
+                session.query(RelayMember).filter_by(team_id=team.id).delete()
+            session.query(RelayTeam).filter_by(relay_event_id=re.id).delete()
+            for rh in re.relay_heats:
+                session.query(RelayHeatTeam).filter_by(relay_heat_id=rh.id).delete()
+            session.query(RelayHeat).filter_by(relay_event_id=re.id).delete()
+        session.query(RelayEvent).filter_by(competition_id=comp_id).delete()
+        session.query(RelayPoolAthlete).filter_by(competition_id=comp_id).delete()
+
+        # Individual events/heats
+        events = session.query(Event).filter_by(competition_id=comp_id).all()
+        for ev in events:
+            session.query(HeatSkater).filter(
+                HeatSkater.heat_id.in_([h.id for h in ev.heats])).delete(synchronize_session=False)
+            session.query(Heat).filter_by(event_id=ev.id).delete()
+        session.query(Event).filter_by(competition_id=comp_id).delete()
+
+        # Skaters and scratch records
+        session.query(ScratchRecord).filter_by(competition_id=comp_id).delete()
+        session.query(Skater).filter_by(competition_id=comp_id).delete()
+
+        # Comp events
+        session.query(CompEvent).filter_by(competition_id=comp_id).delete()
+
+        # Finally the competition itself
+        comp = session.query(Competition).get(comp_id)
+        if comp:
+            session.delete(comp)
+
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/event_templates")
