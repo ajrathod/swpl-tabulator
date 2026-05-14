@@ -270,17 +270,26 @@ def seed_relay_heats(session, relay_event, team_ids):
     - Semis only if more than 6 teams qualify from heats
     - Otherwise go straight from heats to final
     """
-    COLOR_POOL = ["Green", "Blue", "Yellow", "Pink", "Light Blue", "Black", "Red"]
-
     def assign_heat_colors(bucket_team_ids):
-        """Assign fresh colors within a heat bucket — per heat, not per event."""
-        pool_idx = 0
+        """Assign colors within a heat — each team gets a unique color."""
+        COLOR_POOL = ["Green", "Blue", "Yellow", "Pink", "Light Blue", "Black", "Red"]
+        used = set()
+        # First pass — record colors already assigned
+        for tid in bucket_team_ids:
+            team = session.query(RelayTeam).get(tid)
+            if team and team.color:
+                used.add(team.color.lower())
+        # Second pass — assign missing colors, skip already-used ones
+        pool_iter = iter(c for c in COLOR_POOL if c.lower() not in used)
         for tid in bucket_team_ids:
             team = session.query(RelayTeam).get(tid)
             if not team: continue
             if not team.color:
-                team.color = COLOR_POOL[pool_idx % len(COLOR_POOL)]
-            pool_idx += 1
+                try:
+                    team.color = next(pool_iter)
+                    used.add(team.color.lower())
+                except StopIteration:
+                    pass  # more than 7 teams — shouldn't happen
 
     for h in list(relay_event.relay_heats): session.delete(h)
     session.flush()
