@@ -433,7 +433,16 @@ def public_view(comp_id):
     return render_template("public.html", comp=comp.to_dict())
 
 
-@app.route("/athletes")
+@app.route("/checkin/<int:comp_id>")
+def checkin_view(comp_id):
+    session = db()
+    comp = session.query(Competition).get(comp_id)
+    session.close()
+    if not comp: return "Not found", 404
+    return render_template("checkin.html", comp=comp.to_dict())
+
+
+
 def athletes_page():
     session = db()
     comps = session.query(Competition).order_by(Competition.date.desc()).all()
