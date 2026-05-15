@@ -439,7 +439,7 @@ def checkin_view(comp_id):
     comp = session.query(Competition).get(comp_id)
     session.close()
     if not comp: return "Not found", 404
-    return render_template("checkin.html", comp=comp.to_dict())
+    return render_template("operator.html", comp=comp.to_dict(), readonly=True)
 
 
 
