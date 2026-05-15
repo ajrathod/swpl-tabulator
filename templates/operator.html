@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{{comp.name}} — Operator</title>
+<title>{{comp.name}} — {% if readonly %}Check-in View{% else %}Operator{% endif %}</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
+const READONLY = {{ 'true' if readonly else 'false' }};
 tailwind.config = {
   theme: {
     extend: {
@@ -32,6 +33,12 @@ tailwind.config = {
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+/* Readonly / check-in mode */
+body.readonly .operator-only { display: none !important; }
+body.readonly .place-input { pointer-events: none; opacity: .4; }
+body.readonly .scratch-btn  { display: none !important; }
+body.readonly #reseed-bar   { display: none !important; }
+body:not(.readonly) .readonly-color { display: none; }
 </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -517,7 +524,7 @@ function renderGroupView(group, events) {
     <div class="flex items-center gap-3 mb-5 flex-wrap">
       <h2 class="text-xl font-bold text-gray-900">${group}</h2>
       <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">${info.skater_count||0} skaters</span>
-      <div class="ml-auto flex gap-2">
+      <div class="ml-auto flex gap-2 operator-only">
         <button onclick="openAddAthleteModal('${esc(group)}')"
           class="px-3 py-1.5 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">+ Add Athlete</button>
         <button onclick="openXfer('${esc(group)}')"
@@ -615,7 +622,7 @@ function renderEvent(ev, group) {
   ]);
   const unassigned = (ev.skaters||[]).filter(s => !assignedPanels.has(s.panel) && (s.status||'active') !== 'scratched');
   if (unassigned.length) {
-    html += `<div class="flex items-center gap-3 mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
+    html += `<div class="flex items-center gap-3 mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 operator-only">
       <span class="text-orange-600 font-semibold text-sm">⚠️ ${unassigned.length} skater${unassigned.length>1?'s':''} not assigned to any heat:</span>
       <span class="text-orange-500 text-sm">${unassigned.map(s=>s.full_name).join(', ')}</span>
       <button onclick="openDDModal(${ev.id},'${ev.heats.length?'Heat':ev.semis.length?'Semi':'Final'}','individual')"
@@ -625,7 +632,7 @@ function renderEvent(ev, group) {
     </div>`;
   }
 
-  html += `<div class="flex items-center gap-3 mt-2">
+  html += `<div class="flex items-center gap-3 mt-2 operator-only">
     <button onclick="reseedEv(${ev.id},'individual')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🔄 Re-seed All Heats</button>
     <span class="text-xs text-gray-400">Rebuilds from current roster · Saved results preserved</span>
     ${ev.points_event ? '<span class="text-xs text-yellow-600 font-semibold bg-yellow-50 px-2 py-1 rounded-full">🏆 Counts toward standings</span>' : ''}
@@ -640,7 +647,7 @@ function stageHeader(label, color, evId, stage, kind) {
     <span class="text-xs font-bold uppercase tracking-widest ${colors[color]||'text-gray-500'}">${label}</span>
     <div class="flex-1 h-px bg-gray-200"></div>
     <button onclick="openDDModal(${evId},'${stage}','${kind}')"
-      class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center gap-1">
+      class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center gap-1 operator-only">
       ✏️ Edit ${label}
     </button>
   </div>`;
@@ -655,7 +662,7 @@ function advBar(color, evId, from, kind, label, group) {
   const bg = {blue:'bg-blue-50 border-blue-100', green:'bg-green-50 border-green-100'}[color];
   const btn = {blue:'bg-blue-600 hover:bg-blue-700', green:'bg-green-600 hover:bg-green-700'}[color];
   const grpArg = group ? `,'${esc(group)}'` : '';
-  return `<div class="flex items-center gap-3 border ${bg} rounded-xl px-4 py-3 mb-5">
+  return `<div class="flex items-center gap-3 border ${bg} rounded-xl px-4 py-3 mb-5 operator-only">
     <p class="text-sm text-gray-600 flex-1">Save results, then advance qualifiers.</p>
     <button onclick="advance(${evId},'${from}','${kind}'${grpArg})"
       class="px-3 py-1.5 ${btn} text-white rounded-lg text-xs font-semibold transition">${label}</button>
@@ -701,10 +708,11 @@ function hCard(heat, color, parentId, kind) {
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
           <span style="font-size:13px;font-weight:400">${s.club}</span>
           <select onchange="setTeamColor(${s.team_id},this.value)"
-            class="text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
+            class="operator-only text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
             <option value="" disabled ${!s.color?'selected':''}>No helmet cover</option>
             ${colorOpts}
           </select>
+          <span class="readonly-color" style="font-size:11px;color:#6B7280">${s.color||'No helmet cover'}</span>
         </div>
         ${memberStr ? `<div style="font-size:11px;color:#6B7280;margin-top:2px;margin-left:16px;font-family:'Inter',system-ui,sans-serif">${memberStr}</div>` : ''}
       </div>`;
@@ -715,9 +723,9 @@ function hCard(heat, color, parentId, kind) {
     // Scratch button
     const scratchBtn = isRelay
       ? `<button onclick="scratchRelayTeam(${s.team_id})" title="Scratch team"
-           class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`
+           class="scratch-btn opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`
       : `<button onclick="openScratchModal('${s.panel}','${esc(s.full_name)}')" title="Scratch skater"
-           class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`;
+           class="scratch-btn opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`;
 
     return `<tr class="${rc} group">
       <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
@@ -728,7 +736,7 @@ function hCard(heat, color, parentId, kind) {
         <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
       <td class="px-3 py-2">
         <input type="text" value="${pl||''}" placeholder="—"
-          class="w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
+          class="place-input w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
           data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
           onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
           oninput="this.classList.toggle('bg-red-50',this.value.toUpperCase()==='DQ');this.classList.toggle('text-red-600',this.value.toUpperCase()==='DQ')">
@@ -749,7 +757,7 @@ function hCard(heat, color, parentId, kind) {
       <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
       <tbody class="divide-y divide-gray-50">${rows}</tbody>
     </table>
-    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100">
+    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100 operator-only">
       <button onclick="saveCard(${heat.id},'${kind}')"
         class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
       <button onclick="clearCard(${heat.id},'${kind}')"
@@ -2026,6 +2034,22 @@ showSchedule = async function() {
   saveState('section', 'schedule');
   return _origShowSchedule();
 };
+
+// ── Readonly / Check-in mode ──────────────────────────────────────────────────
+if (READONLY) {
+  document.body.classList.add('readonly');
+  // Add check-in banner
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#1D4ED8;color:white;text-align:center;padding:6px 16px;font-size:13px;font-weight:600;letter-spacing:.02em;position:sticky;top:56px;z-index:49';
+  banner.innerHTML = '👁 Check-in View — Read Only';
+  document.querySelector('header').after(banner);
+  // Hide all upload labels and action buttons in header
+  document.querySelectorAll('header label, header a[href*="checkin"], header button').forEach(el => {
+    if (el.id !== 'lock-btn') el.style.display = 'none';
+  });
+  // Keep sidebar visible but hide registrations button
+  document.querySelectorAll('[onclick="showRegistrations()"]').forEach(el => el.closest('div')?.style.setProperty('display','none'));
+}
 
 refreshGroups().then(async () => {
   const state = loadState();
