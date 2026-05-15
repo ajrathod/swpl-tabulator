@@ -39,46 +39,85 @@ body.readonly .place-input { pointer-events: none; opacity: .4; }
 body.readonly .scratch-btn  { display: none !important; }
 body.readonly #reseed-bar   { display: none !important; }
 body:not(.readonly) .readonly-color { display: none; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  /* Header: hide text labels, keep icons */
+  .hdr-btn-text { display: none; }
+  /* Sidebar becomes bottom drawer / overlay */
+  aside.sidebar {
+    position: fixed; top: 56px; left: 0; bottom: 0;
+    width: 260px; z-index: 60;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,.15);
+  }
+  aside.sidebar.open { transform: translateX(0); }
+  /* Main content takes full width */
+  main.main-content { margin-left: 0 !important; padding: 12px !important; }
+  /* Show hamburger, hide desktop nav buttons */
+  #mobile-menu-btn { display: flex !important; }
+  .desktop-only { display: none !important; }
+  /* Mobile overlay */
+  #sidebar-overlay {
+    display: none; position: fixed; inset: 0; top: 56px;
+    background: rgba(0,0,0,.4); z-index: 59;
+  }
+  #sidebar-overlay.open { display: block; }
+  /* Heat cards stack vertically */
+  .heat-cards-row { flex-direction: column !important; }
+  .heat-card-wrap { max-width: 100% !important; min-width: unset !important; }
+}
+@media (min-width: 769px) {
+  #mobile-menu-btn { display: none !important; }
+}
 </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
 
 <!-- ── Top bar ── -->
-<header class="fixed top-0 inset-x-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4 gap-3 shadow-sm">
-  <a href="/" class="text-gray-400 hover:text-gray-700 text-sm flex items-center gap-1">← Competitions</a>
-  <span class="text-gray-300">/</span>
-  <span class="font-bold text-gray-900 text-sm truncate max-w-xs">{{comp.name}}</span>
-  <div class="ml-auto flex items-center gap-2">
+<header class="fixed top-0 inset-x-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-3 gap-2 shadow-sm">
+  <!-- Hamburger (mobile only) -->
+  <button id="mobile-menu-btn" onclick="toggleSidebar()"
+    class="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600 text-xl leading-none"
+    style="display:none">☰</button>
+  <a href="/" class="text-gray-400 hover:text-gray-700 text-sm hidden sm:flex items-center gap-1">← Competitions</a>
+  <span class="text-gray-300 hidden sm:block">/</span>
+  <span class="font-bold text-gray-900 text-sm truncate max-w-[120px] sm:max-w-xs">{{comp.name}}</span>
+  <div class="ml-auto flex items-center gap-1.5 overflow-x-auto">
     <a href="/checkin/{{comp.id}}" target="_blank"
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
-      ✅ Check-in View
+      class="operator-only inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      ✅ <span class="hdr-btn-text">Check-in</span>
     </a>
-    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
-      📋 Schedule
+    <label class="operator-only cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      📋 <span class="hdr-btn-text">Schedule</span>
       <input type="file" id="up-sched" accept=".xlsx,.xls" class="hidden">
     </label>
-    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
-      📋 Individual Master
+    <label class="operator-only cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      📋 <span class="hdr-btn-text">Individual</span>
       <input type="file" id="up-ind" accept=".xlsx,.xls" class="hidden">
     </label>
-    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
-      🔄 Relay Master
+    <label class="operator-only cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      🔄 <span class="hdr-btn-text">Relay</span>
       <input type="file" id="up-rel" accept=".xlsx,.xls" class="hidden">
     </label>
-    <a href="/registry" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">🗂 Registry</a>
-    <a href="/athletes" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">⛸️ Athletes</a>
+    <a href="/registry" class="desktop-only px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">🗂 Registry</a>
+    <a href="/athletes" class="desktop-only px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">⛸️ Athletes</a>
     <a href="/public/{{comp.id}}" target="_blank"
-       class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">👁 Public ↗</a>
+       class="px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition whitespace-nowrap">👁 <span class="hdr-btn-text">Public</span> ↗</a>
     <button onclick="logoutOp()" title="Lock operator view"
-      class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition">🔒 Lock</button>
+      class="operator-only px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">🔒</button>
   </div>
 </header>
+
+<!-- Sidebar overlay (mobile) -->
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <!-- ── Layout ── -->
 <div class="flex pt-14 min-h-screen">
 
   <!-- Sidebar -->
-  <aside class="fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
+  <aside class="sidebar fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
     <div class="px-3 pt-4 pb-2">
       <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
       <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
@@ -105,7 +144,7 @@ body:not(.readonly) .readonly-color { display: none; }
   </aside>
 
   <!-- Main content -->
-  <main class="ml-60 flex-1 p-6" id="main">
+  <main class="main-content ml-60 flex-1 p-6" id="main">
 
     <!-- Welcome / Public URL banner -->
     <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 flex items-center gap-3 mb-6 flex-wrap">
@@ -2014,6 +2053,11 @@ function loadState() {
 const _origSelectGroup = selectGroup;
 selectGroup = async function(group) {
   saveState('group', group);
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) {
+    document.querySelector('aside.sidebar')?.classList.remove('open');
+    document.getElementById('sidebar-overlay')?.classList.remove('open');
+  }
   return _origSelectGroup(group);
 };
 
@@ -2035,7 +2079,15 @@ showSchedule = async function() {
   return _origShowSchedule();
 };
 
-// ── Readonly / Check-in mode ──────────────────────────────────────────────────
+function toggleSidebar() {
+  const sidebar  = document.querySelector('aside.sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const isOpen   = sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', !isOpen);
+  overlay.classList.toggle('open', !isOpen);
+}
+
+
 if (READONLY) {
   document.body.classList.add('readonly');
   // Add check-in banner
