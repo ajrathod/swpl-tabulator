@@ -42,6 +42,10 @@ tailwind.config = {
   <span class="text-gray-300">/</span>
   <span class="font-bold text-gray-900 text-sm truncate max-w-xs">{{comp.name}}</span>
   <div class="ml-auto flex items-center gap-2">
+    <a href="/checkin/{{comp.id}}" target="_blank"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+      ✅ Check-in View
+    </a>
     <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
       📋 Schedule
       <input type="file" id="up-sched" accept=".xlsx,.xls" class="hidden">

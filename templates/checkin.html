@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>{{comp.name}} — Check-in</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --orange: #F4511E;
+    --bg: #F5F5F5;
+    --card: #FFFFFF;
+    --border: #E5E7EB;
+    --text: #111827;
+    --muted: #6B7280;
+    --faint: #9CA3AF;
+    --green: #16A34A;
+    --blue: #1D4ED8;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* ── Header ── */
+  .hdr {
+    position: sticky; top: 0; z-index: 50;
+    background: #1A1A2E; color: white;
+    padding: 0 16px;
+    display: flex; align-items: center; gap: 12px;
+    height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .hdr-logo { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+  .hdr-logo span { color: var(--orange); }
+  .hdr-comp { font-size: 13px; color: rgba(255,255,255,.6); }
+  .hdr-live { background: var(--orange); color: white; font-size: 11px;
+    font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-left: auto; }
+
+  /* ── Search ── */
+  .search-bar {
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 56px; z-index: 40;
+  }
+  .search-inp {
+    width: 100%; padding: 12px 16px; font-size: 16px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    outline: none; font-family: inherit; background: var(--bg);
+    color: var(--text);
+  }
+  .search-inp:focus { border-color: var(--orange); background: white; }
+
+  /* ── Group tab bar ── */
+  .tab-bar {
+    background: white; border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+    overflow-x: auto; display: flex; gap: 6px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    position: sticky; top: calc(56px + 68px); z-index: 39;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 12px 16px; font-size: 14px; font-weight: 500;
+    color: var(--muted); background: none; border: none;
+    border-bottom: 3px solid transparent; cursor: pointer;
+    white-space: nowrap; transition: all .15s;
+    font-family: inherit;
+  }
+  .tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+  .tab-divider {
+    width: 1px; background: var(--border); margin: 8px 0; flex-shrink: 0;
+  }
+
+  /* ── Main content ── */
+  .main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+  /* ── Group label ── */
+  .group-label {
+    font-size: 22px; font-weight: 600; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .group-count {
+    font-size: 13px; font-weight: 400; color: var(--muted);
+    background: var(--border); padding: 2px 10px; border-radius: 20px;
+  }
+
+  /* ── Heat card ── */
+  .heat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; margin-bottom: 16px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .heat-hdr {
+    padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .heat-hdr.hh { background: #EFF6FF; }
+  .heat-hdr.sh { background: #F5F3FF; }
+  .heat-hdr.fh { background: #FFFBEB; }
+  .heat-label { font-size: 16px; font-weight: 600; }
+  .heat-hdr.hh .heat-label { color: #1D4ED8; }
+  .heat-hdr.sh .heat-label { color: #7C3AED; }
+  .heat-hdr.fh .heat-label { color: #D97706; }
+  .heat-count { font-size: 13px; color: var(--muted); margin-left: auto; }
+
+  /* ── Skater row ── */
+  .skater-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    min-height: 56px;
+  }
+  .skater-row:last-child { border-bottom: none; }
+  .skater-row.highlight { background: #FFF7ED; }
+  .panel-num {
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    color: var(--faint); width: 40px; flex-shrink: 0;
+  }
+  .skater-name { font-size: 17px; flex: 1; }
+  .skater-club { font-size: 13px; color: var(--muted); }
+
+  /* ── Relay team row ── */
+  .relay-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    min-height: 60px;
+  }
+  .relay-row:last-child { border-bottom: none; }
+  .relay-num { font-size: 15px; color: var(--faint); width: 24px; flex-shrink: 0; margin-top: 2px; }
+  .relay-info { flex: 1; }
+  .relay-club { font-size: 17px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .bib-badge {
+    font-size: 11px; font-weight: 500; padding: 2px 10px;
+    border-radius: 20px; color: white;
+  }
+  .relay-members { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 48px 24px; color: var(--faint); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-msg { font-size: 15px; }
+
+  /* ── Search results ── */
+  .search-result-hdr {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--faint);
+    padding: 16px 0 8px;
+  }
+
+  /* ── Refresh bar ── */
+  .rbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid var(--border);
+    padding: 10px 16px; display: flex; align-items: center;
+    justify-content: space-between; font-size: 12px; color: var(--faint);
+    z-index: 99;
+  }
+  .rbar-btn {
+    font-size: 13px; font-weight: 600; color: var(--orange);
+    background: none; border: none; cursor: pointer; font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div>
+    <div class="hdr-logo">SWPL<span>/</span>RACING</div>
+    <div class="hdr-comp">{{comp.name}}</div>
+  </div>
+  <div class="hdr-live" id="live-badge">● LIVE</div>
+</header>
+
+<div class="search-bar">
+  <input class="search-inp" id="search-inp" type="search"
+    placeholder="Search skater name or panel #…"
+    oninput="doSearch(this.value)" autocomplete="off">
+</div>
+
+<div class="tab-bar" id="tab-bar"></div>
+
+<div class="main" id="main-content">
+  <div class="empty"><div class="empty-icon">⏳</div><div class="empty-msg">Loading…</div></div>
+</div>
+
+<div class="rbar">
+  <span id="last-upd">Loading…</span>
+  <button class="rbar-btn" onclick="doRefresh()">↻ Refresh</button>
+</div>
+
+<script>
+const COMP_ID = {{comp.id}};
+const COLORS  = {
+  green:'#2E7D32', blue:'#1565C0', yellow:'#B7791F', pink:'#BE185D',
+  'light blue':'#0369A1', black:'#1F2937', red:'#B91C1C'
+};
+
+let allGroups   = {};
+let allRelays   = {};
+let allGroupData = {};
+let curGroup    = null;
+let timer       = null;
+
+function ts() {
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const [gr, rr] = await Promise.all([
+    fetch(`/api/${COMP_ID}/groups`),
+    fetch(`/api/${COMP_ID}/relays`)
+  ]);
+  allGroups = await gr.json().catch(() => ({}));
+  allRelays  = await rr.json().catch(() => ({}));
+  buildTabs();
+  const firstGroup = Object.keys(allGroups).sort()[0];
+  if (firstGroup) selectGroup(firstGroup);
+  document.getElementById('last-upd').textContent = 'Updated ' + ts();
+  timer = setInterval(doRefresh, 20000);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function buildTabs() {
+  const bar = document.getElementById('tab-bar');
+  const groups = Object.keys(allGroups).sort();
+  const relays = Object.keys(allRelays).sort();
+
+  const groupBtns = groups.map(g => `
+    <button class="tab-btn" id="tab-${CSS.escape(g)}" onclick="selectGroup('${esc(g)}')">${g}</button>`
+  ).join('');
+
+  const relayDivider = relays.length ? '<div class="tab-divider"></div>' : '';
+
+  const relayBtns = relays.map((name, i) => `
+    <button class="tab-btn" id="tab-relay-${i}" onclick="selectRelay('${esc(name)}')"
+      style="max-width:160px;overflow:hidden;text-overflow:ellipsis"
+      title="${name}">🔄 ${name.replace(/\(.*?\)/g,'').trim()}</button>`
+  ).join('');
+
+  bar.innerHTML = groupBtns + relayDivider + relayBtns;
+}
+
+function setActiveTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }
+}
+
+// ── Group view ────────────────────────────────────────────────────────────────
+async function selectGroup(group) {
+  curGroup = {type:'group', key:group};
+  setActiveTab(`tab-${CSS.escape(group)}`);
+  if (!allGroupData[group]) await loadGroup(group);
+  renderGroup(group);
+}
+
+async function loadGroup(group) {
+  const r = await fetch(`/api/${COMP_ID}/groups/${encodeURIComponent(group)}`);
+  const d = await r.json().catch(() => ({}));
+  allGroupData[group] = d;
+}
+
+function renderGroup(group) {
+  const data   = allGroupData[group] || {};
+  const events = data.events || data || {};
+  const count  = allGroups[group]?.skater_count || allGroups[group] || '';
+
+  const ORDER = ['Short Distance','Medium Distance','Long Distance'];
+  const evNames = Object.keys(events).filter(n => n !== '__standings__');
+  const firstEv = ORDER.find(n => evNames.includes(n)) || evNames[0];
+  if (!firstEv) {
+    setContent(`<div class="group-label">${group} <span class="group-count">${count} skaters</span></div>
+      <div class="empty"><div class="empty-icon">📋</div><div class="empty-msg">No heats seeded yet</div></div>`);
+    return;
+  }
+
+  const ev = events[firstEv];
+  const allStages = [
+    ...(ev.heats||[]).map(h=>({...h,stage:'hh',lbl:`Heat ${h.number}`})),
+    ...(ev.semis||[]).map(h=>({...h,stage:'sh',lbl:`Semi ${h.number}`})),
+    ...(ev.finals||[]).map(h=>({...h,stage:'fh',lbl:'Final'})),
+  ];
+
+  let html = `<div class="group-label">${group} <span class="group-count">${count} skaters</span></div>`;
+  for (const heat of allStages) {
+    const skaters = heat.skaters || [];
+    html += `<div class="heat-card">
+      <div class="heat-hdr ${heat.stage}">
+        <span class="heat-label">${heat.lbl}</span>
+        <span class="heat-count">${skaters.length} skaters</span>
+      </div>`;
+    if (!skaters.length) {
+      html += `<div class="empty" style="padding:24px"><div class="empty-msg">Waiting for lineup</div></div>`;
+    } else {
+      html += skaters.map(s => `
+        <div class="skater-row">
+          <span class="panel-num">#${s.panel}</span>
+          <span class="skater-name">${s.full_name}</span>
+          <span class="skater-club">${s.club}</span>
+        </div>`).join('');
+    }
+    html += '</div>';
+  }
+  setContent(html);
+}
+
+// ── Relay view ────────────────────────────────────────────────────────────────
+function selectRelay(name) {
+  curGroup = {type:'relay', key:name};
+  const relayNames = Object.keys(allRelays).sort();
+  const idx = relayNames.indexOf(name);
+  setActiveTab(`tab-relay-${idx}`);
+  renderRelay(name);
+}
+
+function renderRelay(name) {
+  const ev = allRelays[name];
+  if (!ev) { setContent('<div class="empty"><div class="empty-msg">No relay data</div></div>'); return; }
+
+  const allStages = [
+    ...(ev.heats||[]).map(h=>({...h,stage:'hh',lbl:`Heat ${h.number}`})),
+    ...(ev.semis||[]).map(h=>({...h,stage:'sh',lbl:`Semi ${h.number}`})),
+    ...(ev.finals||[]).map(h=>({...h,stage:'fh',lbl:'Final'})),
+  ];
+
+  let html = `<div class="group-label" style="font-size:18px">🔄 ${name}</div>`;
+  for (const heat of allStages) {
+    const teams = heat.teams || [];
+    html += `<div class="heat-card">
+      <div class="heat-hdr ${heat.stage}">
+        <span class="heat-label">${heat.lbl}</span>
+        <span class="heat-count">${teams.length} teams</span>
+      </div>`;
+    if (!teams.length) {
+      html += `<div class="empty" style="padding:24px"><div class="empty-msg">Waiting for lineup</div></div>`;
+    } else {
+      html += teams.map((t, i) => {
+        const bib     = COLORS[(t.color||'').toLowerCase()] || '';
+        const bibHtml = t.color
+          ? `<span class="bib-badge" style="background:${bib}">${t.color}</span>`
+          : `<span class="bib-badge" style="background:#9CA3AF">No helmet cover</span>`;
+        const members = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
+        return `<div class="relay-row">
+          <span class="relay-num">${i+1}</span>
+          <div class="relay-info">
+            <div class="relay-club">${t.club} ${bibHtml}</div>
+            ${members ? `<div class="relay-members">${members}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+    html += '</div>';
+  }
+  setContent(html);
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function doSearch(q) {
+  q = q.trim().toLowerCase();
+  if (!q) {
+    if (curGroup) {
+      if (curGroup.type === 'group') renderGroup(curGroup.key);
+      else renderRelay(curGroup.key);
+    }
+    return;
+  }
+
+  const results = [];
+  Object.entries(allGroupData).forEach(([group, data]) => {
+    const events = data.events || data || {};
+    const evNames = Object.keys(events).filter(n => n !== '__standings__');
+    const firstEv = evNames[0];
+    if (!firstEv) return;
+    const ev = events[firstEv];
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,stage:'hh',lbl:`Heat ${h.number}`})),
+      ...(ev.semis||[]).map(h=>({...h,stage:'sh',lbl:`Semi ${h.number}`})),
+      ...(ev.finals||[]).map(h=>({...h,stage:'fh',lbl:'Final'})),
+    ];
+    allStages.forEach(heat => {
+      (heat.skaters||[]).forEach(s => {
+        if (s.full_name.toLowerCase().includes(q) || s.panel?.toString().includes(q)) {
+          results.push({group, heat: heat.lbl, stage: heat.stage, skater: s});
+        }
+      });
+    });
+  });
+
+  if (!results.length) {
+    setContent(`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-msg">No results for "${q}"</div></div>`);
+    return;
+  }
+
+  const byGroup = {};
+  results.forEach(r => { byGroup[r.group] = (byGroup[r.group]||[]).concat(r); });
+
+  let html = '';
+  Object.entries(byGroup).sort().forEach(([group, rows]) => {
+    html += `<div class="search-result-hdr">Group ${group}</div>`;
+    const byHeat = {};
+    rows.forEach(r => { byHeat[r.heat] = (byHeat[r.heat]||[]).concat(r); });
+    Object.entries(byHeat).forEach(([heatLbl, items]) => {
+      const stage = items[0].stage;
+      html += `<div class="heat-card">
+        <div class="heat-hdr ${stage}"><span class="heat-label">${heatLbl}</span></div>
+        ${items.map(({skater:s}) => `
+          <div class="skater-row highlight">
+            <span class="panel-num">#${s.panel}</span>
+            <span class="skater-name">${s.full_name}</span>
+            <span class="skater-club">${s.club}</span>
+          </div>`).join('')}
+      </div>`;
+    });
+  });
+  setContent(html);
+}
+
+// ── Refresh ───────────────────────────────────────────────────────────────────
+async function doRefresh() {
+  const q = document.getElementById('search-inp').value.trim();
+  if (q) return; // don't disrupt active search
+
+  const [gr, rr] = await Promise.all([
+    fetch(`/api/${COMP_ID}/groups`),
+    fetch(`/api/${COMP_ID}/relays`)
+  ]);
+  allGroups = await gr.json().catch(() => allGroups);
+  allRelays  = await rr.json().catch(() => allRelays);
+
+  if (curGroup) {
+    if (curGroup.type === 'group') {
+      delete allGroupData[curGroup.key];
+      await loadGroup(curGroup.key);
+      renderGroup(curGroup.key);
+    } else {
+      renderRelay(curGroup.key);
+    }
+  }
+  document.getElementById('last-upd').textContent = 'Updated ' + ts();
+}
+
+function setContent(html) {
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+init();
+</script>
+</body>
+</html>
