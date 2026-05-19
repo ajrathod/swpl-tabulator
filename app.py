@@ -2,8 +2,8 @@
 PacWest Inline Racing — Race Manager v3
 Flask + SQLite/PostgreSQL
 """
-from flask import Flask, render_template, request, jsonify, make_response, redirect, url_for
-import pandas as pd, math, os, re, uuid
+from flask import Flask, render_template, request, jsonify, make_response, redirect, url_for, session
+import pandas as pd, math, os, re, uuid, hashlib, hmac
 from models import (
     init_db, SessionLocal, POINTS, ALL_EVENT_TEMPLATES, INDIVIDUAL_EVENTS, RELAY_EVENTS_LIST,
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
@@ -14,8 +14,75 @@ from models import (
 from seeding import compute_stages, distribute
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'swpl-dev-secret-key-change-in-prod')
 
-# Initialise DB on startup — works with both gunicorn and direct python run
+# ── Global App Passcode ───────────────────────────────────────────────────────
+APP_PASSCODE = os.environ.get('APP_PASSCODE', '')  # Set in Railway env vars
+
+# Routes that are always public (no passcode needed)
+PUBLIC_ROUTES = {
+    'public_view', 'checkin_view', 'register_page',
+    'update_registration', 'get_registrations_public',
+    'app_login', 'static',
+    # Public read APIs
+    'api_groups', 'api_relays', 'get_schedule', 'get_standings',
+    'get_event_data', 'get_all_results',
+}
+
+def is_app_authed():
+    """Check if user has global app auth."""
+    if not APP_PASSCODE:
+        return True  # No passcode configured — open access
+    return session.get('app_authed') == True
+
+@app.before_request
+def require_app_auth():
+    """Protect all routes except public ones."""
+    if not APP_PASSCODE:
+        return  # No passcode set — skip auth entirely
+    if request.endpoint in PUBLIC_ROUTES:
+        return  # Always allow public routes
+    if request.endpoint == 'static':
+        return
+    # Allow public GET API routes (read-only)
+    if request.method == 'GET' and request.endpoint and (
+        request.endpoint.startswith('api_') or
+        request.endpoint in ('get_schedule', 'get_standings', 'get_event_data',
+                             'get_all_results', 'relay_assign_data', 'get_prev_groups',
+                             'get_prev_relay_events', 'registry_list', 'athletes_list',
+                             'athlete_history', 'get_reg_links', 'get_registrations')
+    ):
+        return
+    if is_app_authed():
+        return
+    # For API calls return 401, for page requests redirect to login
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Unauthorized", "login": "/login"}), 401
+    return redirect(url_for('app_login', next=request.url))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def app_login():
+    error = None
+    if request.method == 'POST':
+        pw = request.form.get('passcode', '').strip()
+        if APP_PASSCODE and hmac.compare_digest(pw, APP_PASSCODE):
+            session['app_authed'] = True
+            session.permanent = True
+            app.permanent_session_lifetime = __import__('datetime').timedelta(days=30)
+            next_url = request.args.get('next') or url_for('index')
+            return redirect(next_url)
+        error = 'Incorrect passcode. Please try again.'
+    return render_template('login.html', error=error)
+
+
+@app.route('/logout')
+def app_logout():
+    session.pop('app_authed', None)
+    return redirect(url_for('app_login'))
+
+
+
 print(f"[startup] DATABASE_URL = {os.environ.get('DATABASE_URL','sqlite:///skating.db')[:40]}...")
 init_db()
 print("[startup] Database tables initialised OK")
