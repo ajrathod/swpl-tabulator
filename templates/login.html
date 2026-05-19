@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWPL Race Manager — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0F0F1A;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: #1A1A2E;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 24px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5);
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: .04em;
+    margin-bottom: 8px;
+  }
+  .logo span { color: #F4511E; }
+  .tagline { font-size: 13px; color: rgba(255,255,255,.4); margin-bottom: 36px; }
+  .label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,.4);
+    margin-bottom: 8px;
+  }
+  .inp {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    font-family: inherit;
+    background: rgba(255,255,255,.06);
+    border: 1.5px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+    color: white;
+    outline: none;
+    transition: border-color .15s;
+    letter-spacing: .1em;
+  }
+  .inp::placeholder { color: rgba(255,255,255,.2); letter-spacing: 0; }
+  .inp:focus { border-color: #F4511E; }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 16px;
+    background: #F4511E;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn:hover { background: #BF360C; }
+  .error {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(244,67,54,.15);
+    border: 1px solid rgba(244,67,54,.3);
+    border-radius: 10px;
+    color: #FF8A80;
+    font-size: 13px;
+  }
+  .lock-icon {
+    font-size: 36px;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="lock-icon">🔒</div>
+  <div class="logo">SWPL<span>/</span>RACING</div>
+  <div class="tagline">Race Manager · Restricted Access</div>
+
+  <form method="POST">
+    <label class="label" for="passcode">Passcode</label>
+    <input class="inp" type="password" id="passcode" name="passcode"
+      placeholder="Enter passcode…" autofocus autocomplete="current-password">
+    <button class="btn" type="submit">Enter →</button>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+  </form>
+</div>
+</body>
+</html>
