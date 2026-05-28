@@ -796,15 +796,17 @@ def delete_competition(comp_id):
         # Schedule events
         session.query(ScheduleEvent).filter_by(competition_id=comp_id).delete()
 
-        # Relay data
+        # Relay data — must delete in correct FK order
         relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id).all()
         for re in relay_events:
-            for team in re.teams:
-                session.query(RelayMember).filter_by(team_id=team.id).delete()
-            session.query(RelayTeam).filter_by(relay_event_id=re.id).delete()
+            # Delete relay heat teams FIRST (references both relay_heats and relay_teams)
             for rh in re.relay_heats:
                 session.query(RelayHeatTeam).filter_by(relay_heat_id=rh.id).delete()
             session.query(RelayHeat).filter_by(relay_event_id=re.id).delete()
+            # Now safe to delete relay members and teams
+            for team in re.teams:
+                session.query(RelayMember).filter_by(team_id=team.id).delete()
+            session.query(RelayTeam).filter_by(relay_event_id=re.id).delete()
         session.query(RelayEvent).filter_by(competition_id=comp_id).delete()
         session.query(RelayPoolAthlete).filter_by(competition_id=comp_id).delete()
 
