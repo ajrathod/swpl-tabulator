@@ -458,7 +458,10 @@ document.getElementById('up-ind').addEventListener('change', async e => {
   const r = await fetch(`/api/upload/individual/${COMP_ID}`, {method:'POST', body:fd});
   const d = await r.json();
   if (d.ok) {
-    toast(`✓ ${d.skater_count} skaters loaded`, 'success');
+    const msg = d.auto_registered
+      ? `✓ ${d.skater_count} skaters loaded · ${d.auto_registered} new athletes added to registry`
+      : `✓ ${d.skater_count} skaters loaded`;
+    toast(msg, 'success');
     await refreshGroups();
     if (d.groups.length) selectGroup(d.groups[0]);
   } else {
