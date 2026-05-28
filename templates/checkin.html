@@ -588,7 +588,7 @@ function renderGroupView(group, events) {
         <button class="ev-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
           n===curEvent ? 'border-brand text-brand bg-orange-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
         }" onclick="switchEv('${esc(group)}','${esc(n)}',this)">${n}</button>`).join('')}
-      ${hasPoints ? `<button class="ev-tab standings-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+      ${hasPoints && !READONLY ? `<button class="ev-tab standings-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
         curEvent==='__standings__' ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
       }" onclick="switchEv('${esc(group)}','__standings__',this)">🏆 Standings</button>` : ''}
     </div>
