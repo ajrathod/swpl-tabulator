@@ -612,9 +612,12 @@ def registry_update(athlete_id):
     try:
         a = session.query(AthleteRegistry).get(athlete_id)
         if not a: return jsonify({"error": "Not found"}), 404
-        for field in ("first","last","gender","dob","club"):
+        for field in ("first","last","gender","club"):
             if field in data:
                 setattr(a, field, (data[field] or "").strip())
+        if "dob" in data:
+            dob = (data["dob"] or "").strip().split(' ')[0].split('T')[0]
+            a.dob = dob if dob else None
         if "age" in data:
             a.age = int(data["age"]) if data["age"] not in (None,"") else None
         if "lap_time" in data:

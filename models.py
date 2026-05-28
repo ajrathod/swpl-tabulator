@@ -95,7 +95,7 @@ class AthleteRegistry(Base):
             "id": self.id, "usars_no": self.usars_no,
             "first": self.first, "last": self.last,
             "full_name": self.full_name,
-            "gender": self.gender or "", "dob": self.dob or "",
+            "gender": self.gender or "", "dob": (self.dob or "").split(' ')[0].split('T')[0],
             "age": self.age or "", "lap_time": self.lap_time or "",
             "club": self.club or "",
             "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else "",
