@@ -2960,7 +2960,8 @@ def get_checkin_status(comp_id):
     session = db()
     try:
         rows = session.query(CheckinStatus).filter_by(competition_id=comp_id).all()
-        return jsonify({r.panel: r.status for r in rows})
+        # Return as {panel_event: status} e.g. {"579_Short Distance": "checked_in"}
+        return jsonify({f"{r.panel}__{r.event_name}": r.status for r in rows})
     except Exception as e:
         return jsonify({}), 500
     finally:
@@ -2970,22 +2971,24 @@ def get_checkin_status(comp_id):
 @app.route("/api/comp/<int:comp_id>/checkin_status", methods=["POST"])
 def set_checkin_status(comp_id):
     data = request.json
-    panel  = (data.get("panel") or "").strip()
-    status = (data.get("status") or "pending").strip()
+    panel      = (data.get("panel") or "").strip()
+    event_name = (data.get("event_name") or "").strip()
+    status     = (data.get("status") or "pending").strip()
     if not panel: return jsonify({"error": "panel required"}), 400
     if status not in ("pending", "checked_in", "dns"):
         return jsonify({"error": "invalid status"}), 400
     session = db()
     try:
         row = session.query(CheckinStatus).filter_by(
-            competition_id=comp_id, panel=panel).first()
+            competition_id=comp_id, panel=panel, event_name=event_name).first()
         if row:
             row.status = status
         else:
             session.add(CheckinStatus(
-                competition_id=comp_id, panel=panel, status=status))
+                competition_id=comp_id, panel=panel,
+                event_name=event_name, status=status))
         session.commit()
-        return jsonify({"ok": True, "panel": panel, "status": status})
+        return jsonify({"ok": True, "panel": panel, "event_name": event_name, "status": status})
     except Exception as e:
         session.rollback(); return jsonify({"error": str(e)}), 500
     finally:
