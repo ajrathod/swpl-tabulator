@@ -85,6 +85,7 @@ def unhandled_exception(e):
 
 
 
+@app.route('/login', methods=['GET', 'POST'])
 def app_login():
     error = None
     if request.method == 'POST':
