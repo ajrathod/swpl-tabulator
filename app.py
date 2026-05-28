@@ -1519,7 +1519,65 @@ def advance_relay():
 
 # ── Reseed ────────────────────────────────────────────────────────────────────
 
-@app.route("/api/reseed", methods=["POST"])
+@app.route("/api/comp/<int:comp_id>/sync_from_registry", methods=["POST"])
+def sync_from_registry(comp_id):
+    """
+    Sync skater details (panel, club, gender) from AthleteRegistry
+    for the current competition WITHOUT changing heat assignments.
+    Matches by first+last name, updates panel/usars/club/gender.
+    """
+    session = db()
+    try:
+        skaters = session.query(Skater).filter_by(competition_id=comp_id).all()
+        updated = 0
+        not_found = []
+        for sk in skaters:
+            # Look up in registry by name
+            reg = session.query(AthleteRegistry).filter(
+                AthleteRegistry.first.ilike(sk.first.strip()),
+                AthleteRegistry.last.ilike(sk.last.strip())
+            ).first()
+            if not reg and sk.usars_no and not sk.usars_no.startswith('TBC'):
+                reg = session.query(AthleteRegistry).filter_by(
+                    usars_no=sk.usars_no).first()
+            if reg:
+                changed = False
+                # Update panel if current is TBC placeholder or blank
+                if (not sk.panel or sk.panel.startswith('TBC')) and reg.usars_no:
+                    sk.panel = reg.usars_no
+                    changed = True
+                # Update usars_no
+                if not sk.usars_no and reg.usars_no:
+                    sk.usars_no = reg.usars_no
+                    changed = True
+                # Update club if blank
+                if not sk.club and reg.club:
+                    sk.club = reg.club
+                    changed = True
+                # Update gender if blank
+                if not sk.gender and reg.gender:
+                    sk.gender = reg.gender
+                    changed = True
+                if changed:
+                    updated += 1
+            else:
+                not_found.append(f"{sk.first} {sk.last}")
+
+        session.commit()
+        return jsonify({
+            "ok": True,
+            "updated": updated,
+            "total": len(skaters),
+            "not_found": not_found[:10],
+            "not_found_count": len(not_found),
+        })
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
 def reseed():
     data = request.json; event_id = data["event_id"]
     session = db()
