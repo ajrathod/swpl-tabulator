@@ -2080,6 +2080,15 @@ showSchedule = async function() {
   return _origShowSchedule();
 };
 
+// Ensure all fetch calls send session cookie
+const _origFetch = window.fetch;
+window.fetch = (url, opts={}) => {
+  if (typeof url === 'string' && url.startsWith('/')) {
+    opts = {...opts, credentials: opts.credentials || 'include'};
+  }
+  return _origFetch(url, opts);
+};
+
 function toggleSidebar() {
   const sidebar  = document.querySelector('aside.sidebar');
   const overlay  = document.getElementById('sidebar-overlay');

@@ -956,15 +956,26 @@ document.getElementById('reg-modal').addEventListener('click', e => {
 
 async function deleteComp(id,name){
   if(!confirm(`Delete "${name}" and all its data?\nThis cannot be undone.`)) return;
-  const r=await fetch('/api/competitions/'+id,{method:'DELETE'});
-  const d=await r.json();
+  const r=await fetch('/api/competitions/'+id,{method:'DELETE',credentials:'include'});
+  if(r.status===401){window.location='/login';return;}
+  if(!r.ok){toast('Delete failed ('+r.status+')','error');return;}
+  const d=await r.json().catch(()=>({}));
   if(d.ok){document.getElementById('card-'+id)?.remove();toast('Deleted','success');}
-  else toast('Error','error');
+  else toast(d.error||'Error','error');
 }
 
 document.getElementById('wizard-modal').addEventListener('click',e=>{
   if(e.target===document.getElementById('wizard-modal')) closeWizard();
 });
+
+// Ensure all fetch calls send session cookie
+const _origFetch = window.fetch;
+window.fetch = (url, opts={}) => {
+  if (typeof url === 'string' && url.startsWith('/')) {
+    opts = {...opts, credentials: opts.credentials || 'include'};
+  }
+  return _origFetch(url, opts);
+};
 </script>
 </body>
 </html>
