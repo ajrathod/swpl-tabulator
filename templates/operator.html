@@ -677,6 +677,7 @@ function renderEvent(ev, group) {
 
   html += `<div class="flex items-center gap-3 mt-2 operator-only">
     <button onclick="reseedEv(${ev.id},'individual')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🔄 Re-seed All Heats</button>
+    <button onclick="syncFromRegistry()" class="px-3 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition">📋 Sync from Registry</button>
     <span class="text-xs text-gray-400">Rebuilds from current roster · Saved results preserved</span>
     ${ev.points_event ? '<span class="text-xs text-yellow-600 font-semibold bg-yellow-50 px-2 py-1 rounded-full">🏆 Counts toward standings</span>' : ''}
   </div>`;
@@ -1825,6 +1826,20 @@ async function setSchedStatus(eventId, status) {
   else toast(d.error || 'Error', 'error');
 }
 
+
+async function syncFromRegistry() {
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
+  const r = await fetch(`/api/comp/${COMP_ID}/sync_from_registry`, {method:'POST'});
+  const d = await r.json();
+  if (btn) { btn.disabled = false; btn.textContent = '📋 Sync from Registry'; }
+  if (d.ok) {
+    let msg = `✓ ${d.updated} athletes updated from registry`;
+    if (d.not_found_count > 0) msg += ` · ${d.not_found_count} not in registry`;
+    toast(msg, 'success');
+    if (curGroup) selectGroup(curGroup);
+  } else toast(d.error || 'Sync failed', 'error');
+}
 
 async function showRegistrations() {
   curGroup = null;
