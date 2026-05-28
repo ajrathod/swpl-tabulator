@@ -4,277 +4,92 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>{{comp.name}} — Check-in</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: { colors: { brand: { DEFAULT:'#F4511E', dark:'#BF360C' } },
+    fontFamily: { sans: ['Inter','system-ui','-apple-system','sans-serif'] } } }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --orange: #F4511E;
-    --bg: #F5F5F5;
-    --card: #FFFFFF;
-    --border: #E5E7EB;
-    --text: #111827;
-    --muted: #6B7280;
-    --faint: #9CA3AF;
-    --green: #16A34A;
-    --blue: #1D4ED8;
-  }
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding-bottom: 80px;
-  }
-
-  /* ── Header ── */
-  .hdr {
-    position: sticky; top: 0; z-index: 50;
-    background: #1A1A2E; color: white;
-    padding: 0 16px;
-    display: flex; align-items: center; gap: 12px;
-    height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
-  }
-  .hdr-logo { font-size: 15px; font-weight: 600; letter-spacing: .02em; }
-  .hdr-logo span { color: var(--orange); }
-  .hdr-comp { font-size: 13px; color: rgba(255,255,255,.6); }
-  .hdr-live { background: var(--orange); color: white; font-size: 11px;
-    font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-left: auto; }
-
-  /* ── Search ── */
-  .search-bar {
-    padding: 8px 12px;
-    background: white;
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 56px; z-index: 40;
-  }
-  .search-inp {
-    width: 100%; padding: 10px 14px; font-size: 16px;
-    border: 1.5px solid var(--border); border-radius: 12px;
-    outline: none; font-family: inherit; background: var(--bg);
-    color: var(--text);
-  }
-  .search-inp:focus { border-color: var(--orange); background: white; }
-
-  /* ── Group tab bar ── */
-  .tab-bar {
-    background: white; border-bottom: 1px solid var(--border);
-    padding: 0 8px;
-    overflow-x: auto; display: flex; gap: 4px;
-    scrollbar-width: none; -webkit-overflow-scrolling: touch;
-    position: sticky; top: calc(56px + 56px); z-index: 39;
-  }
-  .tab-bar::-webkit-scrollbar { display: none; }
-  .tab-btn {
-    padding: 10px 14px; font-size: 14px; font-weight: 500;
-    color: var(--muted); background: none; border: none;
-    border-bottom: 3px solid transparent; cursor: pointer;
-    white-space: nowrap; transition: all .15s;
-    font-family: inherit; min-height: 44px;
-    flex-shrink: 0;
-  }
-  .tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
-  .tab-divider {
-    width: 1px; background: var(--border); margin: 8px 0; flex-shrink: 0;
-  }
-
-  /* ── Main content ── */
-  .main { padding: 16px; max-width: 900px; margin: 0 auto; }
-
-  /* ── Group label ── */
-  .group-label {
-    font-size: 22px; font-weight: 600; margin-bottom: 16px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .group-count {
-    font-size: 13px; font-weight: 400; color: var(--muted);
-    background: var(--border); padding: 2px 10px; border-radius: 20px;
-  }
-
-  /* ── Heat card ── */
-  .heat-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; margin-bottom: 16px; overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-  }
-  .heat-hdr {
-    padding: 14px 18px; display: flex; align-items: center; gap: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .heat-hdr.hh { background: #EFF6FF; }
-  .heat-hdr.sh { background: #F5F3FF; }
-  .heat-hdr.fh { background: #FFFBEB; }
-  .heat-label { font-size: 16px; font-weight: 600; }
-  .heat-hdr.hh .heat-label { color: #1D4ED8; }
-  .heat-hdr.sh .heat-label { color: #7C3AED; }
-  .heat-hdr.fh .heat-label { color: #D97706; }
-  .heat-count { font-size: 13px; color: var(--muted); margin-left: auto; }
-
-  /* ── Skater row ── */
-  .skater-row {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 18px; border-bottom: 1px solid var(--border);
-    min-height: 60px;
-  }
-  .skater-row:last-child { border-bottom: none; }
-  .skater-row.highlight { background: #FFF7ED; }
-  .panel-num {
-    font-family: 'DM Mono', monospace; font-size: 13px;
-    color: var(--faint); width: 42px; flex-shrink: 0;
-  }
-  .skater-name { font-size: 18px; flex: 1; }
-  .skater-club { font-size: 13px; color: var(--muted); }
-
-  /* ── Relay team row ── */
-  .relay-row {
-    display: flex; align-items: flex-start; gap: 14px;
-    padding: 14px 18px; border-bottom: 1px solid var(--border);
-    min-height: 60px;
-  }
-  .relay-row:last-child { border-bottom: none; }
-  .relay-num { font-size: 15px; color: var(--faint); width: 24px; flex-shrink: 0; margin-top: 2px; }
-  .relay-info { flex: 1; }
-  .relay-club { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-  .bib-badge {
-    font-size: 11px; font-weight: 500; padding: 2px 10px;
-    border-radius: 20px; color: white;
-  }
-  .relay-members { font-size: 17px; font-weight: 400; color: var(--text); line-height: 1.6; }
-
-  /* ── Empty state ── */
-  .empty { text-align: center; padding: 48px 24px; color: var(--faint); }
-  .empty-icon { font-size: 36px; margin-bottom: 12px; }
-  .empty-msg { font-size: 15px; }
-
-  /* ── Search results ── */
-  .search-result-hdr {
-    font-size: 12px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: .06em; color: var(--faint);
-    padding: 16px 0 8px;
-  }
-
-  /* ── Mode bar ── */
-  .mode-bar {
-    background: white; border-bottom: 1px solid var(--border);
-    padding: 0 12px; display: flex; gap: 0;
-    position: sticky; top: 56px; z-index: 42;
-  }
-  .mode-btn {
-    padding: 12px 18px; font-size: 14px; font-weight: 500;
-    color: var(--muted); background: none; border: none;
-    border-bottom: 3px solid transparent; cursor: pointer;
-    white-space: nowrap; font-family: inherit; min-height: 44px;
-    transition: all .15s;
-  }
-  .mode-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
-
-  /* ── Schedule ── */
-  .sched-section { display:flex;align-items:center;gap:10px;margin:20px 0 10px; }
-  .sched-time { font-size:11px;font-weight:600;color:var(--faint);
-    background:#F3F4F6;border:1px solid var(--border);
-    border-radius:20px;padding:2px 10px;white-space:nowrap; }
-  .sched-section-name { font-size:10px;font-weight:700;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--faint);white-space:nowrap; }
-  .sched-section::after { content:'';flex:1;height:1px;background:var(--border); }
-  .sched-row { display:flex;align-items:center;gap:12px;padding:14px 16px;
-    border-radius:14px;border:1px solid var(--border);
-    background:white;margin-bottom:8px;transition:all .2s; }
-  .sched-row.in_progress { background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.4); }
-  .sched-row.done { background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.3); }
-  .sched-num { font-size:11px;font-family:'DM Mono',monospace;
-    color:var(--faint);width:52px;flex-shrink:0; }
-  .sched-info { flex:1;min-width:0; }
-  .sched-label { font-size:15px;color:var(--text); }
-  .sched-meta { font-size:11px;color:var(--faint);margin-top:2px; }
-  .sched-badge { display:inline-flex;align-items:center;gap:5px;
-    padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap; }
-  .sched-badge.pending { background:#F3F4F6;color:var(--faint);border:1px solid var(--border); }
-  .sched-badge.in_progress { background:rgba(245,158,11,.15);color:#D97706;border:1px solid rgba(245,158,11,.3); }
-  .sched-badge.done { background:rgba(34,197,94,.12);color:#16A34A;border:1px solid rgba(34,197,94,.3); }
-  .sched-live-dot { width:7px;height:7px;border-radius:50%;background:#F59E0B;
-    animation:pulse 1.2s ease-in-out infinite;flex-shrink:0; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
-
-  /* ── Check-in status ── */
-  .ci-btn {
-    flex-shrink: 0; border: none; border-radius: 20px;
-    padding: 6px 14px; font-size: 12px; font-weight: 600;
-    cursor: pointer; font-family: inherit; transition: all .15s;
-    white-space: nowrap;
-  }
-  .ci-pending  { background:#F3F4F6; color:#6B7280; }
-  .ci-pending:active  { background:#E5E7EB; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#F9FAFB; }
+  .mono { font-family:'DM Mono',monospace; }
+  .ci-btn { border:none; border-radius:20px; padding:5px 14px; font-size:11px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
+  .ci-pending   { background:#F3F4F6; color:#6B7280; }
   .ci-checked_in { background:#DCFCE7; color:#16A34A; }
-  .ci-checked_in:active { background:#BBF7D0; }
-  .ci-dns      { background:#FEE2E2; color:#DC2626; }
-  .ci-dns:active { background:#FECACA; }
-  .skater-name.dns { text-decoration: line-through; color: var(--faint); }
-  .rbar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: white; border-top: 1px solid var(--border);
-    padding: 10px 16px; display: flex; align-items: center;
-    justify-content: space-between; font-size: 12px; color: var(--faint);
-    z-index: 99;
-  }
-  .rbar-btn {
-    font-size: 13px; font-weight: 600; color: var(--orange);
-    background: none; border: none; cursor: pointer; font-family: inherit;
-  }
+  .ci-dns       { background:#FEE2E2; color:#DC2626; }
+  .name-dns     { text-decoration:line-through; color:#9CA3AF; }
+
+  /* Schedule styles */
+  .sched-row { display:flex; align-items:center; gap:12px; padding:12px 16px;
+    border-radius:12px; border:1px solid #E5E7EB; background:white; margin-bottom:8px; }
+  .sched-row.in_progress { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.4); }
+  .sched-row.done { background:rgba(34,197,94,.07); border-color:rgba(34,197,94,.3); }
+  .sched-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px;
+    border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .sched-badge.pending { background:#F3F4F6; color:#9CA3AF; border:1px solid #E5E7EB; }
+  .sched-badge.in_progress { background:rgba(245,158,11,.15); color:#D97706; border:1px solid rgba(245,158,11,.3); }
+  .sched-badge.done { background:rgba(34,197,94,.12); color:#16A34A; border:1px solid rgba(34,197,94,.3); }
+  .live-dot { width:7px; height:7px; border-radius:50%; background:#F59E0B;
+    animation:pulse 1.2s ease-in-out infinite; flex-shrink:0; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
 </style>
 </head>
-<body>
+<body class="min-h-screen">
 
-<header class="hdr">
+<!-- Header -->
+<header class="fixed top-0 inset-x-0 z-50 bg-gray-900 h-14 flex items-center px-4 gap-3 shadow-sm">
   <div>
-    <div class="hdr-logo">SWPL<span>/</span>RACING</div>
-    <div class="hdr-comp">{{comp.name}}</div>
+    <div class="text-white font-bold text-sm tracking-wide">SWPL<span class="text-brand">/</span>RACING</div>
+    <div class="text-gray-400 text-xs">{{comp.name}}</div>
   </div>
-  <div class="hdr-live" id="live-badge">● LIVE</div>
+  <div class="ml-auto flex items-center gap-2">
+    <span class="bg-brand text-white text-xs font-bold px-2.5 py-1 rounded-full">● LIVE</span>
+  </div>
 </header>
 
 <!-- Mode bar -->
-<div class="mode-bar">
-  <button class="mode-btn active" id="mode-program" onclick="setMode('program')">📋 Program</button>
-  <button class="mode-btn" id="mode-schedule" onclick="setMode('schedule')">📅 Schedule</button>
+<div class="fixed top-14 inset-x-0 z-40 bg-white border-b border-gray-200 flex">
+  <button id="mode-program" onclick="setMode('program')"
+    class="px-5 py-3 text-sm font-500 border-b-2 border-brand text-brand transition">📋 Program</button>
+  <button id="mode-schedule" onclick="setMode('schedule')"
+    class="px-5 py-3 text-sm font-500 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">📅 Schedule</button>
 </div>
 
-<!-- Search (only in program mode) -->
-<div id="search-wrap" style="background:white;border-bottom:1px solid var(--border);padding:8px 12px;position:sticky;top:calc(56px + 44px);z-index:41">
-  <input class="search-inp" id="search-inp" type="search"
-    placeholder="Search skater name or panel #…"
-    oninput="doSearch(this.value)" autocomplete="off">
+<!-- Search -->
+<div id="search-wrap" class="fixed inset-x-0 z-39 bg-white border-b border-gray-100 px-4 py-2" style="top:calc(56px + 44px);z-index:39">
+  <input id="search-inp" type="search" placeholder="Search skater name or panel #…"
+    oninput="doSearch(this.value)" autocomplete="off"
+    class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-brand transition bg-gray-50">
 </div>
 
-<!-- Group tab bar (program mode only) -->
-<div class="tab-bar" id="tab-bar" style="position:sticky;top:calc(56px + 44px + 54px);z-index:40"></div>
+<!-- Tab bar -->
+<div id="tab-bar" class="fixed inset-x-0 z-38 bg-white border-b border-gray-200 overflow-x-auto flex gap-0 scrollbar-hide"
+  style="top:calc(56px + 44px + 52px);z-index:38;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
 
-<div class="main" id="main-content">
-  <div class="empty"><div class="empty-icon">⏳</div><div class="empty-msg">Loading…</div></div>
-</div>
+<!-- Main content -->
+<div id="main-content" class="pt-48 pb-16 px-4 max-w-6xl mx-auto"></div>
 
-<div class="rbar">
-  <span id="last-upd">Loading…</span>
-  <button class="rbar-btn" onclick="doRefresh()">↻ Refresh</button>
+<!-- Footer -->
+<div class="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-2.5 flex items-center justify-between z-50">
+  <span id="last-upd" class="text-xs text-gray-400">Loading…</span>
+  <button onclick="doRefresh()" class="text-xs font-semibold text-brand">↻ Refresh</button>
 </div>
 
 <script>
 const COMP_ID = {{comp.id}};
-const COLORS  = {
-  green:'#2E7D32', blue:'#1565C0', yellow:'#B7791F', pink:'#BE185D',
-  'light blue':'#0369A1', black:'#1F2937', red:'#B91C1C'
-};
+const RBIB = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
 
-let allGroups    = {};
-let allRelays    = {};
-let allGroupData = {};
-let checkinStatus = {};  // panel -> 'pending'|'checked_in'|'dns'
-let curGroup     = null;
-let curMode      = 'program';
-let timer        = null;
+let allGroups = {}, allRelays = {}, allGroupData = {}, checkinStatus = {};
+let curGroup = null, curMode = 'program', timer = null;
 
-function ts() {
-  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-}
+const ts = () => new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+function esc(s){ return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function setContent(h){ document.getElementById('main-content').innerHTML = h; }
 
+// ── Check-in ──────────────────────────────────────────────────────────────────
 async function loadCheckinStatus() {
   try {
     const r = await fetch(`/api/comp/${COMP_ID}/checkin_status`);
@@ -282,92 +97,36 @@ async function loadCheckinStatus() {
   } catch(e) {}
 }
 
-async function toggleCheckin(panel, btn) {
-  const cur = checkinStatus[panel] || 'pending';
-  const next = cur === 'pending' ? 'checked_in' : cur === 'checked_in' ? 'dns' : 'pending';
-  checkinStatus[panel] = next;
-  applyCheckinBtn(btn, panel);
-  // Update name style
-  const row = btn.closest('.skater-row');
-  if (row) row.querySelector('.skater-name')?.classList.toggle('dns', next === 'dns');
-  // Save to server
-  await fetch(`/api/comp/${COMP_ID}/checkin_status`, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({panel, status: next})
-  }).catch(() => {});
-}
-
-function applyCheckinBtn(btn, panel) {
-  const status = checkinStatus[panel] || 'pending';
-  btn.className = `ci-btn ci-${status}`;
-  btn.textContent = status === 'pending' ? 'Check In' : status === 'checked_in' ? '✅ Present' : '❌ DNS';
+async function toggleCheckin(panel, evName, btn) {
+  const key = `${panel}__${evName}`;
+  const cur = checkinStatus[key] || 'pending';
+  const next = cur==='pending'?'checked_in':cur==='checked_in'?'dns':'pending';
+  checkinStatus[key] = next;
+  btn.className = `ci-btn ci-${next}`;
+  btn.textContent = next==='pending'?'Check In':next==='checked_in'?'✅ Present':'❌ DNS';
+  const nameEl = btn.closest('tr')?.querySelector('.skater-name');
+  if (nameEl) nameEl.classList.toggle('name-dns', next==='dns');
+  await fetch(`/api/comp/${COMP_ID}/checkin_status`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({panel, event_name:evName, status:next})
+  }).catch(()=>{});
 }
 
 // ── Mode ──────────────────────────────────────────────────────────────────────
 function setMode(mode) {
   curMode = mode;
-  document.getElementById('mode-program').classList.toggle('active', mode === 'program');
-  document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
-  document.getElementById('search-wrap').style.display = mode === 'program' ? '' : 'none';
-  document.getElementById('tab-bar').style.display     = mode === 'program' ? '' : 'none';
-  if (mode === 'schedule') { renderSchedule(); }
-  else if (curGroup) {
-    if (curGroup.type === 'group') renderGroup(curGroup.key);
-    else renderRelay(curGroup.key);
-  }
-}
-
-// ── Schedule ──────────────────────────────────────────────────────────────────
-async function renderSchedule() {
-  setContent('<div class="empty"><div class="empty-icon">⏳</div><div class="empty-msg">Loading schedule…</div></div>');
-  const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
-  const evs = await r.json().catch(() => []);
-  if (!evs.length) {
-    setContent('<div class="empty"><div class="empty-icon">📅</div><div class="empty-msg">No schedule uploaded yet</div></div>');
-    return;
-  }
-  let html = ''; let curSection = '';
-  evs.forEach(ev => {
-    if (ev.section !== curSection) {
-      curSection = ev.section;
-      html += `<div class="sched-section">
-        <span class="sched-time">${ev.section_time}</span>
-        <span class="sched-section-name">${ev.section}</span>
-      </div>`;
-    }
-    const badge = ev.status === 'in_progress'
-      ? `<span class="sched-badge in_progress"><span class="sched-live-dot"></span>In Progress</span>`
-      : ev.status === 'done'
-      ? `<span class="sched-badge done">✓ Done</span>`
-      : `<span class="sched-badge pending">Upcoming</span>`;
-    html += `<div class="sched-row ${ev.status}">
-      <div class="sched-num">${ev.race_number}</div>
-      <div class="sched-info">
-        <div class="sched-label">${ev.label}</div>
-        <div class="sched-meta">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
-      </div>
-      ${badge}
-    </div>`;
-  });
-  setContent(html);
-}
-
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-async function init() {
-  const [gr, rr] = await Promise.all([
-    fetch(`/api/${COMP_ID}/groups`),
-    fetch(`/api/${COMP_ID}/relays`)
-  ]);
-  allGroups = await gr.json().catch(() => ({}));
-  allRelays  = await rr.json().catch(() => ({}));
-  await loadCheckinStatus();
-  buildTabs();
-  const firstGroup = Object.keys(allGroups).sort()[0];
-  if (firstGroup) selectGroup(firstGroup);
-  document.getElementById('last-upd').textContent = 'Updated ' + ts();
-  timer = setInterval(doRefresh, 20000);
+  const prog = document.getElementById('mode-program');
+  const sched = document.getElementById('mode-schedule');
+  const search = document.getElementById('search-wrap');
+  const tabs = document.getElementById('tab-bar');
+  prog.className  = mode==='program'  ? 'px-5 py-3 text-sm font-500 border-b-2 border-brand text-brand transition'
+                                      : 'px-5 py-3 text-sm font-500 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition';
+  sched.className = mode==='schedule' ? 'px-5 py-3 text-sm font-500 border-b-2 border-brand text-brand transition'
+                                      : 'px-5 py-3 text-sm font-500 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition';
+  search.style.display = mode==='program' ? '' : 'none';
+  tabs.style.display   = mode==='program' ? '' : 'none';
+  if (mode==='schedule') renderSchedule();
+  else if (curGroup) { curGroup.type==='group'?renderGroup(curGroup.key):renderRelay(curGroup.key); }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -375,28 +134,123 @@ function buildTabs() {
   const bar = document.getElementById('tab-bar');
   const groups = Object.keys(allGroups).sort();
   const relays = Object.keys(allRelays).sort();
-
-  const groupBtns = groups.map(g => `
-    <button class="tab-btn" id="tab-${CSS.escape(g)}" onclick="selectGroup('${esc(g)}')">${g}</button>`
-  ).join('');
-
-  const relayDivider = relays.length ? '<div class="tab-divider"></div>' : '';
-
-  const relayBtns = relays.map((name, i) => {
-    // Shorten relay name for tab: remove distance and "Final", keep key info
+  const tabCls = (active) => active
+    ? 'px-4 py-3 text-sm font-500 border-b-2 border-brand text-brand whitespace-nowrap flex-shrink-0 bg-none border-none cursor-pointer font-sans'
+    : 'px-4 py-3 text-sm text-gray-500 border-b-2 border-transparent whitespace-nowrap flex-shrink-0 bg-none border-none cursor-pointer font-sans hover:text-gray-700';
+  let html = groups.map(g =>
+    `<button id="tab-${CSS.escape(g)}" onclick="selectGroup('${esc(g)}')"
+      class="${tabCls(false)}" style="font-family:inherit">${g}</button>`).join('');
+  if (relays.length) html += '<div style="width:1px;background:#E5E7EB;margin:8px 0;flex-shrink:0"></div>';
+  html += relays.map((name,i) => {
     const short = name.replace(/\(.*?\)/g,'').replace(/Final/gi,'').trim();
-    return `<button class="tab-btn" id="tab-relay-${i}" onclick="selectRelay('${esc(name)}')"
-      style="max-width:140px;overflow:hidden;text-overflow:ellipsis;font-size:12px"
-      title="${name}">🔄 ${short}</button>`;
+    return `<button id="tab-relay-${i}" onclick="selectRelay('${esc(name)}')"
+      class="${tabCls(false)}" style="font-family:inherit;max-width:130px;overflow:hidden;text-overflow:ellipsis;font-size:12px"
+      title="${name.replace(/"/g,'&quot;')}">🔄 ${short}</button>`;
   }).join('');
-
-  bar.innerHTML = groupBtns + relayDivider + relayBtns;
+  bar.innerHTML = html;
 }
 
 function setActiveTab(id) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#tab-bar button').forEach(b => {
+    b.style.borderBottomColor = ''; b.style.color = '';
+    b.style.borderBottomWidth = '2px'; b.style.borderBottomStyle = 'solid';
+    b.style.borderBottomColor = 'transparent'; b.style.color = '#6B7280';
+  });
   const el = document.getElementById(id);
-  if (el) { el.classList.add('active'); el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }
+  if (el) {
+    el.style.borderBottomColor = '#F4511E'; el.style.color = '#F4511E';
+    el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+  }
+}
+
+// ── Heat card (matches operator style) ───────────────────────────────────────
+function hCard(heat, colorKey, evName) {
+  const label = heat.stage==='Final' ? 'Final' : `${heat.stage} ${heat.number}`;
+  const hdrs  = {heat:'bg-blue-600', semi:'bg-purple-600', final:'bg-yellow-500'};
+  const hdrBg = hdrs[colorKey] || 'bg-gray-600';
+  const skaters = heat.skaters || [];
+  const count = skaters.length;
+
+  if (!count) return `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-w-64 max-w-sm border border-gray-100">
+      <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+        <span class="text-white text-sm font-bold">${label}</span>
+        <span class="text-white/70 text-xs">0 skaters</span>
+      </div>
+      <div class="p-6 text-center text-gray-400 text-sm">No skaters assigned</div>
+    </div>`;
+
+  const rows = skaters.map((s,i) => {
+    const key = `${s.panel}__${evName}`;
+    const status = checkinStatus[key] || 'pending';
+    const btnLabel = status==='pending'?'Check In':status==='checked_in'?'✅ Present':'❌ DNS';
+    return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition">
+      <td class="px-3 py-2.5 text-xs text-gray-400 w-6">${i+1}</td>
+      <td class="px-3 py-2.5">
+        <span class="skater-name text-sm${status==='dns'?' name-dns':''}">${s.full_name}</span>
+      </td>
+      <td class="px-3 py-2.5 text-xs mono text-gray-400">${s.panel}</td>
+      <td class="px-3 py-2.5 text-xs text-gray-400">${s.club}</td>
+      <td class="px-3 py-2.5">
+        <button class="ci-btn ci-${status}"
+          onclick="toggleCheckin('${esc(s.panel)}','${esc(evName)}',this)">${btnLabel}</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-w-64 border border-gray-100">
+    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+      <span class="text-white text-sm font-bold">${label}</span>
+      <span class="text-white/70 text-xs">${count} skaters</span>
+    </div>
+    <table class="w-full">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <th class="px-3 py-2">#</th>
+        <th class="px-3 py-2 text-left">Name</th>
+        <th class="px-3 py-2 text-left">Panel</th>
+        <th class="px-3 py-2 text-left">Club</th>
+        <th class="px-3 py-2 text-left">Check-in</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// Relay heat card
+function relayHCard(heat, colorKey) {
+  const label = heat.stage==='Final' ? 'Final' : `${heat.stage} ${heat.number}`;
+  const hdrs  = {heat:'bg-blue-600', semi:'bg-purple-600', final:'bg-yellow-500'};
+  const hdrBg = hdrs[colorKey] || 'bg-gray-600';
+  const teams = heat.teams || [];
+
+  const rows = teams.map((t,i) => {
+    const bibColor = RBIB[(t.color||'').toLowerCase()] || '#9E9E9E';
+    const members = (t.members||[]).filter(m=>m&&m!=='nan');
+    return `<tr class="border-b border-gray-50">
+      <td class="px-3 py-2.5 text-xs text-gray-400 w-6">${i+1}</td>
+      <td class="px-3 py-2.5">
+        <div class="text-sm">${members.join(', ')||'—'}</div>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor}"></span>
+          <span class="text-xs text-gray-400">${t.club}</span>
+          <span class="text-xs text-gray-400">· ${t.color||'No helmet cover'}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-w-64 border border-gray-100">
+    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+      <span class="text-white text-sm font-bold">${label}</span>
+      <span class="text-white/70 text-xs">${teams.length} teams</span>
+    </div>
+    <table class="w-full">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
 
 // ── Group view ────────────────────────────────────────────────────────────────
@@ -408,55 +262,48 @@ async function selectGroup(group) {
 }
 
 async function loadGroup(group) {
-  const r = await fetch(`/api/${COMP_ID}/groups/${encodeURIComponent(group)}`);
-  const d = await r.json().catch(() => ({}));
-  allGroupData[group] = d;
+  try {
+    const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+    allGroupData[group] = await r.json();
+  } catch(e) {}
 }
 
 function renderGroup(group) {
   const data   = allGroupData[group] || {};
   const events = data.events || data || {};
   const count  = allGroups[group]?.skater_count || allGroups[group] || '';
-
-  const ORDER = ['Short Distance','Medium Distance','Long Distance'];
+  const ORDER  = ['Short Distance','Medium Distance','Long Distance'];
   const evNames = Object.keys(events).filter(n => n !== '__standings__');
-  const firstEv = ORDER.find(n => evNames.includes(n)) || evNames[0];
-  if (!firstEv) {
-    setContent(`<div class="group-label">${group} <span class="group-count">${count} skaters</span></div>
-      <div class="empty"><div class="empty-icon">📋</div><div class="empty-msg">No heats seeded yet</div></div>`);
+  const ordered = [...ORDER.filter(n=>evNames.includes(n)), ...evNames.filter(n=>!ORDER.includes(n))];
+
+  if (!ordered.length) {
+    setContent(`<div class="text-center py-16 text-gray-400">No heats seeded yet</div>`);
     return;
   }
 
-  const ev = events[firstEv];
-  const allStages = [
-    ...(ev.heats||[]).map(h=>({...h,stage:'hh',lbl:`Heat ${h.number}`})),
-    ...(ev.semis||[]).map(h=>({...h,stage:'sh',lbl:`Semi ${h.number}`})),
-    ...(ev.finals||[]).map(h=>({...h,stage:'fh',lbl:'Final'})),
-  ];
+  let html = `<div class="flex items-center gap-3 mb-5">
+    <h2 class="text-2xl font-bold text-gray-900">${group}</h2>
+    <span class="text-sm text-gray-400 bg-gray-100 px-3 py-1 rounded-full">${count} skaters</span>
+  </div>`;
 
-  let html = `<div class="group-label">${group} <span class="group-count">${count} skaters</span></div>`;
-  for (const heat of allStages) {
-    const skaters = heat.skaters || [];
-    html += `<div class="heat-card">
-      <div class="heat-hdr ${heat.stage}">
-        <span class="heat-label">${heat.lbl}</span>
-        <span class="heat-count">${skaters.length} skaters</span>
-      </div>`;
-    if (!skaters.length) {
-      html += `<div class="empty" style="padding:24px"><div class="empty-msg">Waiting for lineup</div></div>`;
-    } else {
-      html += skaters.map(s => {
-        const status = checkinStatus[s.panel] || 'pending';
-        const btnLabel = status === 'pending' ? 'Check In' : status === 'checked_in' ? '✅ Present' : '❌ DNS';
-        return `<div class="skater-row">
-          <span class="panel-num">#${s.panel}</span>
-          <span class="skater-name${status==='dns'?' dns':''}">${s.full_name}</span>
-          <span class="skater-club">${s.club}</span>
-          <button class="ci-btn ci-${status}" onclick="toggleCheckin('${s.panel}',this)">${btnLabel}</button>
-        </div>`;
-      }).join('');
-    }
-    html += '</div>';
+  for (const evName of ordered) {
+    const ev = events[evName];
+    if (!ev) continue;
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,_key:'heat'})),
+      ...(ev.semis||[]).map(h=>({...h,_key:'semi'})),
+      ...(ev.finals||[]).map(h=>({...h,_key:'final'})),
+    ];
+    if (!allStages.length) continue;
+
+    html += `<div class="mb-5">
+      <div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-3">
+        ${evName}<div class="flex-1 h-px bg-gray-200"></div>
+      </div>
+      <div class="flex gap-4 flex-wrap">
+        ${allStages.map(h => hCard(h, h._key, evName)).join('')}
+      </div>
+    </div>`;
   }
   setContent(html);
 }
@@ -464,146 +311,138 @@ function renderGroup(group) {
 // ── Relay view ────────────────────────────────────────────────────────────────
 function selectRelay(name) {
   curGroup = {type:'relay', key:name};
-  const relayNames = Object.keys(allRelays).sort();
-  const idx = relayNames.indexOf(name);
+  const idx = Object.keys(allRelays).sort().indexOf(name);
   setActiveTab(`tab-relay-${idx}`);
   renderRelay(name);
 }
 
 function renderRelay(name) {
   const ev = allRelays[name];
-  if (!ev) { setContent('<div class="empty"><div class="empty-msg">No relay data</div></div>'); return; }
-
+  if (!ev) { setContent('<div class="text-center py-16 text-gray-400">No relay data</div>'); return; }
   const allStages = [
-    ...(ev.heats||[]).map(h=>({...h,stage:'hh',lbl:`Heat ${h.number}`})),
-    ...(ev.semis||[]).map(h=>({...h,stage:'sh',lbl:`Semi ${h.number}`})),
-    ...(ev.finals||[]).map(h=>({...h,stage:'fh',lbl:'Final'})),
+    ...(ev.heats||[]).map(h=>({...h,_key:'heat'})),
+    ...(ev.semis||[]).map(h=>({...h,_key:'semi'})),
+    ...(ev.finals||[]).map(h=>({...h,_key:'final'})),
   ];
-
-  let html = `<div class="group-label" style="font-size:18px">🔄 ${name}</div>`;
-  for (const heat of allStages) {
-    const teams = heat.teams || [];
-    html += `<div class="heat-card">
-      <div class="heat-hdr ${heat.stage}">
-        <span class="heat-label">${heat.lbl}</span>
-        <span class="heat-count">${teams.length} teams</span>
-      </div>`;
-    if (!teams.length) {
-      html += `<div class="empty" style="padding:24px"><div class="empty-msg">Waiting for lineup</div></div>`;
-    } else {
-      html += teams.map((t, i) => {
-        const bib     = COLORS[(t.color||'').toLowerCase()] || '';
-        const bibHtml = t.color
-          ? `<span class="bib-badge" style="background:${bib}">${t.color}</span>`
-          : `<span class="bib-badge" style="background:#9CA3AF">No helmet cover</span>`;
-        const members = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
-        return `<div class="relay-row">
-          <span class="relay-num">${i+1}</span>
-          <div class="relay-info">
-            ${members ? `<div class="relay-members">${members}</div>` : ''}
-            <div class="relay-club">${t.club} ${bibHtml}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-    html += '</div>';
-  }
+  let html = `<h2 class="text-xl font-bold text-gray-900 mb-5">🔄 ${name}</h2>
+    <div class="flex gap-4 flex-wrap">
+      ${allStages.map(h => relayHCard(h, h._key)).join('') || '<p class="text-gray-400 text-sm">No heats yet</p>'}
+    </div>`;
   setContent(html);
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
 function doSearch(q) {
   q = q.trim().toLowerCase();
-  if (!q) {
-    if (curGroup) {
-      if (curGroup.type === 'group') renderGroup(curGroup.key);
-      else renderRelay(curGroup.key);
-    }
-    return;
-  }
-
+  if (!q) { if (curGroup) { curGroup.type==='group'?renderGroup(curGroup.key):renderRelay(curGroup.key); } return; }
   const results = [];
   Object.entries(allGroupData).forEach(([group, data]) => {
     const events = data.events || data || {};
-    const evNames = Object.keys(events).filter(n => n !== '__standings__');
-    const firstEv = evNames[0];
-    if (!firstEv) return;
-    const ev = events[firstEv];
-    const allStages = [
-      ...(ev.heats||[]).map(h=>({...h,stage:'hh',lbl:`Heat ${h.number}`})),
-      ...(ev.semis||[]).map(h=>({...h,stage:'sh',lbl:`Semi ${h.number}`})),
-      ...(ev.finals||[]).map(h=>({...h,stage:'fh',lbl:'Final'})),
-    ];
-    allStages.forEach(heat => {
-      (heat.skaters||[]).forEach(s => {
-        if (s.full_name.toLowerCase().includes(q) || s.panel?.toString().includes(q)) {
-          results.push({group, heat: heat.lbl, stage: heat.stage, skater: s});
-        }
+    Object.entries(events).forEach(([evName, ev]) => {
+      if (evName === '__standings__') return;
+      const allStages = [...(ev.heats||[]),...(ev.semis||[]),...(ev.finals||[])];
+      allStages.forEach(heat => {
+        (heat.skaters||[]).forEach(s => {
+          if (s.full_name.toLowerCase().includes(q) || (s.panel||'').toString().includes(q)) {
+            results.push({group, evName, heat, s});
+          }
+        });
       });
     });
   });
-
-  if (!results.length) {
-    setContent(`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-msg">No results for "${q}"</div></div>`);
-    return;
-  }
-
+  if (!results.length) { setContent('<div class="text-center py-16 text-gray-400">No results found</div>'); return; }
   const byGroup = {};
-  results.forEach(r => { byGroup[r.group] = (byGroup[r.group]||[]).concat(r); });
-
+  results.forEach(r => { (byGroup[r.group] = byGroup[r.group]||[]).push(r); });
   let html = '';
   Object.entries(byGroup).sort().forEach(([group, rows]) => {
-    html += `<div class="search-result-hdr">Group ${group}</div>`;
-    const byHeat = {};
-    rows.forEach(r => { byHeat[r.heat] = (byHeat[r.heat]||[]).concat(r); });
-    Object.entries(byHeat).forEach(([heatLbl, items]) => {
-      const stage = items[0].stage;
-      html += `<div class="heat-card">
-        <div class="heat-hdr ${stage}"><span class="heat-label">${heatLbl}</span></div>
-        ${items.map(({skater:s}) => `
-          <div class="skater-row highlight">
-            <span class="panel-num">#${s.panel}</span>
-            <span class="skater-name">${s.full_name}</span>
-            <span class="skater-club">${s.club}</span>
-          </div>`).join('')}
+    html += `<div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2 mt-4">${group}</div>`;
+    rows.forEach(({evName, heat, s}) => {
+      const key = `${s.panel}__${evName}`;
+      const status = checkinStatus[key] || 'pending';
+      const btnLabel = status==='pending'?'Check In':status==='checked_in'?'✅ Present':'❌ DNS';
+      html += `<div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 mb-2 flex items-center gap-3">
+        <span class="mono text-xs text-gray-400 w-12">#${s.panel}</span>
+        <span class="text-sm flex-1 ${status==='dns'?'name-dns':''}">${s.full_name}</span>
+        <span class="text-xs text-gray-400">${s.club}</span>
+        <span class="text-xs text-gray-300 mx-1">·</span>
+        <span class="text-xs text-gray-400">${evName}</span>
+        <button class="ci-btn ci-${status}"
+          onclick="toggleCheckin('${esc(s.panel)}','${esc(evName)}',this)">${btnLabel}</button>
       </div>`;
     });
   });
   setContent(html);
 }
 
-// ── Refresh ───────────────────────────────────────────────────────────────────
+// ── Schedule ──────────────────────────────────────────────────────────────────
+async function renderSchedule() {
+  setContent('<div class="text-center py-16 text-gray-400">Loading schedule…</div>');
+  try {
+    const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
+    const evs = await r.json().catch(() => []);
+    if (!evs.length) { setContent('<div class="text-center py-16 text-gray-400">No schedule uploaded yet</div>'); return; }
+    let html = '', curSection = '';
+    evs.forEach(ev => {
+      if (ev.section !== curSection) {
+        curSection = ev.section;
+        html += `<div class="flex items-center gap-3 mb-3 mt-5 first:mt-0">
+          <span class="text-xs text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5 whitespace-nowrap">${ev.section_time}</span>
+          <span class="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">${ev.section}</span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>`;
+      }
+      const badge = ev.status==='in_progress'
+        ? `<span class="sched-badge in_progress"><span class="live-dot"></span>In Progress</span>`
+        : ev.status==='done' ? `<span class="sched-badge done">✓ Done</span>`
+        : `<span class="sched-badge pending">Upcoming</span>`;
+      html += `<div class="sched-row ${ev.status} mb-2">
+        <div class="mono text-xs text-gray-400 w-14 flex-shrink-0">${ev.race_number}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm text-gray-900">${ev.label}</div>
+          <div class="text-xs text-gray-400 mt-0.5">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
+        </div>
+        ${badge}
+      </div>`;
+    });
+    setContent(html);
+  } catch(e) { setContent('<div class="text-center py-16 text-gray-400">Failed to load schedule</div>'); }
+}
+
+// ── Init & Refresh ────────────────────────────────────────────────────────────
 async function doRefresh() {
-  const q = document.getElementById('search-inp').value.trim();
-  if (q) return;
-
-  if (curMode === 'schedule') { renderSchedule(); return; }
-
+  if (curMode==='schedule') { renderSchedule(); return; }
   await loadCheckinStatus();
-  const [gr, rr] = await Promise.all([
-    fetch(`/api/${COMP_ID}/groups`),
-    fetch(`/api/${COMP_ID}/relays`)
-  ]);
-  allGroups = await gr.json().catch(() => allGroups);
-  allRelays  = await rr.json().catch(() => allRelays);
-
+  try {
+    const [gr, rr] = await Promise.all([
+      fetch(`/api/${COMP_ID}/groups`), fetch(`/api/${COMP_ID}/relays`)
+    ]);
+    allGroups = await gr.json().catch(() => allGroups);
+    allRelays  = await rr.json().catch(() => allRelays);
+  } catch(e) {}
   if (curGroup) {
-    if (curGroup.type === 'group') {
-      delete allGroupData[curGroup.key];
-      await loadGroup(curGroup.key);
-      renderGroup(curGroup.key);
-    } else {
-      renderRelay(curGroup.key);
-    }
+    if (curGroup.type==='group') { delete allGroupData[curGroup.key]; await loadGroup(curGroup.key); renderGroup(curGroup.key); }
+    else renderRelay(curGroup.key);
   }
   document.getElementById('last-upd').textContent = 'Updated ' + ts();
 }
 
-function setContent(html) {
-  document.getElementById('main-content').innerHTML = html;
+async function init() {
+  try {
+    const [gr, rr] = await Promise.all([
+      fetch(`/api/${COMP_ID}/groups`), fetch(`/api/${COMP_ID}/relays`)
+    ]);
+    allGroups = await gr.json().catch(() => ({}));
+    allRelays  = await rr.json().catch(() => ({}));
+    await loadCheckinStatus();
+    buildTabs();
+    const first = Object.keys(allGroups).sort()[0];
+    if (first) selectGroup(first);
+    document.getElementById('last-upd').textContent = 'Updated ' + ts();
+  } catch(e) {
+    setContent('<div class="text-center py-16 text-gray-400">Failed to load. Tap Refresh to retry.</div>');
+  }
+  timer = setInterval(doRefresh, 20000);
 }
-
-function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
 init();
 </script>
