@@ -539,6 +539,7 @@ def checkin_view(comp_id):
 
 
 
+@app.route("/athletes")
 def athletes_page():
     session = db()
     comps = session.query(Competition).order_by(Competition.date.desc()).all()
