@@ -193,8 +193,10 @@ def parse_individual(filepath):
             try:   age = int(float(row.get(c_age, 0)))
             except: age = 0
 
-            # Skip if no panel number
-            if not panel: continue
+            # Panel: use as-is, or use TBC placeholder if missing
+            if not panel:
+                panel = f"TBC-{first[:3].upper()}{last[:3].upper()}"
+
             # Skip duplicate panels
             key = f"{group}_{panel}"
             if key in seen: continue
