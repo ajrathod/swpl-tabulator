@@ -412,6 +412,7 @@ def seed_individual_heats_from_assignments(session, event, panels, heat_assignme
 
 
 
+def _fill_heat(session, heat, ids, kind):
     if kind == "individual":
         for order, panel in enumerate(ids):
             sk = session.query(Skater).filter_by(
