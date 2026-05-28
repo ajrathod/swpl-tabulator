@@ -21,14 +21,13 @@ APP_PASSCODE = os.environ.get('APP_PASSCODE', '')  # Set in Railway env vars
 
 # Routes that are always public (no passcode needed)
 PUBLIC_ROUTES = {
-    'public_view', 'checkin_view', 'register_page',
+    # Page routes
+    'public_view', 'checkin_view', 'register_page', 'app_login', 'static',
+    # Registration APIs
     'update_registration', 'get_registrations_public',
-    'app_login', 'static',
     # Public read APIs
-    'api_groups', 'api_relays', 'get_schedule', 'get_standings',
-    'get_event_data', 'get_all_results',
-    # Check-in APIs (no auth — check-in team uses these)
-    'get_checkin_status', 'set_checkin_status',
+    'api_groups', 'api_group', 'api_relays', 'api_standings',
+    'get_schedule', 'get_checkin_status', 'set_checkin_status',
 }
 
 def is_app_authed():
@@ -46,14 +45,10 @@ def require_app_auth():
         return  # Always allow public routes
     if request.endpoint == 'static':
         return
-    # Allow public GET API routes (read-only)
-    if request.method == 'GET' and request.endpoint and (
-        request.endpoint.startswith('api_') or
-        request.endpoint in ('get_schedule', 'get_standings', 'get_event_data',
-                             'get_all_results', 'relay_assign_data', 'get_prev_groups',
-                             'get_prev_relay_events', 'registry_list', 'athletes_list',
-                             'athlete_history', 'get_reg_links', 'get_registrations')
-    ):
+    # Allow all GET requests to /api/ routes that start with comp_id (public data)
+    if request.method == 'GET' and request.path.startswith('/api/') and is_app_authed():
+        return
+    if request.method == 'GET' and request.endpoint and request.endpoint in PUBLIC_ROUTES:
         return
     if is_app_authed():
         return
