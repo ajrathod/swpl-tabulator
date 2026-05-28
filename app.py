@@ -577,27 +577,27 @@ def registry_list():
 
 @app.route("/api/registry", methods=["POST"])
 def registry_add():
-    """Add a single athlete to the registry."""
     data = request.json
     usars = (data.get("usars_no") or "").strip()
     first = (data.get("first") or "").strip()
     last  = (data.get("last")  or "").strip()
     if not usars or not first or not last:
-        return jsonify({"error": "USARS No., First Name and Last Name are required"}), 400
+        return jsonify({"error": "USARS No., First and Last Name are required"}), 400
     session = db()
     try:
         existing = session.query(AthleteRegistry).filter_by(usars_no=usars).first()
         if existing:
             return jsonify({"error": f"USARS No. {usars} already exists ({existing.full_name})"}), 409
-        age_val = data.get("age")
-        lap_val = data.get("lap_time")
+        age_val = data.get("age"); lap_val = data.get("lap_time")
         a = AthleteRegistry(
-            usars_no=usars, first=first, last=last,
+            usars_no=usars,
+            panel_no=(data.get("panel_no") or "").strip() or None,
+            first=first, last=last,
             gender=(data.get("gender") or "").strip(),
-            dob=(data.get("dob") or "").strip(),
+            dob=(data.get("dob") or "").strip().split(' ')[0].split('T')[0] or None,
             club=(data.get("club") or "").strip(),
-            age=int(age_val) if age_val not in (None, "") else None,
-            lap_time=float(lap_val) if lap_val not in (None, "") else None,
+            age=int(age_val) if age_val not in (None,"") else None,
+            lap_time=float(lap_val) if lap_val not in (None,"") else None,
         )
         session.add(a); session.commit()
         return jsonify({"ok": True, "athlete": a.to_dict()})
@@ -614,6 +614,16 @@ def registry_update(athlete_id):
     try:
         a = session.query(AthleteRegistry).get(athlete_id)
         if not a: return jsonify({"error": "Not found"}), 404
+        # Allow usars_no to be updated
+        if "usars_no" in data and (data["usars_no"] or "").strip():
+            new_usars = data["usars_no"].strip()
+            if new_usars != a.usars_no:
+                clash = session.query(AthleteRegistry).filter_by(usars_no=new_usars).first()
+                if clash:
+                    return jsonify({"error": f"USARS No. {new_usars} already used by {clash.full_name}"}), 409
+                a.usars_no = new_usars
+        if "panel_no" in data:
+            a.panel_no = (data["panel_no"] or "").strip() or None
         for field in ("first","last","gender","club"):
             if field in data:
                 setattr(a, field, (data[field] or "").strip())
@@ -965,17 +975,24 @@ def upload_individual(comp_id):
                     AthleteRegistry.first.ilike(first),
                     AthleteRegistry.last.ilike(last)).first()
             if not match:
-                # Auto-create registry entry
-                new_usars = usars or panel  # use panel as usars fallback
-                if new_usars and not reg_session.query(AthleteRegistry).filter_by(usars_no=new_usars).first():
-                    reg_session.add(AthleteRegistry(
-                        usars_no=new_usars,
-                        first=first, last=last,
-                        club=r.get("club",""),
-                        age=r.get("age") or None,
-                        gender=r.get("gender","") or None,
-                    ))
-                    auto_added += 1
+                # Auto-create registry entry — use AUTO- prefix for temp usars_no
+                # Panel number stored separately in panel_no
+                temp_usars = f"AUTO-{first[:4].upper()}{last[:4].upper()}"
+                # Ensure uniqueness
+                suffix = 0
+                base = temp_usars
+                while reg_session.query(AthleteRegistry).filter_by(usars_no=temp_usars).first():
+                    suffix += 1
+                    temp_usars = f"{base}{suffix}"
+                reg_session.add(AthleteRegistry(
+                    usars_no=temp_usars,
+                    panel_no=panel if panel and not panel.startswith('TBC') else None,
+                    first=first, last=last,
+                    club=r.get("club",""),
+                    age=r.get("age") or None,
+                    gender=r.get("gender","") or None,
+                ))
+                auto_added += 1
         reg_session.commit()
 
         # Deduplicate by panel, enrich gender/usars from registry
@@ -1542,24 +1559,23 @@ def sync_from_registry(comp_id):
                     usars_no=sk.usars_no).first()
             if reg:
                 changed = False
-                # Update panel if current is TBC placeholder or blank
-                if (not sk.panel or sk.panel.startswith('TBC')) and reg.usars_no:
-                    sk.panel = reg.usars_no
+                # Update panel from registry panel_no if current is TBC or blank
+                reg_panel = reg.panel_no or reg.usars_no
+                if (not sk.panel or sk.panel.startswith('TBC')) and reg_panel:
+                    sk.panel = reg_panel
                     changed = True
-                # Update usars_no
-                if not sk.usars_no and reg.usars_no:
-                    sk.usars_no = reg.usars_no
-                    changed = True
+                # Update usars_no from registry
+                if not sk.usars_no or sk.usars_no.startswith('AUTO-'):
+                    if reg.usars_no and not reg.usars_no.startswith('AUTO-'):
+                        sk.usars_no = reg.usars_no
+                        changed = True
                 # Update club if blank
                 if not sk.club and reg.club:
-                    sk.club = reg.club
-                    changed = True
+                    sk.club = reg.club; changed = True
                 # Update gender if blank
                 if not sk.gender and reg.gender:
-                    sk.gender = reg.gender
-                    changed = True
-                if changed:
-                    updated += 1
+                    sk.gender = reg.gender; changed = True
+                if changed: updated += 1
             else:
                 not_found.append(f"{sk.first} {sk.last}")
 

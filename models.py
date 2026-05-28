@@ -76,12 +76,13 @@ class AthleteRegistry(Base):
     __tablename__ = "athlete_registry"
     id         = Column(Integer, primary_key=True)
     usars_no   = Column(String(30), nullable=False, unique=True)
+    panel_no   = Column(String(30))          # permanent panel/bib number
     first      = Column(String(100), nullable=False)
     last       = Column(String(100), nullable=False)
     gender     = Column(String(5))
-    dob        = Column(String(20))     # YYYY-MM-DD
-    age        = Column(Integer)        # stored, updated via Calculate Ages button
-    lap_time   = Column(Float)          # 100M lap time in seconds e.g. 43.2
+    dob        = Column(String(20))          # YYYY-MM-DD
+    age        = Column(Integer)             # stored, updated via Calculate Ages button
+    lap_time   = Column(Float)               # 100M lap time in seconds
     club       = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -93,9 +94,11 @@ class AthleteRegistry(Base):
     def to_dict(self):
         return {
             "id": self.id, "usars_no": self.usars_no,
+            "panel_no": self.panel_no or "",
             "first": self.first, "last": self.last,
             "full_name": self.full_name,
-            "gender": self.gender or "", "dob": (self.dob or "").split(' ')[0].split('T')[0],
+            "gender": self.gender or "",
+            "dob": (self.dob or "").split(' ')[0].split('T')[0],
             "age": self.age or "", "lap_time": self.lap_time or "",
             "club": self.club or "",
             "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else "",
