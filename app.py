@@ -158,7 +158,7 @@ def parse_individual(filepath):
             elif h in ('group', 'race group', 'race group '): col_map['group'] = col_idx
             elif h in ('m/f', 'gender', 'sex'): col_map['gender'] = col_idx
             elif h in ('100m time', '100m', 'lap time'): col_map['lap_time'] = col_idx
-            elif 'usars' in h or 'membership' in h: col_map['usars'] = col_idx
+            elif h in ('heat', 'heat / final', 'heat/final', 'heat_final'): col_map['heat'] = col_idx
 
         # Use detected columns or fall back to known defaults
         c_first   = col_map.get('first',   0)
@@ -169,6 +169,7 @@ def parse_individual(filepath):
         c_group   = col_map.get('group',   8)
         c_gender  = col_map.get('gender',  None)
         c_usars   = col_map.get('usars',   None)
+        c_heat    = col_map.get('heat',    None)
 
         cur_group = None
         seen = set()
@@ -202,8 +203,12 @@ def parse_individual(filepath):
             if key in seen: continue
             seen.add(key)
 
+            # Heat assignment from sheet (1, 2, F, etc.)
+            heat_val = _clean(row.get(c_heat,"")) if c_heat is not None else ""
+
             skaters.append({"first":first,"last":last,"gender":gender,"age":age,
-                            "panel":panel,"club":club,"group":group,"usars_no":usars_no})
+                            "panel":panel,"club":club,"group":group,"usars_no":usars_no,
+                            "heat":heat_val})
     return skaters
 
 
@@ -348,7 +353,65 @@ def seed_individual_heats(session, event, panels):
         _fill_heat(session, final, panels, "individual")
 
 
-def _fill_heat(session, heat, ids, kind):
+def seed_individual_heats_from_assignments(session, event, panels, heat_assignments):
+    """
+    Seed heats using explicit heat assignments from the master sheet.
+    heat_assignments: {panel: heat_val} where heat_val is '1','2','F','S' etc.
+    Falls back to auto-seeding for unassigned panels.
+    """
+    for h in list(event.heats): session.delete(h)
+    session.flush()
+
+    # Group panels by heat assignment
+    heat_buckets = {}  # heat_number -> [panels]
+    final_panels = []
+    semi_panels  = []
+    unassigned   = []
+
+    for panel in panels:
+        hval = heat_assignments.get(panel, "").strip().upper()
+        if hval in ('F', 'FINAL', 'FIN'):
+            final_panels.append(panel)
+        elif hval in ('S', 'SEMI', 'SF'):
+            semi_panels.append(panel)
+        elif hval.isdigit():
+            heat_buckets.setdefault(int(hval), []).append(panel)
+        else:
+            unassigned.append(panel)
+
+    # Distribute unassigned panels across existing heats or create new ones
+    if unassigned:
+        if heat_buckets:
+            # Add to smallest heat
+            min_heat = min(heat_buckets, key=lambda k: len(heat_buckets[k]))
+            heat_buckets[min_heat].extend(unassigned)
+        elif final_panels:
+            final_panels.extend(unassigned)
+        else:
+            heat_buckets[1] = unassigned
+
+    # Create heat records
+    for heat_num in sorted(heat_buckets.keys()):
+        h = Heat(event_id=event.id, stage="Heat", number=heat_num)
+        session.add(h); session.flush()
+        _fill_heat(session, h, heat_buckets[heat_num], "individual")
+
+    if semi_panels:
+        h = Heat(event_id=event.id, stage="Semi", number=1)
+        session.add(h); session.flush()
+        _fill_heat(session, h, semi_panels, "individual")
+
+    # Always create a final
+    final = Heat(event_id=event.id, stage="Final", number=1)
+    session.add(final); session.flush()
+    if final_panels and not heat_buckets:
+        # Direct final — no heats, all in final
+        _fill_heat(session, final, final_panels + semi_panels, "individual")
+    elif final_panels:
+        _fill_heat(session, final, final_panels, "individual")
+
+
+
     if kind == "individual":
         for order, panel in enumerate(ids):
             sk = session.query(Skater).filter_by(
@@ -996,7 +1059,8 @@ def upload_individual(comp_id):
         reg_session.commit()
 
         # Deduplicate by panel, enrich gender/usars from registry
-        seen = set(); panels_by_group = {}
+        # Also track heat assignments from sheet: {group: {panel: heat_val}}
+        seen = set(); panels_by_group = {}; heat_assignments = {}
         for r in raw:
             if r["panel"] in seen: continue
             seen.add(r["panel"])
@@ -1016,17 +1080,26 @@ def upload_individual(comp_id):
                         age=r["age"], club=r["club"], group_name=r["group"])
             session.add(sk)
             panels_by_group.setdefault(r["group"], []).append(r["panel"])
+            # Store heat assignment if present
+            heat_val = r.get("heat","").strip()
+            if heat_val:
+                heat_assignments.setdefault(r["group"], {})[r["panel"]] = heat_val
         reg_session.close()
         session.flush()
 
         # Create one Event row per (group, enabled_individual_event)
         for group, panels in panels_by_group.items():
+            grp_heats = heat_assignments.get(group, {})
+            has_heat_data = bool(grp_heats)
             for ce in ind_events:
                 ev = Event(competition_id=comp_id, group_name=group,
                            name=ce.event_name, event_type=ce.event_type,
                            points_event=ce.points_event)
                 session.add(ev); session.flush()
-                seed_individual_heats(session, ev, panels)
+                if has_heat_data:
+                    seed_individual_heats_from_assignments(session, ev, panels, grp_heats)
+                else:
+                    seed_individual_heats(session, ev, panels)
 
         session.commit()
         return jsonify({"ok":True, "skater_count":len(seen), "groups":sorted(panels_by_group.keys()),
