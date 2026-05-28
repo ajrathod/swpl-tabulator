@@ -130,26 +130,46 @@ def _is_group_header(row):
 
 def parse_individual(filepath):
     """
-    Parse master sheet. Handles old (col8 group) and new (col6 group per skater row) formats.
-    Columns: First(0) Last(1) M/F(2) Age(3) Panel(4) Club(5) Race Group(6) [USARS(auto-detected)]
+    Parse master sheet. Auto-detects column positions from header row.
+    Supports multiple formats where columns may be in different positions.
     """
     df = pd.read_excel(filepath, sheet_name=None, header=None, engine='openpyxl')
     skaters = []
-    SKIP_GRP = {"Race Group","Race Group ",""}
+    SKIP_GRP = {"Race Group","Race Group ","Group",""}
     for sname, ws in df.items():
         if sname.lower() in SKIP_SHEETS: continue
+        # Find header row (contains "First")
         hrow = None
         for i, row in ws.iterrows():
             if _clean(row.get(0,"")) == "First":
                 hrow = i; break
         if hrow is None: continue
-        # Auto-detect USARS column from header row
+
+        # Auto-detect ALL column positions from header row
         header = ws.iloc[hrow]
-        usars_col = None
+        col_map = {}
         for col_idx in range(len(header)):
-            h = _clean(header.get(col_idx,"")).lower()
-            if "usars" in h or "membership" in h:
-                usars_col = col_idx; break
+            h = _clean(header.get(col_idx,"")).lower().strip()
+            if h == 'first':            col_map['first']   = col_idx
+            elif h in ('last', 'last '): col_map['last']   = col_idx
+            elif h in ('age',):          col_map['age']    = col_idx
+            elif h in ('number', 'panel', 'bib', 'bib #', 'panel #'): col_map['panel'] = col_idx
+            elif h == 'club':            col_map['club']   = col_idx
+            elif h in ('group', 'race group', 'race group '): col_map['group'] = col_idx
+            elif h in ('m/f', 'gender', 'sex'): col_map['gender'] = col_idx
+            elif h in ('100m time', '100m', 'lap time'): col_map['lap_time'] = col_idx
+            elif 'usars' in h or 'membership' in h: col_map['usars'] = col_idx
+
+        # Use detected columns or fall back to known defaults
+        c_first   = col_map.get('first',   0)
+        c_last    = col_map.get('last',    1)
+        c_age     = col_map.get('age',     2)
+        c_panel   = col_map.get('panel',   3)
+        c_club    = col_map.get('club',    4)
+        c_group   = col_map.get('group',   8)
+        c_gender  = col_map.get('gender',  None)
+        c_usars   = col_map.get('usars',   None)
+
         cur_group = None
         seen = set()
         for i in range(hrow + 1, len(ws)):
@@ -157,20 +177,29 @@ def parse_individual(filepath):
             is_hdr, grp = _is_group_header(row)
             if is_hdr:
                 cur_group = grp; continue
-            first = _clean(row.get(0,""))
-            last  = _clean(row.get(1,""))
-            if not first: continue
-            panel  = _clean(row.get(4,""))
-            club   = _clean(row.get(5,""))
-            gender = _clean(row.get(2,""))
-            # Group: prefer col6 on row (new format), else tracked cur_group (old format)
-            row_grp = _clean(row.get(6,""))
+            first = _clean(row.get(c_first,""))
+            last  = _clean(row.get(c_last, ""))
+            if not first or first in ('X', 'First'): continue
+
+            panel  = _clean(row.get(c_panel,""))
+            club   = _clean(row.get(c_club, ""))
+            gender = _clean(row.get(c_gender,"")) if c_gender is not None else ""
+            usars_no = _clean(row.get(c_usars,"")) if c_usars is not None else ""
+
+            # Group: from detected group column, else tracked cur_group
+            row_grp = _clean(row.get(c_group,""))
             group = row_grp if row_grp and row_grp not in SKIP_GRP else (cur_group or "Unknown")
-            usars_no = _clean(row.get(usars_col,"")) if usars_col is not None else ""
-            try:   age = int(float(row.get(3, 0)))
+
+            try:   age = int(float(row.get(c_age, 0)))
             except: age = 0
-            if not panel or panel in seen: continue
-            seen.add(panel)
+
+            # Skip if no panel number
+            if not panel: continue
+            # Skip duplicate panels
+            key = f"{group}_{panel}"
+            if key in seen: continue
+            seen.add(key)
+
             skaters.append({"first":first,"last":last,"gender":gender,"age":age,
                             "panel":panel,"club":club,"group":group,"usars_no":usars_no})
     return skaters
@@ -907,36 +936,38 @@ def upload_individual(comp_id):
         raw = parse_individual(path)
         if not raw: return jsonify({"error":"No skaters found"}), 400
 
-        # ── Registry validation — block if any athlete not found ──────────────
-        session_check = db()
-        missing = []
+        # ── Auto-register athletes not in registry ────────────────────────────
+        reg_session = db()
+        auto_added = 0
         for r in raw:
             usars = r.get("usars_no","").strip()
-            first = r.get("first","").strip().lower()
-            last  = r.get("last","").strip().lower()
+            panel = r.get("panel","").strip()
+            first = r.get("first","").strip()
+            last  = r.get("last","").strip()
+            # Look up by USARS, then by name
             match = None
             if usars:
-                match = session_check.query(AthleteRegistry).filter_by(usars_no=usars).first()
+                match = reg_session.query(AthleteRegistry).filter_by(usars_no=usars).first()
             if not match:
-                match = session_check.query(AthleteRegistry).filter(
+                match = reg_session.query(AthleteRegistry).filter(
                     AthleteRegistry.first.ilike(first),
                     AthleteRegistry.last.ilike(last)).first()
             if not match:
-                missing.append({"panel": r["panel"], "first": r["first"],
-                                 "last": r["last"], "club": r["club"]})
-        session_check.close()
-
-        if missing:
-            return jsonify({
-                "error": "Some athletes are not in the registry. "
-                         "Please add them first before importing.",
-                "missing": missing,
-                "missing_count": len(missing),
-            }), 422
+                # Auto-create registry entry
+                new_usars = usars or panel  # use panel as usars fallback
+                if new_usars and not reg_session.query(AthleteRegistry).filter_by(usars_no=new_usars).first():
+                    reg_session.add(AthleteRegistry(
+                        usars_no=new_usars,
+                        first=first, last=last,
+                        club=r.get("club",""),
+                        age=r.get("age") or None,
+                        gender=r.get("gender","") or None,
+                    ))
+                    auto_added += 1
+        reg_session.commit()
 
         # Deduplicate by panel, enrich gender/usars from registry
         seen = set(); panels_by_group = {}
-        reg_session = db()
         for r in raw:
             if r["panel"] in seen: continue
             seen.add(r["panel"])
@@ -969,7 +1000,9 @@ def upload_individual(comp_id):
                 seed_individual_heats(session, ev, panels)
 
         session.commit()
-        return jsonify({"ok":True, "skater_count":len(seen), "groups":sorted(panels_by_group.keys())})
+        return jsonify({"ok":True, "skater_count":len(seen), "groups":sorted(panels_by_group.keys()),
+                        "auto_registered": auto_added,
+                        "message": f"{len(seen)} athletes loaded, {auto_added} new athletes added to registry" if auto_added else None})
     except Exception as e:
         session.rollback(); return jsonify({"error":str(e)}), 500
     finally:
