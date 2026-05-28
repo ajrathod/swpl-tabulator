@@ -372,7 +372,7 @@ async function selectAthlete(id) {
       <div class="detail-grid">
         <div class="detail-item"><label>Gender</label><div class="val">${a.gender||'—'}</div></div>
         <div class="detail-item"><label>Club</label><div class="val">${a.club||'—'}</div></div>
-        <div class="detail-item"><label>Date of Birth</label><div class="val">${a.dob||'—'}</div></div>
+        <div class="detail-item"><label>Date of Birth</label><div class="val">${(a.dob||'—').split(' ')[0].split('T')[0]}</div></div>
         <div class="detail-item"><label>Age</label><div class="val">${a.age||'—'}</div></div>
         <div class="detail-item"><label>Lap Time (100M)</label><div class="val">${a.lap_time ? a.lap_time+'s' : '—'}</div></div>
         <div class="detail-item"><label>Added</label><div class="val">${a.created_at||'—'}</div></div>
@@ -429,7 +429,7 @@ function startEdit(id) {
         </div>
         <div class="form-grp">
           <label class="form-lbl">Date of Birth</label>
-          <input class="form-inp" id="edit-dob" type="date" value="${a.dob||''}" onchange="autoCalcAge('edit')">
+          <input class="form-inp" id="edit-dob" type="date" value="${(a.dob||'').split(' ')[0].split('T')[0]}" onchange="autoCalcAge('edit')">
         </div>
         <div class="form-grp">
           <label class="form-lbl">Age <span style="font-weight:400;color:var(--g400)">(auto-fills from DOB)</span></label>
