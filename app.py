@@ -1559,20 +1559,26 @@ def sync_from_registry(comp_id):
                     usars_no=sk.usars_no).first()
             if reg:
                 changed = False
-                # Update panel from registry panel_no if current is TBC or blank
-                reg_panel = reg.panel_no or reg.usars_no
+                # Get the best panel number from registry:
+                # prefer panel_no, then usars_no if it looks like a real panel (not AUTO-)
+                reg_panel = reg.panel_no
+                if not reg_panel and reg.usars_no and not reg.usars_no.startswith('AUTO-'):
+                    reg_panel = reg.usars_no
+
+                # Update panel if current is TBC placeholder or blank
                 if (not sk.panel or sk.panel.startswith('TBC')) and reg_panel:
-                    sk.panel = reg_panel
-                    changed = True
-                # Update usars_no from registry
-                if not sk.usars_no or sk.usars_no.startswith('AUTO-'):
-                    if reg.usars_no and not reg.usars_no.startswith('AUTO-'):
-                        sk.usars_no = reg.usars_no
-                        changed = True
-                # Update club if blank
+                    sk.panel = reg_panel; changed = True
+                # Also update if registry has a panel_no and current panel differs
+                elif reg.panel_no and sk.panel != reg.panel_no:
+                    sk.panel = reg.panel_no; changed = True
+
+                # Update usars_no from registry if ours is AUTO- or blank
+                if reg.usars_no and not reg.usars_no.startswith('AUTO-'):
+                    if not sk.usars_no or sk.usars_no.startswith('AUTO-') or sk.usars_no.startswith('TBC'):
+                        sk.usars_no = reg.usars_no; changed = True
+
                 if not sk.club and reg.club:
                     sk.club = reg.club; changed = True
-                # Update gender if blank
                 if not sk.gender and reg.gender:
                     sk.gender = reg.gender; changed = True
                 if changed: updated += 1
