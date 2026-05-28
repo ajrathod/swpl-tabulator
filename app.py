@@ -61,7 +61,28 @@ def require_app_auth():
     return redirect(url_for('app_login', next=request.url))
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.errorhandler(404)
+def not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Not found"}), 404
+    return "Not found", 404
+
+@app.errorhandler(500)
+def server_error(e):
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Internal server error"}), 500
+    return "Internal server error", 500
+
+@app.errorhandler(Exception)
+def unhandled_exception(e):
+    import traceback, logging
+    logging.error(f"Unhandled exception: {traceback.format_exc()}")
+    if request.path.startswith('/api/'):
+        return jsonify({"error": str(e)}), 500
+    return "An error occurred", 500
+
+
+
 def app_login():
     error = None
     if request.method == 'POST':
@@ -242,6 +263,8 @@ def parse_relay(filepath):
             col1 = _clean(row.get(1, ""))
             col2 = _clean(row.get(2, ""))
             col5 = _clean(row.get(5, ""))
+            # Normalize color names
+            col5 = {"lt blue":"Light Blue","lt. blue":"Light Blue","lightblue":"Light Blue"}.get(col5.lower(), col5)
 
             # ── Skip blank rows ─────────────────────────────────────────────
             if not col0 and not col1:
@@ -1242,49 +1265,60 @@ def arrange_heats():
 @app.route("/api/<int:comp_id>/groups")
 def api_groups(comp_id):
     session = db()
-    events = session.query(Event).filter_by(competition_id=comp_id).all()
-    groups = {}
-    for ev in events:
-        g = ev.group_name
-        if g not in groups:
-            count = session.query(Skater).filter_by(competition_id=comp_id, group_name=g).count()
-            groups[g] = {"skater_count": count, "events": []}
-        if ev.name not in groups[g]["events"]:
-            groups[g]["events"].append(ev.name)
-    session.close()
-    return jsonify(groups)
+    try:
+        events = session.query(Event).filter_by(competition_id=comp_id).all()
+        groups = {}
+        for ev in events:
+            g = ev.group_name
+            if g not in groups:
+                count = session.query(Skater).filter_by(competition_id=comp_id, group_name=g).count()
+                groups[g] = {"skater_count": count, "events": []}
+            if ev.name not in groups[g]["events"]:
+                groups[g]["events"].append(ev.name)
+        return jsonify(groups)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/<int:comp_id>/group/<path:group>")
 def api_group(comp_id, group):
     session = db()
-    session.expire_all()  # force fresh load from DB, no stale cache
-    events = session.query(Event).filter_by(competition_id=comp_id, group_name=group).all()
-    result = {}
-    for ev in events:
-        heats  = sorted([h for h in ev.heats if h.stage=="Heat"],  key=lambda h: h.number)
-        semis  = sorted([h for h in ev.heats if h.stage=="Semi"],  key=lambda h: h.number)
-        finals = sorted([h for h in ev.heats if h.stage=="Final"], key=lambda h: h.number)
-        result[ev.name] = {
-            "id": ev.id, "name": ev.name, "type": ev.event_type,
-            "points_event": bool(ev.points_event),
-            "heats":  [h.to_dict() for h in heats],
-            "semis":  [h.to_dict() for h in semis],
-            "finals": [h.to_dict() for h in finals],
-        }
-    session.close()
-    from flask import make_response
-    resp = make_response(jsonify(result))
-    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
-    return resp
+    try:
+        session.expire_all()
+        events = session.query(Event).filter_by(competition_id=comp_id, group_name=group).all()
+        result = {}
+        for ev in events:
+            heats  = sorted([h for h in ev.heats if h.stage=="Heat"],  key=lambda h: h.number)
+            semis  = sorted([h for h in ev.heats if h.stage=="Semi"],  key=lambda h: h.number)
+            finals = sorted([h for h in ev.heats if h.stage=="Final"], key=lambda h: h.number)
+            result[ev.name] = {
+                "id": ev.id, "name": ev.name, "type": ev.event_type,
+                "points_event": bool(ev.points_event),
+                "heats":  [h.to_dict() for h in heats],
+                "semis":  [h.to_dict() for h in semis],
+                "finals": [h.to_dict() for h in finals],
+            }
+        resp = make_response(jsonify(result))
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        return resp
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/<int:comp_id>/standings/<path:group>")
 def api_standings(comp_id, group):
     session = db()
-    standings, tb_ev = compute_group_standings(session, comp_id, group)
-    session.close()
-    return jsonify({"standings": standings, "tiebreaker_event": tb_ev or ""})
+    try:
+        standings, tb_ev = compute_group_standings(session, comp_id, group)
+        return jsonify({"standings": standings, "tiebreaker_event": tb_ev or ""})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/<int:comp_id>/tiebreaker", methods=["POST"])
@@ -1439,24 +1473,27 @@ def quick_add_relay_team(comp_id, event_id):
 @app.route("/api/<int:comp_id>/relays")
 def api_relays(comp_id):
     session = db()
-    relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id).all()
-    result = {}
-    for re in relay_events:
-        heats  = sorted([h for h in re.relay_heats if h.stage=="Heat"],  key=lambda h: h.number)
-        semis  = sorted([h for h in re.relay_heats if h.stage=="Semi"],  key=lambda h: h.number)
-        finals = sorted([h for h in re.relay_heats if h.stage=="Final"], key=lambda h: h.number)
-        # Include all teams (active + scratched) so operator can unscratch
-        all_teams = [t.to_dict() for t in re.teams]
-        result[re.event_name] = {
-            "id": re.id, "event_type": re.event_type,
-            "competition_id": comp_id,
-            "teams": all_teams,
-            "heats":  [h.to_dict() for h in heats],
-            "semis":  [h.to_dict() for h in semis],
-            "finals": [h.to_dict() for h in finals],
-        }
-    session.close()
-    return jsonify(result)
+    try:
+        relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id).all()
+        result = {}
+        for re in relay_events:
+            heats  = sorted([h for h in re.relay_heats if h.stage=="Heat"],  key=lambda h: h.number)
+            semis  = sorted([h for h in re.relay_heats if h.stage=="Semi"],  key=lambda h: h.number)
+            finals = sorted([h for h in re.relay_heats if h.stage=="Final"], key=lambda h: h.number)
+            all_teams = [t.to_dict() for t in re.teams]
+            result[re.event_name] = {
+                "id": re.id, "event_type": re.event_type,
+                "competition_id": comp_id,
+                "teams": all_teams,
+                "heats":  [h.to_dict() for h in heats],
+                "semis":  [h.to_dict() for h in semis],
+                "finals": [h.to_dict() for h in finals],
+            }
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 # ── Save results (individual) ─────────────────────────────────────────────────
@@ -2905,10 +2942,14 @@ def upload_schedule(comp_id):
 @app.route("/api/comp/<int:comp_id>/schedule")
 def get_schedule(comp_id):
     session = db()
-    events = session.query(ScheduleEvent).filter_by(competition_id=comp_id)\
-        .order_by(ScheduleEvent.sort_order).all()
-    session.close()
-    return jsonify([e.to_dict() for e in events])
+    try:
+        events = session.query(ScheduleEvent).filter_by(competition_id=comp_id)\
+            .order_by(ScheduleEvent.sort_order).all()
+        return jsonify([e.to_dict() for e in events])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/schedule/<int:event_id>/status", methods=["POST"])
