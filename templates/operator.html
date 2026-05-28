@@ -743,14 +743,15 @@ function hCard(heat, color, parentId, kind) {
         pink:'#E91E8C', 'light blue':'#29B6F6', black:'#212121', red:'#C62828'
       };
       const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
-      const memberStr = (s.members||[]).filter(m=>m&&m!=='nan').join(', ');
+      const memberLines = (s.members||[]).filter(m=>m&&m!=='nan');
       const colorOpts = ['Green','Blue','Yellow','Pink','Light Blue','Black','Red']
         .map(n => `<option value="${n}" ${(s.color||'').toLowerCase()===n.toLowerCase()?'selected':''}>${n}</option>`)
         .join('');
       nameCell = `<div style="font-family:'Inter',system-ui,sans-serif">
-        <div class="flex items-center gap-2">
+        ${memberLines.length ? `<div style="font-size:13px;font-weight:400;color:#111827;line-height:1.6">${memberLines.join('<br>')}</div>` : ''}
+        <div class="flex items-center gap-2" style="margin-top:3px">
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
-          <span style="font-size:13px;font-weight:400">${s.club}</span>
+          <span style="font-size:12px;color:#6B7280">${s.club}</span>
           <select onchange="setTeamColor(${s.team_id},this.value)"
             class="operator-only text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
             <option value="" disabled ${!s.color?'selected':''}>No helmet cover</option>
@@ -758,7 +759,6 @@ function hCard(heat, color, parentId, kind) {
           </select>
           <span class="readonly-color" style="font-size:11px;color:#6B7280">${s.color||'No helmet cover'}</span>
         </div>
-        ${memberStr ? `<div style="font-size:11px;color:#6B7280;margin-top:2px;margin-left:16px;font-family:'Inter',system-ui,sans-serif">${memberStr}</div>` : ''}
       </div>`;
     } else {
       nameCell = `<span style="font-size:13px;font-weight:400;font-family:'Inter',system-ui,sans-serif">${s.full_name}</span>`;
@@ -963,18 +963,25 @@ function mkDDColumn(id, label, skaters, color) {
     <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1" style="color:${color}">${label}</div>
     <div class="dd-list flex-1 min-h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-2 space-y-1.5" data-col="${id}">
       ${skaters.map(s => {
-        const dot = s._bibColor
+        const isRelayRow = !!s._bibColor;
+        const dot = isRelayRow
           ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${s._bibColor};flex-shrink:0;margin-top:2px"></span>`
           : '';
-        const secondary = s._bibColor
-          ? `<div class="text-xs text-gray-400 leading-tight mt-0.5">${s.club||''}</div>`   // members for relay
-          : `<div class="text-xs mono text-gray-400">#${s.panel} · ${s.club||''}</div>`;    // panel for individual
+        const secondary = isRelayRow
+          ? `<div class="text-xs text-gray-400 leading-tight mt-0.5">${s.club||''}</div>`
+          : `<div class="text-xs mono text-gray-400">#${s.panel} · ${s.club||''}</div>`;
+        // For relay: show member names on top, club+bib below
+        const displayName = isRelayRow
+          ? (s.members||[]).filter(m=>m&&m!=='nan').join(', ') || (s.full_name||s.name||'')
+          : (s.full_name||s.name||'');
+        const subLine = isRelayRow
+          ? `<div class="text-xs text-gray-400 leading-tight mt-0.5 flex items-center gap-1">${dot}${s.club||''}</div>`
+          : secondary;
         return `<div class="bg-white rounded-lg border border-gray-100 shadow-sm px-3 py-2 flex items-start gap-2 cursor-default" data-panel="${s.panel}">
           <span class="drag-handle text-gray-300 text-sm select-none mt-0.5">⠿</span>
-          ${dot}
           <div class="flex-1 min-w-0">
-            <div class="text-sm font-semibold">${s.full_name||s.name||''}</div>
-            ${secondary}
+            <div class="text-sm">${displayName}</div>
+            ${subLine}
           </div>
         </div>`;
       }).join('')}
