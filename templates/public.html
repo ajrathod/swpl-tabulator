@@ -1195,25 +1195,29 @@ function progHCard(heat, cls, label) {
 
 
 async function doRefresh() {
-  const q = document.getElementById('search-inp').value.trim();
-  if (q) { doSearch(q.toLowerCase()); return; }
-  if (curMode === 'schedule') { renderSchedulePublic(); return; }
-  if (curMode === 'program') {
-    const rr = await fetch(`/api/${COMP_ID}/relays`);
-    allRelays = await rr.json().catch(() => allRelays);
-    renderAllProgram(); return;
+  try {
+    const q = document.getElementById('search-inp').value.trim();
+    if (q) { doSearch(q.toLowerCase()); return; }
+    if (curMode === 'schedule') { renderSchedulePublic(); return; }
+    if (curMode === 'program') {
+      const rr = await fetch(`/api/${COMP_ID}/relays`).catch(() => null);
+      if (rr?.ok) allRelays = await rr.json().catch(() => allRelays);
+      renderAllProgram(); return;
+    }
+    if (curGroup?.startsWith('__relay__')) {
+      const rr = await fetch(`/api/${COMP_ID}/relays`).catch(() => null);
+      if (rr?.ok) allRelays = await rr.json().catch(() => allRelays);
+      const name = curGroup.slice(9);
+      showRelay(name, allRelays[name]);
+    } else if (curGroup) {
+      delete allGroupData[curGroup];
+      await loadGroupData(curGroup);
+      renderGroupAllResults(curGroup);
+    }
+    document.getElementById('last-upd').textContent = 'Updated ' + timestamp();
+  } catch(e) {
+    console.warn('Refresh error (will retry):', e);
   }
-  if (curGroup?.startsWith('__relay__')) {
-    const rr = await fetch(`/api/${COMP_ID}/relays`);
-    allRelays = await rr.json().catch(() => allRelays);
-    const name = curGroup.slice(9);
-    showRelay(name, allRelays[name]);
-  } else if (curGroup) {
-    delete allGroupData[curGroup];
-    await loadGroupData(curGroup);
-    renderGroupAllResults(curGroup);
-  }
-  document.getElementById('last-upd').textContent = 'Updated ' + timestamp();
 }
 
 function timestamp() { return new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
