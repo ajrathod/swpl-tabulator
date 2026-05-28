@@ -421,6 +421,18 @@ class ScheduleEvent(Base):
                 "sort_order":self.sort_order,"status":self.status or "pending"}
 
 
+class CheckinStatus(Base):
+    __tablename__ = "checkin_status"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    panel          = Column(String(30), nullable=False)
+    status         = Column(String(20), default="pending")  # pending/checked_in/dns
+    updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id": self.id, "panel": self.panel, "status": self.status}
+
+
 def init_db():
     Base.metadata.create_all(engine)
 

@@ -9,7 +9,7 @@ from models import (
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
     AthleteRegistry, ScratchRecord, RelayPoolAthlete,
-    RegistrationLink, Registration, ScheduleEvent,
+    RegistrationLink, Registration, ScheduleEvent, CheckinStatus,
 )
 from seeding import compute_stages, distribute
 
@@ -27,6 +27,8 @@ PUBLIC_ROUTES = {
     # Public read APIs
     'api_groups', 'api_relays', 'get_schedule', 'get_standings',
     'get_event_data', 'get_all_results',
+    # Check-in APIs (no auth — check-in team uses these)
+    'get_checkin_status', 'set_checkin_status',
 }
 
 def is_app_authed():
@@ -2952,7 +2954,44 @@ def get_schedule(comp_id):
         session.close()
 
 
-@app.route("/api/schedule/<int:event_id>/status", methods=["POST"])
+@app.route("/api/comp/<int:comp_id>/checkin_status")
+def get_checkin_status(comp_id):
+    session = db()
+    try:
+        rows = session.query(CheckinStatus).filter_by(competition_id=comp_id).all()
+        return jsonify({r.panel: r.status for r in rows})
+    except Exception as e:
+        return jsonify({}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/checkin_status", methods=["POST"])
+def set_checkin_status(comp_id):
+    data = request.json
+    panel  = (data.get("panel") or "").strip()
+    status = (data.get("status") or "pending").strip()
+    if not panel: return jsonify({"error": "panel required"}), 400
+    if status not in ("pending", "checked_in", "dns"):
+        return jsonify({"error": "invalid status"}), 400
+    session = db()
+    try:
+        row = session.query(CheckinStatus).filter_by(
+            competition_id=comp_id, panel=panel).first()
+        if row:
+            row.status = status
+        else:
+            session.add(CheckinStatus(
+                competition_id=comp_id, panel=panel, status=status))
+        session.commit()
+        return jsonify({"ok": True, "panel": panel, "status": status})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
 def update_schedule_status(event_id):
     data   = request.json
     status = data.get("status")  # pending / in_progress / done
