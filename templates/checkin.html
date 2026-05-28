@@ -194,7 +194,21 @@
     animation:pulse 1.2s ease-in-out infinite;flex-shrink:0; }
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
 
-  /* ── Refresh bar ── */
+  /* ── Check-in status ── */
+  .ci-btn {
+    flex-shrink: 0; border: none; border-radius: 20px;
+    padding: 6px 14px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all .15s;
+    white-space: nowrap;
+  }
+  .ci-pending  { background:#F3F4F6; color:#6B7280; }
+  .ci-pending:active  { background:#E5E7EB; }
+  .ci-checked_in { background:#DCFCE7; color:#16A34A; }
+  .ci-checked_in:active { background:#BBF7D0; }
+  .ci-dns      { background:#FEE2E2; color:#DC2626; }
+  .ci-dns:active { background:#FECACA; }
+  .skater-name.dns { text-decoration: line-through; color: var(--faint); }
+</style>
   .rbar {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: white; border-top: 1px solid var(--border);
@@ -253,12 +267,42 @@ const COLORS  = {
 let allGroups    = {};
 let allRelays    = {};
 let allGroupData = {};
+let checkinStatus = {};  // panel -> 'pending'|'checked_in'|'dns'
 let curGroup     = null;
 let curMode      = 'program';
 let timer        = null;
 
 function ts() {
   return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+async function loadCheckinStatus() {
+  try {
+    const r = await fetch(`/api/comp/${COMP_ID}/checkin_status`);
+    if (r.ok) checkinStatus = await r.json();
+  } catch(e) {}
+}
+
+async function toggleCheckin(panel, btn) {
+  const cur = checkinStatus[panel] || 'pending';
+  const next = cur === 'pending' ? 'checked_in' : cur === 'checked_in' ? 'dns' : 'pending';
+  checkinStatus[panel] = next;
+  applyCheckinBtn(btn, panel);
+  // Update name style
+  const row = btn.closest('.skater-row');
+  if (row) row.querySelector('.skater-name')?.classList.toggle('dns', next === 'dns');
+  // Save to server
+  await fetch(`/api/comp/${COMP_ID}/checkin_status`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({panel, status: next})
+  }).catch(() => {});
+}
+
+function applyCheckinBtn(btn, panel) {
+  const status = checkinStatus[panel] || 'pending';
+  btn.className = `ci-btn ci-${status}`;
+  btn.textContent = status === 'pending' ? 'Check In' : status === 'checked_in' ? '✅ Present' : '❌ DNS';
 }
 
 // ── Mode ──────────────────────────────────────────────────────────────────────
@@ -319,6 +363,7 @@ async function init() {
   ]);
   allGroups = await gr.json().catch(() => ({}));
   allRelays  = await rr.json().catch(() => ({}));
+  await loadCheckinStatus();
   buildTabs();
   const firstGroup = Object.keys(allGroups).sort()[0];
   if (firstGroup) selectGroup(firstGroup);
@@ -401,12 +446,16 @@ function renderGroup(group) {
     if (!skaters.length) {
       html += `<div class="empty" style="padding:24px"><div class="empty-msg">Waiting for lineup</div></div>`;
     } else {
-      html += skaters.map(s => `
-        <div class="skater-row">
+      html += skaters.map(s => {
+        const status = checkinStatus[s.panel] || 'pending';
+        const btnLabel = status === 'pending' ? 'Check In' : status === 'checked_in' ? '✅ Present' : '❌ DNS';
+        return `<div class="skater-row">
           <span class="panel-num">#${s.panel}</span>
-          <span class="skater-name">${s.full_name}</span>
+          <span class="skater-name${status==='dns'?' dns':''}">${s.full_name}</span>
           <span class="skater-club">${s.club}</span>
-        </div>`).join('');
+          <button class="ci-btn ci-${status}" onclick="toggleCheckin('${s.panel}',this)">${btnLabel}</button>
+        </div>`;
+      }).join('');
     }
     html += '</div>';
   }
@@ -531,6 +580,7 @@ async function doRefresh() {
 
   if (curMode === 'schedule') { renderSchedule(); return; }
 
+  await loadCheckinStatus();
   const [gr, rr] = await Promise.all([
     fetch(`/api/${COMP_ID}/groups`),
     fetch(`/api/${COMP_ID}/relays`)
