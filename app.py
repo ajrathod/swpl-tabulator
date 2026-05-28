@@ -684,8 +684,14 @@ def calculate_ages():
 def registry_delete(athlete_id):
     session = db()
     try:
+        # Delete registrations first (FK reference)
+        regs = session.query(Registration).filter_by(athlete_id=athlete_id).all()
+        for reg in regs:
+            session.delete(reg)
+        session.flush()
         a = session.query(AthleteRegistry).get(athlete_id)
-        if a: session.delete(a); session.commit()
+        if a: session.delete(a)
+        session.commit()
         return jsonify({"ok": True})
     except Exception as e:
         session.rollback(); return jsonify({"error": str(e)}), 500
