@@ -2,475 +2,2203 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>{{comp.name}} — Check-in</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
+const READONLY = true;
 tailwind.config = {
-  theme: { extend: { colors: { brand: { DEFAULT:'#F4511E', dark:'#BF360C' } },
-    fontFamily: { sans: ['Inter','system-ui','-apple-system','sans-serif'] } } }
+  theme: {
+    extend: {
+      colors: {
+        brand: { DEFAULT:'#F4511E', dark:'#BF360C', light:'#FFF3F0' },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      }
+    }
+  }
 }
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js">
+</script>
 <style>
-  body { font-family:'Inter',system-ui,sans-serif; background:#F9FAFB; }
-  .mono { font-family:'DM Mono',monospace; }
-  .ci-btn { border:none; border-radius:20px; padding:5px 14px; font-size:11px; font-weight:600;
-    cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
-  .ci-pending   { background:#F3F4F6; color:#6B7280; }
-  .ci-checked_in { background:#DCFCE7; color:#16A34A; }
-  .ci-dns       { background:#FEE2E2; color:#DC2626; }
-  .name-dns     { text-decoration:line-through; color:#9CA3AF; }
+  .ci-btn{border:none;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+  .ci-pending{background:#F3F4F6;color:#6B7280}
+  .ci-checked_in{background:#DCFCE7;color:#16A34A}
+  .ci-dns{background:#FEE2E2;color:#DC2626}
+  .name-dns{text-decoration:line-through;color:#9CA3AF}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  code, .mono { font-family: 'DM Mono', monospace; }
+  .sortable-ghost  { opacity: .4; }
+  .sortable-chosen { box-shadow: 0 0 0 2px #F4511E; border-radius: 8px; }
+  .drag-handle { cursor: grab; }
+  .drag-handle:active { cursor: grabbing; }
+  /* Thin scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+/* Readonly / check-in mode */
+body.readonly .operator-only { display: none !important; }
+body.readonly .place-input { pointer-events: none; opacity: .4; }
+body.readonly .scratch-btn  { display: none !important; }
+body.readonly #reseed-bar   { display: none !important; }
+body:not(.readonly) .readonly-color { display: none; }
 
-  /* Schedule styles */
-  .sched-row { display:flex; align-items:center; gap:12px; padding:12px 16px;
-    border-radius:12px; border:1px solid #E5E7EB; background:white; margin-bottom:8px; }
-  .sched-row.in_progress { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.4); }
-  .sched-row.done { background:rgba(34,197,94,.07); border-color:rgba(34,197,94,.3); }
-  .sched-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px;
-    border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
-  .sched-badge.pending { background:#F3F4F6; color:#9CA3AF; border:1px solid #E5E7EB; }
-  .sched-badge.in_progress { background:rgba(245,158,11,.15); color:#D97706; border:1px solid rgba(245,158,11,.3); }
-  .sched-badge.done { background:rgba(34,197,94,.12); color:#16A34A; border:1px solid rgba(34,197,94,.3); }
-  .live-dot { width:7px; height:7px; border-radius:50%; background:#F59E0B;
-    animation:pulse 1.2s ease-in-out infinite; flex-shrink:0; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  /* Header: hide text labels, keep icons */
+  .hdr-btn-text { display: none; }
+  /* Sidebar becomes bottom drawer / overlay */
+  aside.sidebar {
+    position: fixed; top: 56px; left: 0; bottom: 0;
+    width: 260px; z-index: 60;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,.15);
+  }
+  aside.sidebar.open { transform: translateX(0); }
+  /* Main content takes full width */
+  main.main-content { margin-left: 0 !important; padding: 12px !important; }
+  /* Show hamburger, hide desktop nav buttons */
+  #mobile-menu-btn { display: flex !important; }
+  .desktop-only { display: none !important; }
+  /* Mobile overlay */
+  #sidebar-overlay {
+    display: none; position: fixed; inset: 0; top: 56px;
+    background: rgba(0,0,0,.4); z-index: 59;
+  }
+  #sidebar-overlay.open { display: block; }
+  /* Heat cards stack vertically */
+  .heat-cards-row { flex-direction: column !important; }
+  .heat-card-wrap { max-width: 100% !important; min-width: unset !important; }
+}
+@media (min-width: 769px) {
+  #mobile-menu-btn { display: none !important; }
+}
 </style>
 </head>
-<body class="min-h-screen">
+<body class="bg-gray-50 text-gray-900 min-h-screen">
 
-<!-- Header -->
-<header class="fixed top-0 inset-x-0 z-50 bg-gray-900 h-14 flex items-center px-4 gap-3 shadow-sm">
-  <div>
-    <div class="text-white font-bold text-sm tracking-wide">SWPL<span class="text-brand">/</span>RACING</div>
-    <div class="text-gray-400 text-xs">{{comp.name}}</div>
-  </div>
-  <div class="ml-auto flex items-center gap-2">
-    <span class="bg-brand text-white text-xs font-bold px-2.5 py-1 rounded-full">● LIVE</span>
+<!-- ── Top bar ── -->
+<header class="fixed top-0 inset-x-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-3 gap-2 shadow-sm">
+  <!-- Hamburger (mobile only) -->
+  <button id="mobile-menu-btn" onclick="toggleSidebar()"
+    class="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600 text-xl leading-none"
+    style="display:none">☰</button>
+  <a href="/" class="text-gray-400 hover:text-gray-700 text-sm hidden sm:flex items-center gap-1">← Competitions</a>
+  <span class="text-gray-300 hidden sm:block">/</span>
+  <span class="font-bold text-gray-900 text-sm truncate max-w-[120px] sm:max-w-xs">{{comp.name}}</span>
+  <div class="ml-auto flex items-center gap-1.5 overflow-x-auto">
+    <a href="/checkin/{{comp.id}}" target="_blank"
+      class="operator-only inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      ✅ <span class="hdr-btn-text">Check-in</span>
+    </a>
+    <label class="operator-only cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      📋 <span class="hdr-btn-text">Schedule</span>
+      <input type="file" id="up-sched" accept=".xlsx,.xls" class="hidden">
+    </label>
+    <label class="operator-only cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      📋 <span class="hdr-btn-text">Individual</span>
+      <input type="file" id="up-ind" accept=".xlsx,.xls" class="hidden">
+    </label>
+    <label class="operator-only cursor-pointer inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+      🔄 <span class="hdr-btn-text">Relay</span>
+      <input type="file" id="up-rel" accept=".xlsx,.xls" class="hidden">
+    </label>
+    <a href="/registry" class="desktop-only px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">🗂 Registry</a>
+    <a href="/athletes" class="desktop-only px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">⛸️ Athletes</a>
+    <a href="/public/{{comp.id}}" target="_blank"
+       class="px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition whitespace-nowrap">👁 <span class="hdr-btn-text">Public</span> ↗</a>
+    <button onclick="logoutOp()" title="Lock operator view"
+      class="operator-only px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">🔒</button>
+    <a href="/logout" class="px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-500 hover:bg-red-50 transition" title="Sign out of app">⎋</a>
   </div>
 </header>
 
-<!-- Mode bar -->
-<div class="fixed top-14 inset-x-0 z-40 bg-white border-b border-gray-200 flex">
-  <button id="mode-program" onclick="setMode('program')"
-    class="px-5 py-3 text-sm font-500 border-b-2 border-brand text-brand transition">📋 Program</button>
-  <button id="mode-schedule" onclick="setMode('schedule')"
-    class="px-5 py-3 text-sm font-500 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">📅 Schedule</button>
+<!-- Sidebar overlay (mobile) -->
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ── Layout ── -->
+<div class="flex pt-14 min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
+    <div class="px-3 pt-4 pb-2">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
+      <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-2">
+      <button onclick="showSchedule()"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+        📅 <span>Schedule</span>
+      </button>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-2">
+      <button onclick="showRegistrations()"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+        🔗 <span>Registrations</span>
+      </button>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-4">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Relay Events</p>
+      <div id="relay-list"></div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content ml-60 flex-1 p-6" id="main">
+
+    <!-- Welcome / Public URL banner -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 flex items-center gap-3 mb-6 flex-wrap">
+      <span class="text-white text-sm font-semibold">📡 Public URL for parents:</span>
+      <code class="flex-1 bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg mono" id="pub-url"></code>
+      <button onclick="copyPub()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-lg transition">Copy</button>
+    </div>
+
+    <!-- Upload prompt (shown when no data loaded) -->
+    <div id="welcome" class="grid grid-cols-2 gap-4 max-w-2xl">
+      <label class="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-brand hover:bg-brand-light transition" onclick="document.getElementById('up-ind').click()">
+        <div class="text-3xl mb-2">📋</div>
+        <div class="font-semibold text-gray-700">Individual Master Sheet</div>
+        <div class="text-xs text-gray-400 mt-1">Auto-seeds heats from registry</div>
+      </label>
+      <label class="cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-brand hover:bg-brand-light transition" onclick="document.getElementById('up-rel').click()">
+        <div class="text-3xl mb-2">🔄</div>
+        <div class="font-semibold text-gray-700">Relay Master Sheet</div>
+        <div class="text-xs text-gray-400 mt-1">Heat/semi/final structure</div>
+      </label>
+    </div>
+
+    <!-- Group view (shown after data loads) -->
+    <div id="grp-view" class="hidden"></div>
+
+  </main>
 </div>
 
-<!-- Search -->
-<div id="search-wrap" class="fixed inset-x-0 z-39 bg-white border-b border-gray-100 px-4 py-2" style="top:calc(56px + 44px);z-index:39">
-  <input id="search-inp" type="search" placeholder="Search skater name or panel #…"
-    oninput="doSearch(this.value)" autocomplete="off"
-    class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-brand transition bg-gray-50">
+<!-- ── Toast ── -->
+<div id="toast" class="fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all duration-200 opacity-0 translate-y-2 pointer-events-none max-w-xs"></div>
+
+<!-- ── Drag & Drop Heat Editor Modal ── -->
+<div id="dd-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+    <!-- Modal header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold" id="dd-title">Edit Heats</h2>
+        <p class="text-sm text-gray-500 mt-0.5">Drag skaters between heats to rearrange. Changes save when you click Save.</p>
+      </div>
+      <button onclick="closeDDModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <!-- Modal toolbar -->
+    <div class="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50">
+      <button onclick="ddAddHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">+ Add Heat</button>
+      <button onclick="ddRemoveLastHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">− Remove Last Heat</button>
+      <div class="flex-1"></div>
+      <span class="text-xs text-gray-400" id="dd-unassigned-count"></span>
+    </div>
+    <!-- Heat columns -->
+    <div class="flex-1 overflow-auto p-6">
+      <div class="flex gap-4 min-h-64" id="dd-columns"></div>
+    </div>
+    <!-- Modal footer -->
+    <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+      <button onclick="closeDDModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+      <button onclick="saveDDModal()" class="px-5 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">💾 Save Heat Arrangement</button>
+    </div>
+  </div>
 </div>
 
-<!-- Tab bar -->
-<div id="tab-bar" class="fixed inset-x-0 z-38 bg-white border-b border-gray-200 overflow-x-auto flex gap-0 scrollbar-hide"
-  style="top:calc(56px + 44px + 52px);z-index:38;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
+<!-- ── Add Athlete to Group Modal ── -->
+<div id="add-athlete-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold">+ Add Athlete</h2>
+        <p class="text-xs text-gray-400 mt-0.5" id="add-athlete-group-label"></p>
+      </div>
+      <button onclick="closeModal('add-athlete-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Search Registry</label>
+        <input id="add-athlete-search"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"
+          placeholder="Name or USARS No…" oninput="searchAddAthlete()">
+        <div id="add-athlete-results" class="mt-1 border border-gray-200 rounded-lg overflow-hidden hidden max-h-48 overflow-y-auto"></div>
+      </div>
+      <div id="add-athlete-selected" class="hidden bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
+        <div class="font-bold text-sm" id="add-athlete-name"></div>
+        <div class="text-xs text-gray-500 mt-0.5 font-mono" id="add-athlete-meta"></div>
+      </div>
+      <p class="text-xs text-gray-400">
+        ℹ️ Athlete will be added to the group roster. Use <strong>✏️ Edit Heats</strong> to drag them into a specific heat.
+      </p>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('add-athlete-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddAthlete()" id="add-athlete-confirm" disabled
+        class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark disabled:opacity-40 disabled:cursor-not-allowed">
+        + Add to Group
+      </button>
+    </div>
+  </div>
+</div>
 
-<!-- Main content -->
-<div id="main-content" class="pt-48 pb-16 px-4 max-w-6xl mx-auto"></div>
+<!-- ── Transfer Modal ── -->
+<div id="xfer-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">↔ Transfer Skater</h2>
+      <button onclick="closeModal('xfer-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">From group</label>
+        <div id="xfer-from" class="font-semibold text-brand"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Select skater(s) — ⌘/Ctrl for multi</label>
+        <div id="xfer-sk-list" class="border border-gray-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto"></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Move to group</label>
+        <select id="xfer-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand"></select>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('xfer-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doTransfer()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">↔ Transfer & Re-seed</button>
+    </div>
+  </div>
+</div>
 
-<!-- Footer -->
-<div class="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-2.5 flex items-center justify-between z-50">
-  <span id="last-upd" class="text-xs text-gray-400">Loading…</span>
-  <button onclick="doRefresh()" class="text-xs font-semibold text-brand">↻ Refresh</button>
+<!-- ── Add Event Modal ── -->
+<div id="addEv-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add Event</h2>
+      <button onclick="closeModal('addEv-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Event name</label>
+        <input id="ev-name-inp" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. 300M Sprint">
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400">Type</label>
+        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-light transition">
+          <input type="radio" name="evtype" value="heat_based" checked class="mt-0.5 accent-brand">
+          <div><div class="font-semibold text-sm">Heats / Semis / Final</div><div class="text-xs text-gray-400">Auto-seeds based on roster</div></div>
+        </label>
+        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-light transition">
+          <input type="radio" name="evtype" value="direct_final" class="mt-0.5 accent-brand">
+          <div><div class="font-semibold text-sm">Direct Final</div><div class="text-xs text-gray-400">Open / Elimination — no heats</div></div>
+        </label>
+      </div>
+      <label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
+        <input type="checkbox" id="ev-points" class="accent-brand w-4 h-4">
+        Count toward group overall standings (30/20/10/5 pts)
+      </label>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('addEv-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddEvent()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700">Create Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Relay Team Modal ── -->
+<div id="edit-team-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-bold" id="edit-team-title">Edit Team</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Drag to reorder · click ✕ to remove</p>
+      </div>
+      <button onclick="closeModal('edit-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="overflow-y-auto flex-1 p-5 space-y-4">
+      <!-- Color picker -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Bib Color</label>
+        <div class="flex gap-1.5 flex-wrap" id="et-color-swatches">
+          <input type="hidden" id="et-color" value="">
+          <button type="button" data-color="Green"      onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#2E7D32" title="Green"></button>
+          <button type="button" data-color="Blue"       onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#1565C0" title="Blue"></button>
+          <button type="button" data-color="Yellow"     onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#F9A825" title="Yellow"></button>
+          <button type="button" data-color="Pink"       onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#E91E8C" title="Pink"></button>
+          <button type="button" data-color="Light Blue" onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#29B6F6" title="Light Blue"></button>
+          <button type="button" data-color="Black"      onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#212121" title="Black"></button>
+          <button type="button" data-color="Red"        onclick="pickTeamColor(this,'edit')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#C62828" title="Red"></button>
+        </div>
+        <div class="text-xs text-gray-400 mt-1" id="et-color-label">No color selected</div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Members</label>
+        <div id="edit-team-members" class="space-y-1.5 min-h-12"></div>
+      </div>
+      <div class="border-t border-gray-100 pt-4">
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Add Athlete</label>
+        <input id="edit-team-search" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand mb-2"
+          placeholder="Search relay pool or registry…" oninput="searchEditTeam()">
+        <div id="edit-team-search-results" class="border border-gray-200 rounded-lg overflow-hidden hidden max-h-36 overflow-y-auto mb-3"></div>
+        <div class="flex gap-2">
+          <input id="edit-team-adhoc" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Or type name directly…">
+          <button onclick="addAdhocMember()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold text-gray-600 transition">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('edit-team-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="saveTeamMembers()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">💾 Save Members</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Relay Team Modal ── -->
+<div id="add-team-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add Relay Team</h2>
+      <button onclick="closeModal('add-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block text-xs text-gray-500 mb-1">Club *</label>
+          <input id="at-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Bib Color *</label>
+          <div class="flex gap-1.5 flex-wrap" id="at-color-swatches">
+            <input type="hidden" id="at-color" value="">
+            <button type="button" data-color="Green"      onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#2E7D32" title="Green"></button>
+            <button type="button" data-color="Blue"       onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#1565C0" title="Blue"></button>
+            <button type="button" data-color="Yellow"     onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#F9A825" title="Yellow"></button>
+            <button type="button" data-color="Pink"       onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#E91E8C" title="Pink"></button>
+            <button type="button" data-color="Light Blue" onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#29B6F6" title="Light Blue"></button>
+            <button type="button" data-color="Black"      onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#212121" title="Black"></button>
+            <button type="button" data-color="Red"        onclick="pickTeamColor(this,'add')" class="color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition" style="background:#C62828" title="Red"></button>
+          </div>
+          <div class="text-xs text-gray-400 mt-1" id="at-color-label">No color selected</div>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Members (one per line)</label>
+        <textarea id="at-members" rows="4" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand resize-none" placeholder="Rachel James&#10;Anna Shao"></textarea>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('add-team-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddTeam()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add to Relay Pool Modal ── -->
+<div id="relay-pool-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">+ Add to Relay Pool</h2>
+      <button onclick="closeModal('relay-pool-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Search Registry (optional)</label>
+        <input id="rp-search" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Name or USARS No…" oninput="searchRelayPool()">
+        <div id="rp-search-results" class="mt-1 border border-gray-200 rounded-lg overflow-hidden hidden max-h-40 overflow-y-auto"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4">
+        <div><label class="block text-xs text-gray-500 mb-1">First *</label>
+          <input id="rp-first" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="First"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Last *</label>
+          <input id="rp-last" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Last"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">Club</label>
+          <input id="rp-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="e.g. PWR"></div>
+        <div><label class="block text-xs text-gray-500 mb-1">USARS No.</label>
+          <input id="rp-usars" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('relay-pool-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="doAddRelayPool()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">+ Add to Pool</button>
+    </div>
+  </div>
 </div>
 
 <script>
 const COMP_ID = {{comp.id}};
-const RBIB = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+let curGroup = null, curEvent = null, allGroups = {};
+let _scratchPanel = null, _scratchEventId = null;
 
-let allGroups = {}, allRelays = {}, allGroupData = {}, checkinStatus = {};
-let curGroup = null, curMode = 'program', timer = null;
 
-const ts = () => new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-function esc(s){ return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
-function setContent(h){ document.getElementById('main-content').innerHTML = h; }
-
-// ── Check-in ──────────────────────────────────────────────────────────────────
-async function loadCheckinStatus() {
-  try {
-    const r = await fetch(`/api/comp/${COMP_ID}/checkin_status`);
-    if (r.ok) checkinStatus = await r.json();
-  } catch(e) {}
+async function logoutOp() {
+  if (!confirm('Lock this operator view?\nYou\'ll need the passcode to get back in.')) return;
+  await fetch(`/api/auth/${COMP_ID}/logout`, {method:'POST'});
+  window.location.reload();
 }
 
-async function toggleCheckin(panel, evName, btn) {
-  const key = `${panel}__${evName}`;
-  const cur = checkinStatus[key] || 'pending';
-  const next = cur==='pending'?'checked_in':cur==='checked_in'?'dns':'pending';
-  checkinStatus[key] = next;
-  btn.className = `ci-btn ci-${next}`;
-  btn.textContent = next==='pending'?'Check In':next==='checked_in'?'✅ Present':'❌ DNS';
-  const nameEl = btn.closest('tr')?.querySelector('.skater-name');
-  if (nameEl) nameEl.classList.toggle('name-dns', next==='dns');
-  await fetch(`/api/comp/${COMP_ID}/checkin_status`,{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({panel, event_name:evName, status:next})
-  }).catch(()=>{});
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  const colors = {success:'bg-green-600', error:'bg-red-600', '':'bg-gray-900'};
+  t.className = `fixed bottom-5 right-5 z-[999] px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg max-w-xs transition-all duration-200 ${colors[type]||colors['']}`;
+  t.textContent = msg;
+  t.style.opacity = '1'; t.style.transform = 'translateY(0)';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(8px)'; }, 3200);
 }
 
-// ── Mode ──────────────────────────────────────────────────────────────────────
-function setMode(mode) {
-  curMode = mode;
-  const prog = document.getElementById('mode-program');
-  const sched = document.getElementById('mode-schedule');
-  const search = document.getElementById('search-wrap');
-  const tabs = document.getElementById('tab-bar');
-  prog.className  = mode==='program'  ? 'px-5 py-3 text-sm font-500 border-b-2 border-brand text-brand transition'
-                                      : 'px-5 py-3 text-sm font-500 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition';
-  sched.className = mode==='schedule' ? 'px-5 py-3 text-sm font-500 border-b-2 border-brand text-brand transition'
-                                      : 'px-5 py-3 text-sm font-500 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition';
-  search.style.display = mode==='program' ? '' : 'none';
-  tabs.style.display   = mode==='program' ? '' : 'none';
-  if (mode==='schedule') renderSchedule();
-  else if (curGroup) { curGroup.type==='group'?renderGroup(curGroup.key):renderRelay(curGroup.key); }
+// ── Public URL ───────────────────────────────────────────────────────────────
+const pubUrl = `${location.protocol}//${location.hostname}:${location.port}/public/${COMP_ID}`;
+document.getElementById('pub-url').textContent = pubUrl;
+function copyPub() { navigator.clipboard.writeText(pubUrl).then(()=>toast('✓ URL copied!','success')); }
+
+// ── Upload ───────────────────────────────────────────────────────────────────
+document.getElementById('up-ind').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  toast('Loading…');
+  const r = await fetch(`/api/upload/individual/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) {
+    const msg = d.auto_registered
+      ? `✓ ${d.skater_count} skaters loaded · ${d.auto_registered} new athletes added to registry`
+      : `✓ ${d.skater_count} skaters loaded`;
+    toast(msg, 'success');
+    await refreshGroups();
+    if (d.groups.length) selectGroup(d.groups[0]);
+  } else {
+    if (d.missing?.length) {
+      toast(`❌ ${d.missing_count} athletes not in registry`, 'error');
+      showMissingAlert(d.missing);
+    } else toast(d.error, 'error');
+  }
+  e.target.value = '';
+});
+
+document.getElementById('up-rel').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await fetch(`/api/upload/relay/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Relay data loaded', 'success'); refreshRelays(); }
+  else toast(d.error, 'error');
+  e.target.value = '';
+});
+
+function showMissingAlert(missing) {
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  document.getElementById('grp-view').innerHTML = `
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-2xl">
+      <h3 class="text-red-700 font-bold text-base mb-2">⚠️ Import blocked — ${missing.length} athlete(s) not in registry</h3>
+      <p class="text-red-600 text-sm mb-4">All athletes must be registered before importing.
+        <a href="/registry" class="underline font-semibold">Go to Registry →</a></p>
+      <div class="bg-white border border-red-100 rounded-xl overflow-hidden">
+        ${missing.map(a=>`<div class="px-4 py-2.5 border-b border-red-50 last:border-0 text-sm mono text-red-700">
+          ${a.first} ${a.last} · Panel #${a.panel} · ${a.club}</div>`).join('')}
+      </div>
+    </div>`;
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-function buildTabs() {
-  const bar = document.getElementById('tab-bar');
-  const groups = Object.keys(allGroups).sort();
-  const relays = Object.keys(allRelays).sort();
-  const tabCls = (active) => active
-    ? 'px-4 py-3 text-sm font-500 border-b-2 border-brand text-brand whitespace-nowrap flex-shrink-0 bg-none border-none cursor-pointer font-sans'
-    : 'px-4 py-3 text-sm text-gray-500 border-b-2 border-transparent whitespace-nowrap flex-shrink-0 bg-none border-none cursor-pointer font-sans hover:text-gray-700';
-  let html = groups.map(g =>
-    `<button id="tab-${CSS.escape(g)}" onclick="selectGroup('${esc(g)}')"
-      class="${tabCls(false)}" style="font-family:inherit">${g}</button>`).join('');
-  if (relays.length) html += '<div style="width:1px;background:#E5E7EB;margin:8px 0;flex-shrink:0"></div>';
-  html += relays.map((name,i) => {
-    const short = name.replace(/\(.*?\)/g,'').replace(/Final/gi,'').trim();
-    return `<button id="tab-relay-${i}" onclick="selectRelay('${esc(name)}')"
-      class="${tabCls(false)}" style="font-family:inherit;max-width:130px;overflow:hidden;text-overflow:ellipsis;font-size:12px"
-      title="${name.replace(/"/g,'&quot;')}">🔄 ${short}</button>`;
-  }).join('');
-  bar.innerHTML = html;
+// ── Groups ───────────────────────────────────────────────────────────────────
+async function refreshGroups() {
+  const r = await fetch(`/api/${COMP_ID}/groups`);
+  allGroups = await r.json();
+  const list = document.getElementById('grp-list');
+  const sorted = Object.entries(allGroups).sort((a,b)=>a[0].localeCompare(b[0]));
+  list.innerHTML = sorted.map(([g,info]) => `
+    <button onclick="selectGroup('${esc(g)}')"
+      class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 group-btn" data-group="${esc(g)}">
+      <span class="truncate">${g}</span>
+      <span class="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">${info.skater_count}</span>
+    </button>`).join('');
 }
 
-function setActiveTab(id) {
-  document.querySelectorAll('#tab-bar button').forEach(b => {
-    b.style.borderBottomColor = ''; b.style.color = '';
-    b.style.borderBottomWidth = '2px'; b.style.borderBottomStyle = 'solid';
-    b.style.borderBottomColor = 'transparent'; b.style.color = '#6B7280';
-  });
-  const el = document.getElementById(id);
-  if (el) {
-    el.style.borderBottomColor = '#F4511E'; el.style.color = '#F4511E';
-    el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+async function refreshRelays() {
+  const r = await fetch(`/api/${COMP_ID}/relays`);
+  const data = await r.json();
+  // Store relay data in a JS map — avoids HTML attribute encoding issues
+  window._relayData = data;
+  const list = document.getElementById('relay-list');
+  list.innerHTML = Object.keys(data).map(ev => `
+    <button onclick="showRelayByName('${esc(ev)}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
+  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+
+  // If a relay event is currently shown, refresh it
+  const curRelayName = document.getElementById('grp-view')._curRelayName;
+  if (curRelayName && data[curRelayName]) {
+    showRelay(curRelayName, data[curRelayName]);
   }
 }
 
-// ── Heat card (matches operator style) ───────────────────────────────────────
-function hCard(heat, colorKey, evName) {
-  const label = heat.stage==='Final' ? 'Final' : `${heat.stage} ${heat.number}`;
-  const hdrs  = {heat:'bg-blue-600', semi:'bg-purple-600', final:'bg-yellow-500'};
-  const hdrBg = hdrs[colorKey] || 'bg-gray-600';
-  const skaters = heat.skaters || [];
-  const count = skaters.length;
+function showRelayByName(evName) {
+  const data = window._relayData || {};
+  if (data[evName]) showRelay(evName, data[evName]);
+}
 
-  if (!count) return `
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-w-64 max-w-sm border border-gray-100">
+// ── Group view ───────────────────────────────────────────────────────────────
+async function selectGroup(group) {
+  curGroup = group;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    const active = b.dataset.group === group;
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn ${
+      active ? 'bg-orange-50 text-brand font-semibold' : 'text-gray-700 hover:bg-gray-100'
+    }`;
+    b.querySelector('span:last-child').className = `ml-2 text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+      active ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'
+    }`;
+  });
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}?t=${Date.now()}`);
+  const events = await r.json();
+  renderGroupView(group, events);
+}
+
+function renderGroupView(group, events) {
+  const info = allGroups[group] || {};
+  const evNames = Object.keys(events);
+  const hasPoints = Object.values(events).some(e => e.points_event);
+  if (!curEvent || !events[curEvent]) curEvent = evNames[0];
+
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  const gv = document.getElementById('grp-view');
+
+  gv.innerHTML = `
+    <!-- Group header -->
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold text-gray-900">${group}</h2>
+      <span class="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">${info.skater_count||0} skaters</span>
+      <div class="ml-auto flex gap-2 operator-only">
+        <button onclick="openAddAthleteModal('${esc(group)}')"
+          class="px-3 py-1.5 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition">+ Add Athlete</button>
+        <button onclick="openXfer('${esc(group)}')"
+          class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">↔ Transfer</button>
+      </div>
+    </div>
+    <!-- Event tabs -->
+    <div class="flex gap-1 border-b border-gray-200 mb-5 overflow-x-auto" id="ev-tabs">
+      ${evNames.map(n=>`
+        <button class="ev-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+          n===curEvent ? 'border-brand text-brand bg-orange-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
+        }" onclick="switchEv('${esc(group)}','${esc(n)}',this)">${n}</button>`).join('')}
+      ${hasPoints ? `<button class="ev-tab standings-tab px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+        curEvent==='__standings__' ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800'
+      }" onclick="switchEv('${esc(group)}','__standings__',this)">🏆 Standings</button>` : ''}
+    </div>
+    <div id="ev-body"></div>`;
+
+  gv._events = events;
+  if (curEvent === '__standings__') loadStandings(group);
+  else renderEvent(events[curEvent], group);
+
+  // Load scratch/standby panel (non-blocking)
+  renderScratchStandbyPanel(group).then(html => {
+    if (!html) return;
+    const evBody = document.getElementById('ev-body');
+    if (!evBody) return;
+    const container = document.createElement('div');
+    container.id = 'scratch-standby-panel';
+    container.innerHTML = html;
+    evBody.after(container);
+  }).catch(e => console.warn('scratch panel:', e));
+}
+
+function switchEv(group, name, btn) {
+  curEvent = name;
+  document.querySelectorAll('.ev-tab').forEach(b => {
+    const isStandings = b.classList.contains('standings-tab');
+    const active = b === btn;
+    b.className = `ev-tab ${isStandings?'standings-tab':''} px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
+      active
+        ? (isStandings ? 'border-yellow-500 text-yellow-700 bg-yellow-50 rounded-t-lg' : 'border-brand text-brand bg-orange-50 rounded-t-lg')
+        : 'border-transparent text-gray-500 hover:text-gray-800'
+    }`;
+  });
+  if (name === '__standings__') { loadStandings(group); return; }
+  const ev = (document.getElementById('grp-view')._events||{})[name];
+  renderEvent(ev, group);
+  // Reload scratch/standby panel for current group (non-blocking)
+  renderScratchStandbyPanel(group).then(html => {
+    const existing = document.getElementById('scratch-standby-panel');
+    if (existing) existing.remove();
+    if (!html) return;
+    const evBody = document.getElementById('ev-body');
+    if (!evBody) return;
+    const container = document.createElement('div');
+    container.id = 'scratch-standby-panel';
+    container.innerHTML = html;
+    evBody.after(container);
+  }).catch(e => console.warn('scratch panel:', e));
+}
+
+// ── Render event ─────────────────────────────────────────────────────────────
+function renderEvent(ev, group) {
+  const body = document.getElementById('ev-body');
+  if (!ev) { body.innerHTML = ''; return; }
+  let html = '';
+
+  if (ev.type === 'direct_final') {
+    html += `<div class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">🏁 Direct Final — all skaters go straight to the final</div>`;
+    html += renderStage('Final', ev.finals, 'final', ev.id, 'individual');
+    body.innerHTML = html; return;
+  }
+
+  if (ev.heats.length) {
+    html += stageHeader('Heats', 'blue', ev.id, 'Heat', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.heats.map(h=>hCard(h,'heat',ev.id,'individual')).join('')}</div>`;
+    html += advBar('blue', ev.id, 'heats', 'individual', 'Advance qualifiers from Heats →', group);
+  }
+  if (ev.semis.length) {
+    html += stageHeader('Semi-Finals', 'green', ev.id, 'Semi', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.semis.map(h=>hCard(h,'semi',ev.id,'individual')).join('')}</div>`;
+    html += advBar('green', ev.id, 'semis', 'individual', 'Advance top 3 from each Semi →', group);
+  }
+  if (ev.finals.length) {
+    html += stageHeader('Final', 'yellow', ev.id, 'Final', 'individual');
+    html += `<div class="flex gap-4 flex-wrap mb-3">${ev.finals.map(h=>hCard(h,'final',ev.id,'individual')).join('')}</div>`;
+  }
+
+  // Check for unassigned skaters (in group but not in any heat)
+  const assignedPanels = new Set([
+    ...ev.heats.flatMap(h => h.skaters.map(s => s.panel)),
+    ...ev.semis.flatMap(h => h.skaters.map(s => s.panel)),
+    ...ev.finals.flatMap(h => h.skaters.map(s => s.panel)),
+  ]);
+  const unassigned = (ev.skaters||[]).filter(s => !assignedPanels.has(s.panel) && (s.status||'active') !== 'scratched');
+  if (unassigned.length) {
+    html += `<div class="flex items-center gap-3 mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 operator-only">
+      <span class="text-orange-600 font-semibold text-sm">⚠️ ${unassigned.length} skater${unassigned.length>1?'s':''} not assigned to any heat:</span>
+      <span class="text-orange-500 text-sm">${unassigned.map(s=>s.full_name).join(', ')}</span>
+      <button onclick="openDDModal(${ev.id},'${ev.heats.length?'Heat':ev.semis.length?'Semi':'Final'}','individual')"
+        class="ml-auto px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition">
+        ✏️ Edit Heats
+      </button>
+    </div>`;
+  }
+
+  html += `<div class="flex items-center gap-3 mt-2 operator-only">
+    <button onclick="reseedEv(${ev.id},'individual')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🔄 Re-seed All Heats</button>
+    <button onclick="syncFromRegistry()" class="px-3 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition">📋 Sync from Registry</button>
+    <span class="text-xs text-gray-400">Rebuilds from current roster · Saved results preserved</span>
+    ${ev.points_event ? '<span class="text-xs text-yellow-600 font-semibold bg-yellow-50 px-2 py-1 rounded-full">🏆 Counts toward standings</span>' : ''}
+  </div>`;
+  body.innerHTML = html;
+}
+
+function stageHeader(label, color, evId, stage, kind) {
+  const colors = {blue:'text-blue-600',green:'text-green-600',yellow:'text-yellow-600'};
+  const editStages = {'Heat':'Heat','Semi':'Semi','Final':'Final'};
+  return `<div class="flex items-center gap-3 mb-3 mt-5">
+    <span class="text-xs font-bold uppercase tracking-widest ${colors[color]||'text-gray-500'}">${label}</span>
+    <div class="flex-1 h-px bg-gray-200"></div>
+    <button onclick="openDDModal(${evId},'${stage}','${kind}')"
+      class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center gap-1 operator-only">
+      ✏️ Edit ${label}
+    </button>
+  </div>`;
+}
+
+function renderStage(label, heats, color, evId, kind) {
+  return stageHeader(label,'yellow',evId,'Final',kind) +
+    `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,color,evId,kind)).join('')}</div>`;
+}
+
+function advBar(color, evId, from, kind, label, group) {
+  const bg = {blue:'bg-blue-50 border-blue-100', green:'bg-green-50 border-green-100'}[color];
+  const btn = {blue:'bg-blue-600 hover:bg-blue-700', green:'bg-green-600 hover:bg-green-700'}[color];
+  const grpArg = group ? `,'${esc(group)}'` : '';
+  return `<div class="flex items-center gap-3 border ${bg} rounded-xl px-4 py-3 mb-5 operator-only">
+    <p class="text-sm text-gray-600 flex-1">Save results, then advance qualifiers.</p>
+    <button onclick="advance(${evId},'${from}','${kind}'${grpArg})"
+      class="px-3 py-1.5 ${btn} text-white rounded-lg text-xs font-semibold transition">${label}</button>
+  </div>`;
+}
+
+// ── Heat card ─────────────────────────────────────────────────────────────────
+function hCard(heat, color, parentId, kind) {
+  const isRelay = kind === 'relay';
+  const items   = isRelay ? heat.teams : heat.skaters;
+  const label   = heat.stage === 'Final' ? 'Final' : `${heat.stage} ${heat.number}`;
+
+  const hdrs = {heat:'bg-blue-600', semi:'bg-green-600', final:'bg-yellow-500', direct:'bg-purple-600'};
+  const hdrBg = hdrs[color] || 'bg-gray-600';
+
+  if (!items?.length) return `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
       <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
         <span class="text-white text-sm font-bold">${label}</span>
         <span class="text-white/70 text-xs">0 skaters</span>
       </div>
-      <div class="p-6 text-center text-gray-400 text-sm">No skaters assigned</div>
+      <div class="p-6 text-center text-gray-400 text-sm">Waiting for advancement</div>
     </div>`;
 
-  const rows = skaters.map((s,i) => {
-    const key = `${s.panel}__${evName}`;
-    const status = checkinStatus[key] || 'pending';
-    const btnLabel = status==='pending'?'Check In':status==='checked_in'?'✅ Present':'❌ DNS';
-    return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition">
-      <td class="px-3 py-2.5 text-xs text-gray-400 w-6">${i+1}</td>
-      <td class="px-3 py-2.5">
-        <span class="skater-name text-sm${status==='dns'?' name-dns':''}">${s.full_name}</span>
-      </td>
-      <td class="px-3 py-2.5 text-xs mono text-gray-400">${s.panel}</td>
-      <td class="px-3 py-2.5 text-xs text-gray-400">${s.club}</td>
-      <td class="px-3 py-2.5">
-        <button class="ci-btn ci-${status}"
-          onclick="toggleCheckin('${esc(s.panel)}','${esc(evName)}',this)">${btnLabel}</button>
-      </td>
-    </tr>`;
-  }).join('');
+  const rows = items.map((s,i) => {
+    const pl = s.placement;
+    const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
+    const idAttr = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
 
-  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
-    <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
-      <span class="text-white text-sm font-bold">${label}</span>
-      <span class="text-white/70 text-xs">${count} skaters</span>
-    </div>
-    <table class="w-full">
-      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-        <th class="px-3 py-2">#</th>
-        <th class="px-3 py-2 text-left">Name</th>
-        <th class="px-3 py-2 text-left">Panel</th>
-        <th class="px-3 py-2 text-left">Club</th>
-        <th class="px-3 py-2 text-left">Check-in</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-
-// Relay heat card with check-in button per team
-function relayHCard(heat, colorKey) {
-  const label = heat.stage==='Final' ? 'Final' : `${heat.stage} ${heat.number}`;
-  const hdrs  = {heat:'bg-blue-600', semi:'bg-purple-600', final:'bg-yellow-500'};
-  const hdrBg = hdrs[colorKey] || 'bg-gray-600';
-  const teams = heat.teams || [];
-
-  if (!teams.length) return `
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
-      <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
-        <span class="text-white text-sm font-bold">${label}</span>
-        <span class="text-white/70 text-xs">0 teams</span>
-      </div>
-      <div class="p-6 text-center text-gray-400 text-sm">No teams assigned</div>
-    </div>`;
-
-  const rows = teams.map((t,i) => {
-    const bibColor = RBIB[(t.color||'').toLowerCase()] || '#9E9E9E';
-    const members  = (t.members||[]).filter(m=>m&&m!=='nan');
-    // Key per team: use club+color as identifier
-    const key    = `relay__${t.club}__${t.color||'none'}`;
-    const status = checkinStatus[key] || 'pending';
-    const btnLabel = status==='pending'?'Check In':status==='checked_in'?'✅ Present':'❌ DNS';
-    return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition">
-      <td class="px-3 py-2.5 text-xs text-gray-400 w-6">${i+1}</td>
-      <td class="px-3 py-2.5">
-        <div class="text-sm font-medium text-gray-900">${members.join(', ')||'—'}</div>
-        <div class="flex items-center gap-1.5 mt-0.5">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
-          <span class="text-xs text-gray-500">${t.club}</span>
-          <span class="text-xs text-gray-400">· ${t.color||'No helmet cover'}</span>
+    let nameCell = '';
+    if (isRelay) {
+      const RBIB = {
+        green:'#2E7D32', blue:'#1565C0', yellow:'#F9A825',
+        pink:'#E91E8C', 'light blue':'#29B6F6', black:'#212121', red:'#C62828'
+      };
+      const bibColor = RBIB[(s.color||'').toLowerCase()] || '#9E9E9E';
+      const memberLines = (s.members||[]).filter(m=>m&&m!=='nan');
+      const colorOpts = ['Green','Blue','Yellow','Pink','Light Blue','Black','Red']
+        .map(n => `<option value="${n}" ${(s.color||'').toLowerCase()===n.toLowerCase()?'selected':''}>${n}</option>`)
+        .join('');
+      nameCell = `<div style="font-family:'Inter',system-ui,sans-serif">
+        ${memberLines.length ? `<div style="font-size:13px;font-weight:400;color:#111827;line-height:1.6">${memberLines.join('<br>')}</div>` : ''}
+        <div class="flex items-center gap-2" style="margin-top:3px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
+          <span style="font-size:12px;color:#6B7280">${s.club}</span>
+          <select onchange="setTeamColor(${s.team_id},this.value)"
+            class="operator-only text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition">
+            <option value="" disabled ${!s.color?'selected':''}>No helmet cover</option>
+            ${colorOpts}
+          </select>
+          <span class="readonly-color" style="font-size:11px;color:#6B7280">${s.color||'No helmet cover'}</span>
         </div>
+      </div>`;
+    } else {
+      nameCell = `<span class="name-cell" style="font-size:13px;font-weight:400;font-family:'Inter',system-ui,sans-serif">${s.full_name}</span>`;
+    }
+
+    // Scratch button
+    const scratchBtn = isRelay
+      ? `<button onclick="scratchRelayTeam(${s.team_id})" title="Scratch team"
+           class="scratch-btn opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`
+      : `<button onclick="openScratchModal('${s.panel}','${esc(s.full_name)}')" title="Scratch skater"
+           class="scratch-btn opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs px-1 transition">✕</button>`;
+
+    return `<tr class="${rc} group">
+      <td class="px-3 py-2 text-xs text-gray-400 w-6">${i+1}</td>
+      <td class="px-3 py-2">
+        <div class="flex items-center gap-1">${nameCell}${scratchBtn}</div>
       </td>
-      <td class="px-3 py-2.5">
-        <button class="ci-btn ci-${status}"
-          onclick="toggleRelayCheckin('${esc(t.club)}','${esc(t.color||'none')}',this)">${btnLabel}</button>
+      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
+        <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
+      <td class="px-3 py-2">
+        ${(()=>{
+          const ciKey = isRelay ? 'relay__'+s.club+'__'+(s.color||'none') : s.panel+'__'+evCtx;
+          const ciEv  = isRelay ? 'relay' : evCtx;
+          const ciSt  = checkinStatus[ciKey]||'pending';
+          const ciLbl = ciSt==='pending'?'Check In':ciSt==='checked_in'?'✅ Present':'❌ DNS';
+          return `<button class="ci-btn ci-${ciSt}" onclick="toggleCheckin('${ciKey}','${ciEv}',this)">${ciLbl}</button>`;
+        })()}
       </td>
     </tr>`;
   }).join('');
 
-  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
+  const colHdrs = isRelay
+    ? '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th><th class="px-3 py-2 text-left">Check-in</th>'
+    : '<th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Panel</th><th class="px-3 py-2 text-left">Club</th><th class="px-3 py-2 text-left">Check-in</th>';
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden min-w-64 flex-1 max-w-sm border border-gray-100">
     <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
       <span class="text-white text-sm font-bold">${label}</span>
-      <span class="text-white/70 text-xs">${teams.length} teams</span>
+      <span class="text-white/70 text-xs">${items.length} skaters</span>
     </div>
     <table class="w-full">
-      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-        <th class="px-3 py-2">#</th>
-        <th class="px-3 py-2 text-left">Team</th>
-        <th class="px-3 py-2 text-left">Check-in</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
+      <tbody class="divide-y divide-gray-50">${rows}</tbody>
     </table>
+    <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100 operator-only">
+      <button onclick="saveCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
+      <button onclick="clearCard(${heat.id},'${kind}')"
+        class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">✕ Clear</button>
+      <span class="text-xs text-gray-400 ml-auto">1–6 or DQ · hover row to scratch</span>
+    </div>
   </div>`;
 }
 
-async function toggleRelayCheckin(club, color, btn) {
-  const key = `relay__${club}__${color}`;
+
+// ── Save results ──────────────────────────────────────────────────────────────
+async function saveCard(heatId, kind) {
+  const inputs = document.querySelectorAll(`input[data-heatid="${heatId}"]`);
+  const results = {};
+  inputs.forEach(inp => {
+    const v = inp.value.trim(); if (!v) return;
+    const key = kind==='relay' ? inp.dataset.team : inp.dataset.panel;
+    results[key] = v;
+  });
+  const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results} : {heat_id:heatId,results};
+  const r = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) toast('✓ Saved','success'); else toast(d.error,'error');
+}
+
+async function clearCard(heatId, kind) {
+  const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results:{}} : {heat_id:heatId,results:{}};
+  await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(kind==='relay') refreshAndShowRelay(); else selectGroup(curGroup);
+}
+
+// ── Advance / Reseed ──────────────────────────────────────────────────────────
+async function advance(id, from, kind, group) {
+  const targetGroup = group || curGroup;
+  const url     = kind==='relay' ? '/api/advance_relay' : '/api/advance';
+  const payload = kind==='relay' ? {relay_event_id:id,from} : {event_id:id,from};
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ '+d.message,'success');
+    if (kind==='relay') {
+      refreshAndShowRelay();
+    } else {
+      setTimeout(() => selectGroup(targetGroup), 300);
+    }
+  }
+  else toast(d.error || d.detail || 'Advance failed — check console','error');
+  if (d.detail) console.error('Advance error:', d.detail);
+}
+
+async function refreshAndShowRelay() {
+  const r = await fetch(`/api/${COMP_ID}/relays`);
+  const data = await r.json();
+  window._relayData = data;
+  // Re-render sidebar
+  const list = document.getElementById('relay-list');
+  list.innerHTML = Object.keys(data).map(ev => `
+    <button onclick="showRelayByName('${esc(ev)}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
+  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+  // Re-render current relay view
+  const curRelayName = document.getElementById('grp-view')._curRelayName;
+  if (curRelayName && data[curRelayName]) {
+    showRelay(curRelayName, data[curRelayName]);
+  }
+}
+
+async function reseedEv(id, kind) {
+  if (!confirm('Re-seed heats from current roster?\nSaved results are preserved.')) return;
+  const url     = kind==='relay' ? '/api/reseed_relay' : '/api/reseed';
+  const payload = kind==='relay' ? {relay_event_id:id} : {event_id:id};
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ '+d.message,'success');
+    if (kind==='relay') await refreshAndShowRelay();
+    else selectGroup(curGroup);
+  } else toast(d.error,'error');
+}
+
+// ── Drag & Drop Heat Editor ───────────────────────────────────────────────────
+let ddEvId = null, ddStage = null, ddKind = null, ddSortables = [];
+
+function openDDModal(evId, stage, kind) {
+  ddEvId=evId; ddStage=stage; ddKind=kind;
+  const events = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(events).find(e=>e.id===evId);
+  if (!ev) { toast('Event data not found — try refreshing','error'); return; }
+  const stageKey = {Heat:'heats',Semi:'semis',Final:'finals'}[stage];
+  const heats = ev[stageKey] || [];
+  const evLabel = ev.name || Object.keys(events)[0] || '';
+  document.getElementById('dd-title').textContent = `Edit ${stage}s — ${evLabel}`;
+
+  if (kind === 'relay') {
+    const RBIB = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+    const makeRelaySkater = t => ({
+      panel:     String(t.team_id || t.id || ''),
+      full_name: `${t.club}${t.color ? ' · ' + t.color : ''}`,
+      club:      (t.members||[]).filter(m=>m&&m!=='nan').join(', '),
+      _bibColor: RBIB[(t.color||'').toLowerCase()] || '#9E9E9E',
+    });
+    const allTeams = (ev.teams || [])
+      .filter(t => (t.status||'active') !== 'scratched')
+      .map(makeRelaySkater);
+    const relayHeats = heats.map(h => ({
+      ...h,
+      skaters: (h.teams||[]).map(makeRelaySkater)
+    }));
+    buildDDColumns(relayHeats, allTeams);
+  } else {
+    buildDDColumns(heats, ev.skaters || []);
+  }
+  document.getElementById('dd-modal').classList.remove('hidden');
+}
+
+function buildDDColumns(heats, allSkaters) {
+  // Collect all assigned panels
+  const assigned = new Set(heats.flatMap(h => h.skaters.map(s=>s.panel)));
+  // Unassigned = in group but not in any heat
+  const unassigned = allSkaters.filter(s => !assigned.has(s.panel));
+
+  ddSortables.forEach(s => s.destroy());
+  ddSortables = [];
+
+  const cols = document.getElementById('dd-columns');
+  cols.innerHTML = '';
+
+  // Unassigned pool column
+  const poolCol = mkDDColumn('pool', '📋 Unassigned', unassigned, '#6B7280');
+  cols.appendChild(poolCol);
+
+  // Heat columns
+  heats.forEach((heat, i) => {
+    const col = mkDDColumn(`heat-${i}`, `${ddStage} ${heat.number}`, heat.skaters,
+      ddStage==='Heat'?'#1565C0':ddStage==='Semi'?'#2E7D32':'#F9A825');
+    cols.appendChild(col);
+  });
+
+  // Init SortableJS on each list
+  cols.querySelectorAll('.dd-list').forEach(list => {
+    ddSortables.push(Sortable.create(list, {
+      group: 'heats',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      handle: '.drag-handle',
+      onEnd: updateUnassignedCount,
+    }));
+  });
+  updateUnassignedCount();
+}
+
+function mkDDColumn(id, label, skaters, color) {
+  const div = document.createElement('div');
+  div.className = 'flex flex-col min-w-56 w-56 flex-shrink-0';
+  div.innerHTML = `
+    <div class="text-xs font-bold uppercase tracking-wider mb-2 px-1" style="color:${color}">${label}</div>
+    <div class="dd-list flex-1 min-h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-2 space-y-1.5" data-col="${id}">
+      ${skaters.map(s => {
+        const isRelayRow = !!s._bibColor;
+        const dot = isRelayRow
+          ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${s._bibColor};flex-shrink:0;margin-top:2px"></span>`
+          : '';
+        const secondary = isRelayRow
+          ? `<div class="text-xs text-gray-400 leading-tight mt-0.5">${s.club||''}</div>`
+          : `<div class="text-xs mono text-gray-400">#${s.panel} · ${s.club||''}</div>`;
+        // For relay: show member names on top, club+bib below
+        const displayName = isRelayRow
+          ? (s.members||[]).filter(m=>m&&m!=='nan').join(', ') || (s.full_name||s.name||'')
+          : (s.full_name||s.name||'');
+        const subLine = isRelayRow
+          ? `<div class="text-xs text-gray-400 leading-tight mt-0.5 flex items-center gap-1">${dot}${s.club||''}</div>`
+          : secondary;
+        return `<div class="bg-white rounded-lg border border-gray-100 shadow-sm px-3 py-2 flex items-start gap-2 cursor-default" data-panel="${s.panel}">
+          <span class="drag-handle text-gray-300 text-sm select-none mt-0.5">⠿</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm">${displayName}</div>
+            ${subLine}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  return div;
+}
+
+function updateUnassignedCount() {
+  const pool = document.querySelector('.dd-list[data-col="pool"]');
+  const n = pool ? pool.children.length : 0;
+  document.getElementById('dd-unassigned-count').textContent = n > 0 ? `⚠️ ${n} unassigned` : '✓ All assigned';
+  document.getElementById('dd-unassigned-count').className = n > 0 ? 'text-xs text-orange-500 font-semibold' : 'text-xs text-green-600 font-semibold';
+}
+
+function ddAddHeat() {
+  const cols = document.getElementById('dd-columns');
+  const count = cols.querySelectorAll('.dd-list:not([data-col="pool"])').length + 1;
+  const col = mkDDColumn(`heat-${count-1}`, `${ddStage} ${count}`, [],
+    ddStage==='Heat'?'#1565C0':ddStage==='Semi'?'#2E7D32':'#F9A825');
+  cols.appendChild(col);
+  const list = col.querySelector('.dd-list');
+  ddSortables.push(Sortable.create(list, {group:'heats',animation:150,ghostClass:'sortable-ghost',chosenClass:'sortable-chosen',handle:'.drag-handle',onEnd:updateUnassignedCount}));
+}
+
+function ddRemoveLastHeat() {
+  const cols = document.getElementById('dd-columns');
+  const heatCols = [...cols.children].filter(c => !c.querySelector('[data-col="pool"]'));
+  if (heatCols.length <= 1) { toast('Need at least 1 heat','error'); return; }
+  const last = heatCols[heatCols.length-1];
+  // Move skaters back to pool
+  const pool = cols.querySelector('[data-col="pool"]');
+  [...last.querySelectorAll('[data-panel]')].forEach(card => pool.appendChild(card));
+  last.remove();
+  updateUnassignedCount();
+}
+
+async function saveDDModal() {
+  const cols = document.getElementById('dd-columns');
+  const heatCols = [...cols.querySelectorAll('.dd-list')].filter(l => l.dataset.col !== 'pool');
+  const heats = heatCols.map(col => ({
+    panels: [...col.querySelectorAll('[data-panel]')].map(c => c.dataset.panel)
+  }));
+  const r = await fetch('/api/arrange_heats', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({event_id: ddEvId, stage: ddStage, heats, kind: ddKind})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ Heat arrangement saved','success');
+    closeDDModal();
+    if (ddKind === 'relay') refreshAndShowRelay();
+    else selectGroup(curGroup);
+  } else toast(d.error,'error');
+}
+
+function closeDDModal() {
+  document.getElementById('dd-modal').classList.add('hidden');
+  ddSortables.forEach(s => s.destroy());
+  ddSortables = [];
+}
+
+// ── Standings ─────────────────────────────────────────────────────────────────
+async function loadStandings(group) {
+  const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+  const d = await r.json();
+  const data = d.standings||[], tbEv = d.tiebreaker_event||'';
+  const body = document.getElementById('ev-body');
+  const evs  = document.getElementById('grp-view')._events||{};
+  const ptEvs= Object.values(evs).filter(e=>e.points_event).map(e=>e.name);
+
+  const tbBar = `<div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 mb-4 shadow-sm flex-wrap">
+    <span class="text-sm font-semibold text-gray-700">⚖️ Tiebreaker:</span>
+    <select id="tb-select" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-brand">
+      <option value="">None selected</option>
+      ${ptEvs.map(n=>`<option value="${esc(n)}"${n===tbEv?' selected':''}>${n}</option>`).join('')}
+    </select>
+    <button onclick="saveTiebreaker()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Save</button>
+    <span class="text-xs text-gray-400">Applied globally to all groups in this competition</span>
+  </div>`;
+
+  if (!data.length) {
+    body.innerHTML = tbBar + `<div class="text-center py-16 text-gray-400"><div class="text-4xl mb-3">📊</div><p>No final results yet</p></div>`;
+    return;
+  }
+
+  const rows = data.map(row => {
+    const pos = row.position;
+    const posEl = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':`<span class="text-sm font-semibold text-gray-500">${pos}</span>`;
+    const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+      const s = ['st','nd','rd'][info.place-1]||'th';
+      return `<span class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${ev.replace(' Distance','')}: <strong>${info.pts}pts</strong> (${info.place}${s})${ev===tbEv?' ⚖️':''}</span>`;
+    }).join(' ');
+    const tbWarn = row.tb_needed
+      ? `<span class="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-semibold">⚠️ TIE</span>` : '';
+    return `<tr class="hover:bg-gray-50 transition">
+      <td class="px-4 py-3 text-lg">${posEl}</td>
+      <td class="px-4 py-3 font-semibold text-sm">${row.name}${tbWarn}</td>
+      <td class="px-4 py-3 mono text-xs text-gray-400">${row.panel}</td>
+      <td class="px-4 py-3 text-sm text-gray-500">${row.club}</td>
+      <td class="px-4 py-3"><span class="bg-orange-50 text-orange-700 font-bold text-sm px-3 py-1 rounded-full mono">${row.points}</span></td>
+      <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${bd||'—'}</div></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = tbBar + `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h3 class="font-bold text-sm">Overall Group Standings</h3>
+        <div class="flex gap-2 text-xs text-gray-400">
+          <span>1st=30</span><span>2nd=20</span><span>3rd=10</span><span>4th=5</span>
+        </div>
+      </div>
+      <table class="w-full">
+        <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <th class="px-4 py-2 text-left">Pos</th><th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Panel</th><th class="px-4 py-2 text-left">Club</th>
+          <th class="px-4 py-2 text-left">Points</th><th class="px-4 py-2 text-left">Breakdown</th>
+        </tr></thead>
+        <tbody class="divide-y divide-gray-50">${rows}</tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-400 mt-3">⚖️ = tiebreaker event · ⚠️ = tied, resolve manually</p>`;
+}
+
+async function saveTiebreaker() {
+  const evName = document.getElementById('tb-select').value;
+  const r = await fetch(`/api/${COMP_ID}/tiebreaker`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_name:evName})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Tiebreaker saved','success'); loadStandings(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Relay view ────────────────────────────────────────────────────────────────
+function showRelay(evName, ev) {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b=>b.className=b.className.replace('bg-orange-50 text-brand font-semibold','text-gray-700 hover:bg-gray-100'));
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+  const COLORS={green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+
+  // Store with consistent structure including name so openDDModal can find it
+  const evWithName = {...ev, name: evName};
+  document.getElementById('grp-view')._events = {[evName]: evWithName};
+  document.getElementById('grp-view')._curRelayName = evName;
+
+  let html = `
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold">🔄 ${evName}</h2>
+      <span class="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full">${(ev.teams||[]).filter(t=>t.status!=='scratched').length} teams</span>
+      <div class="ml-auto flex gap-2">
+        <button onclick="openRelayPoolModal()"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">🏊 Pool</button>
+        <a href="/relay_assign/${COMP_ID}"
+          class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">👥 Assign Members</a>
+        <button onclick="openAddTeam(${ev.id})"
+          class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition">+ Add Team</button>
+        <button onclick="reseedEv(${ev.id},'relay')"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
+          🔄 Re-seed All Heats
+        </button>
+      </div>
+    </div>`;
+
+  const mkSection = (title, color, heats, stageKey) => {
+    if (!heats?.length) return '';
+    const stageWord = stageKey.replace('s',''); // heats→heat, semis→semi, finals→final
+    const stageCap = stageWord.charAt(0).toUpperCase()+stageWord.slice(1);
+    let s = `<div class="flex items-center gap-3 mb-3 mt-5">
+      <span class="text-xs font-bold uppercase tracking-widest" style="color:${color}">${title}</span>
+      <div class="flex-1 h-px bg-gray-200"></div>
+      <button onclick="openDDModal(${ev.id},'${stageCap}','relay')" class="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">✏️ Edit ${title}</button>
+    </div>`;
+    s += `<div class="flex gap-4 flex-wrap mb-3">${heats.map(h=>hCard(h,title.toLowerCase().includes('semi')?'semi':title.toLowerCase().includes('final')?'final':'heat',ev.id,'relay')).join('')}</div>`;
+    return s;
+  };
+
+  html += mkSection('Heats','#1565C0', ev.heats||[], 'heats');
+  if (ev.heats?.length) html += advBar('blue',ev.id,'heats','relay','Advance from Heats →');
+  html += mkSection('Semi-Finals','#2E7D32', ev.semis||[], 'semis');
+  if (ev.semis?.length) html += advBar('green',ev.id,'semis','relay','Advance from Semis →');
+  html += mkSection('Final','#F9A825', ev.finals||[], 'finals');
+
+  // Teams list
+  const teamCards = (ev.teams||[]).filter(t => t.status !== 'scratched').map(t => {
+    const c = COLORS[t.color?.toLowerCase()]||'#455A64';
+    const mems = (t.members||[]).filter(m=>m&&m!=='nan').map(m=>`<div class="text-sm py-1.5 border-b border-white/10 text-white/85">• ${m}</div>`).join('');
+    const membersJson = JSON.stringify(t.members||[]).replace(/"/g,'&quot;');
+    return `<div class="rounded-xl overflow-hidden shadow-sm">
+      <div class="px-4 py-3 font-bold text-sm text-white flex items-center justify-between" style="background:${c}">
+        <span>${t.club} — ${t.color} bib</span>
+        <button onclick="openEditTeam(${t.id},'${esc(t.club)}','${esc(t.color)}',${membersJson},${ev.id})"
+          class="text-white/70 hover:text-white text-xs font-semibold bg-white/10 hover:bg-white/20 px-2 py-1 rounded-lg transition">✏️ Edit</button>
+      </div>
+      <div class="px-4 py-2 pb-3" style="background:${c};opacity:.9">${mems||'<div class="text-sm text-white/50 italic">No members</div>'}</div>
+    </div>`;
+  }).join('');
+  if (teamCards) html += `<div class="mt-6"><div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Teams</div><div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">${teamCards}</div></div>`;
+
+  // Relay pool panel
+  html += `<div class="mt-6 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <span class="text-xs font-bold uppercase tracking-wider text-gray-500">🏊 Relay Pool</span>
+      <button onclick="openRelayPoolModal()" class="text-xs font-semibold text-brand hover:underline">+ Add Athlete</button>
+    </div>
+    <div id="relay-pool-panel"><div class="text-center py-6 text-gray-400 text-sm">Loading…</div></div>
+  </div>`;
+
+  // Scratched teams
+  const scratchedTeams = (ev.teams||[]).filter(t => t.status === 'scratched');
+  if (scratchedTeams.length) {
+    const scratchRows = scratchedTeams.map(t => `
+      <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 opacity-60">
+        <span class="text-red-400 text-xs">✕</span>
+        <div class="flex-1"><div class="text-sm font-medium line-through text-gray-500">${t.club} — ${t.color}</div>
+          <div class="text-xs text-gray-400">${(t.members||[]).join(', ')}</div></div>
+        <button onclick="unScratchRelay(${t.id})" class="px-2.5 py-1 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">↩ Restore</button>
+      </div>`).join('');
+    html += `<div class="mt-4 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+      <div class="px-4 py-3 border-b border-gray-100 bg-gray-50"><span class="text-xs font-bold uppercase tracking-wider text-gray-500">Scratched Teams</span></div>
+      ${scratchRows}</div>`;
+  }
+
+  document.getElementById('grp-view').innerHTML = html;
+  // Re-store after innerHTML wipe
+  document.getElementById('grp-view')._events = {[evName]: evWithName};
+  document.getElementById('grp-view')._curRelayName = evName;
+  // Load relay pool
+  loadRelayPool().then(() => renderRelayPoolPanel());
+}
+
+// ── Scratch functions ─────────────────────────────────────────────────────────
+function openScratchModal(panel, name) {
+  _scratchPanel = panel;
+  // Find current event id
+  const evs = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(evs).find(e => e.name === curEvent);
+  _scratchEventId = ev ? ev.id : null;
+  document.getElementById('scratch-name').textContent = name;
+  document.getElementById('scratch-panel').textContent = `Panel #${panel}`;
+  document.getElementById('scratch-reason').value = '';
+  document.querySelector('input[name="scratch-scope"][value="event"]').checked = true;
+  openModal('scratch-modal');
+}
+
+async function doScratch() {
+  const scope  = document.querySelector('input[name="scratch-scope"]:checked').value;
+  const reason = document.getElementById('scratch-reason').value.trim();
+  const payload = {comp_id: COMP_ID, panel: _scratchPanel, scope, reason};
+  if (scope === 'event') payload.event_id = _scratchEventId;
+  const r = await fetch('/api/scratch', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('scratch-modal');
+    toast(`✓ ${_scratchPanel} scratched`, 'success');
+    selectGroup(curGroup);
+  } else toast(d.error, 'error');
+}
+
+async function scratchRelayTeam(teamId) {
+  const reason = prompt('Reason for scratch (optional):') ?? '';
+  if (reason === null) return; // cancelled
+  const r = await fetch('/api/scratch_relay', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id: teamId, reason})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Team scratched', 'success'); refreshAndShowRelay(); }
+  else toast(d.error, 'error');
+}
+
+async function unScratchRelay(teamId) {
+  const r = await fetch('/api/unscratch_relay', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({team_id: teamId})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Team restored', 'success'); refreshAndShowRelay(); }
+  else toast(d.error, 'error');
+}
+
+// ── Standby functions ─────────────────────────────────────────────────────────
+let _standbyGroup = null;
+function openStandbyModal(group) {
+  _standbyGroup = group;
+  ['sb-first','sb-last','sb-panel','sb-club','sb-usars'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('sb-gender').value = '';
+  document.getElementById('standby-search').value = '';
+  document.getElementById('standby-search-results').classList.add('hidden');
+  openModal('standby-modal');
+}
+
+let _sbSearchTimer = null;
+function searchStandby() {
+  clearTimeout(_sbSearchTimer);
+  const q = document.getElementById('standby-search').value.trim();
+  if (!q) { document.getElementById('standby-search-results').classList.add('hidden'); return; }
+  _sbSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    const res = document.getElementById('standby-search-results');
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0,8).map(a => `
+      <div onclick="fillStandby(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+        class="px-3 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function fillStandby(athlete) {
+  document.getElementById('sb-first').value  = athlete.first || '';
+  document.getElementById('sb-last').value   = athlete.last  || '';
+  document.getElementById('sb-club').value   = athlete.club  || '';
+  document.getElementById('sb-usars').value  = athlete.usars_no || '';
+  document.getElementById('sb-gender').value = athlete.gender || '';
+  document.getElementById('standby-search-results').classList.add('hidden');
+}
+
+async function doAddStandby() {
+  const payload = {
+    comp_id: COMP_ID, group: _standbyGroup,
+    first:  document.getElementById('sb-first').value.trim(),
+    last:   document.getElementById('sb-last').value.trim(),
+    panel:  document.getElementById('sb-panel').value.trim(),
+    club:   document.getElementById('sb-club').value.trim(),
+    usars_no: document.getElementById('sb-usars').value.trim(),
+    gender: document.getElementById('sb-gender').value,
+  };
+  if (!payload.first || !payload.last || !payload.panel) {
+    toast('First, Last and Panel are required', 'error'); return;
+  }
+  const r = await fetch('/api/add_standby', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('standby-modal');
+    toast(`✓ ${d.skater.full_name} added as standby`, 'success');
+    selectGroup(curGroup);
+  } else toast(d.error, 'error');
+}
+
+// ── Render scratched + standby panel ─────────────────────────────────────────
+async function renderScratchStandbyPanel(group) {
+  try {
+    const [sr, sbr] = await Promise.all([
+      fetch(`/api/${COMP_ID}/scratches/${encodeURIComponent(group)}`),
+      fetch(`/api/${COMP_ID}/standbys/${encodeURIComponent(group)}`),
+    ]);
+    if (!sr.ok || !sbr.ok) return '';
+    const scratched = await sr.json().catch(() => []);
+    const standbys  = await sbr.json().catch(() => []);
+
+    if (!scratched.length && !standbys.length) return '';
+
+  const scratchRows = scratched.map(s => `
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 opacity-60">
+      <span class="text-red-400 text-xs">✕</span>
+      <div class="flex-1">
+        <div class="text-sm font-medium line-through text-gray-500">${s.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">#${s.panel}${s.scratch_reason ? ' · ' + s.scratch_reason : ''}</div>
+      </div>
+      <button onclick="unScratch('${s.panel}')" class="px-2.5 py-1 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">↩ Restore</button>
+    </div>`).join('');
+
+  const standbyRows = standbys.map(s => `
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0">
+      <span class="text-yellow-500 text-xs">⏳</span>
+      <div class="flex-1">
+        <div class="text-sm font-medium">${s.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">#${s.panel} · ${s.club}</div>
+      </div>
+      <span class="text-xs bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-0.5 rounded-full font-semibold">Standby</span>
+    </div>`).join('');
+
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mt-5">
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+      <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Scratched & Standby</span>
+    </div>
+    ${scratchRows}${standbyRows}
+  </div>`;
+  } catch(e) {
+    console.warn('renderScratchStandbyPanel error:', e);
+    return '';
+  }
+}
+
+async function unScratch(panel) {
+  const evs = document.getElementById('grp-view')._events || {};
+  const ev = Object.values(evs).find(e => e.name === curEvent);
+  const r = await fetch('/api/unscratch', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({comp_id: COMP_ID, panel, scope:'all'})});
+  const d = await r.json();
+  if (d.ok) { toast('✓ Athlete restored', 'success'); selectGroup(curGroup); }
+  else toast(d.error, 'error');
+}
+
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.querySelectorAll('[id$="-modal"]').forEach(m =>
+  m.addEventListener('click', e => { if (e.target===m) m.classList.add('hidden'); }));
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ── Inline relay team color change ────────────────────────────────────────────
+async function setTeamColor(teamId, color) {
+  const r = await fetch('/api/relay_team/update_members', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({team_id: teamId, color, members: null})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ Color → ${color}`, 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+
+const RELAY_COLORS = {
+  'Green':      '#2E7D32',
+  'Blue':       '#1565C0',
+  'Yellow':     '#F9A825',
+  'Pink':       '#E91E8C',
+  'Light Blue': '#29B6F6',
+  'Black':      '#212121',
+  'Red':        '#C62828',
+};
+
+function pickTeamColor(btn, scope) {
+  const prefix = scope === 'edit' ? 'et' : 'at';
+  // Deselect all swatches in this scope
+  document.querySelectorAll(`#${prefix}-color-swatches .color-swatch`).forEach(b => {
+    b.style.borderColor = 'transparent';
+    b.style.transform = '';
+    b.style.boxShadow = '';
+  });
+  // Select this one
+  btn.style.borderColor = '#F4511E';
+  btn.style.boxShadow = '0 0 0 3px rgba(244,81,30,.25)';
+  const color = btn.dataset.color;
+  document.getElementById(`${prefix}-color`).value = color;
+  document.getElementById(`${prefix}-color-label`).textContent = color;
+}
+
+function preselectColor(color, scope) {
+  const prefix = scope === 'edit' ? 'et' : 'at';
+  document.getElementById(`${prefix}-color`).value = color || '';
+  document.getElementById(`${prefix}-color-label`).textContent = color || 'No color selected';
+  document.querySelectorAll(`#${prefix}-color-swatches .color-swatch`).forEach(b => {
+    const match = b.dataset.color.toLowerCase() === (color||'').toLowerCase();
+    b.style.borderColor = match ? '#F4511E' : 'transparent';
+    b.style.boxShadow = match ? '0 0 0 3px rgba(244,81,30,.25)' : '';
+  });
+}
+
+// ── Relay Team Editing ────────────────────────────────────────────────────────
+let _editTeamId = null, _editTeamMembers = [], _editRelayEvId = null;
+
+function openEditTeam(teamId, club, color, members, relayEvId) {
+  _editTeamId = teamId;
+  _editRelayEvId = relayEvId;
+  _editTeamMembers = [...members];
+  document.getElementById('edit-team-title').textContent = `✏️ ${club} — ${color} bib`;
+  document.getElementById('edit-team-search').value = '';
+  document.getElementById('edit-team-adhoc').value = '';
+  document.getElementById('edit-team-search-results').classList.add('hidden');
+  preselectColor(color, 'edit');
+  renderEditTeamMembers();
+  openModal('edit-team-modal');
+}
+
+function renderEditTeamMembers() {
+  const container = document.getElementById('edit-team-members');
+  if (!_editTeamMembers.length) {
+    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">No members yet</p>';
+    return;
+  }
+  container.innerHTML = _editTeamMembers.map((name, i) => `
+    <div class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group">
+      <span class="drag-handle text-gray-300 cursor-grab select-none">⠿</span>
+      <span class="flex-1 text-sm font-medium">${name}</span>
+      <button onclick="removeEditMember(${i})" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition text-xs px-1">✕</button>
+    </div>`).join('');
+}
+
+function removeEditMember(index) {
+  _editTeamMembers.splice(index, 1);
+  renderEditTeamMembers();
+}
+
+function addAdhocMember() {
+  const inp = document.getElementById('edit-team-adhoc');
+  const name = inp.value.trim();
+  if (!name) return;
+  _editTeamMembers.push(name);
+  inp.value = '';
+  renderEditTeamMembers();
+}
+
+let _etSearchTimer = null;
+async function searchEditTeam() {
+  clearTimeout(_etSearchTimer);
+  const q = document.getElementById('edit-team-search').value.trim();
+  const res = document.getElementById('edit-team-search-results');
+  if (!q) { res.classList.add('hidden'); return; }
+  _etSearchTimer = setTimeout(async () => {
+    // Search both relay pool and registry
+    const [poolR, regR] = await Promise.all([
+      fetch(`/api/${COMP_ID}/relay_pool`),
+      fetch(`/api/registry?q=${encodeURIComponent(q)}`),
+    ]);
+    const pool = await poolR.json().catch(() => []);
+    const reg  = await regR.json().catch(() => ({athletes:[]}));
+    const poolFiltered = pool.filter(a =>
+      a.full_name.toLowerCase().includes(q.toLowerCase()) ||
+      (a.usars_no || '').toLowerCase().includes(q.toLowerCase())
+    );
+    const regAthletes = (reg.athletes || []).slice(0, 5);
+    if (!poolFiltered.length && !regAthletes.length) { res.classList.add('hidden'); return; }
+    let html = '';
+    if (poolFiltered.length) {
+      html += `<div class="px-3 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50">Relay Pool</div>`;
+      html += poolFiltered.slice(0, 5).map(a => `
+        <div onclick="addEditMemberFromPool('${esc(a.full_name)}')"
+          class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 flex items-center gap-2">
+          <span class="text-blue-400 text-xs">🏊</span>
+          <div><div class="text-sm font-semibold">${a.full_name}</div>
+            <div class="text-xs text-gray-400">${a.club}</div></div>
+        </div>`).join('');
+    }
+    if (regAthletes.length) {
+      html += `<div class="px-3 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50">Registry</div>`;
+      html += regAthletes.map(a => `
+        <div onclick="addEditMemberFromPool('${esc(a.full_name)}')"
+          class="px-3 py-2.5 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-0 flex items-center gap-2">
+          <span class="text-orange-400 text-xs">📋</span>
+          <div><div class="text-sm font-semibold">${a.full_name}</div>
+            <div class="text-xs text-gray-400">${a.usars_no} · ${a.club}</div></div>
+        </div>`).join('');
+    }
+    res.innerHTML = html;
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function addEditMemberFromPool(name) {
+  _editTeamMembers.push(name);
+  renderEditTeamMembers();
+  document.getElementById('edit-team-search').value = '';
+  document.getElementById('edit-team-search-results').classList.add('hidden');
+}
+
+async function saveTeamMembers() {
+  const color = document.getElementById('et-color').value;
+  const r = await fetch('/api/relay_team/update_members', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({team_id: _editTeamId, members: _editTeamMembers, color})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('edit-team-modal');
+    toast('✓ Team updated', 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+// ── Add New Team ──────────────────────────────────────────────────────────────
+let _addTeamRelayEvId = null;
+function openAddTeam(relayEvId) {
+  _addTeamRelayEvId = relayEvId;
+  ['at-club','at-members'].forEach(id => document.getElementById(id).value = '');
+  preselectColor('', 'add');
+  openModal('add-team-modal');
+}
+
+async function doAddTeam() {
+  const club    = document.getElementById('at-club').value.trim();
+  const color   = document.getElementById('at-color').value.trim();
+  const members = document.getElementById('at-members').value.split('\n').filter(l => l.trim());
+  if (!club) { toast('Club required', 'error'); return; }
+  if (!color) { toast('Select a bib color', 'error'); return; }
+  const r = await fetch('/api/relay_team/add', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({relay_event_id: _addTeamRelayEvId, club, color, members})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('add-team-modal');
+    toast('✓ Team added', 'success');
+    refreshAndShowRelay();
+  } else toast(d.error, 'error');
+}
+
+// ── Add Athlete to Group ──────────────────────────────────────────────────────
+let _addAthleteGroup = null, _addAthleteId = null;
+let _addAthleteSearchTimer = null;
+
+function openAddAthleteModal(group) {
+  _addAthleteGroup = group;
+  _addAthleteId = null;
+  document.getElementById('add-athlete-group-label').textContent = `Adding to group: ${group}`;
+  document.getElementById('add-athlete-search').value = '';
+  document.getElementById('add-athlete-results').classList.add('hidden');
+  document.getElementById('add-athlete-selected').classList.add('hidden');
+  document.getElementById('add-athlete-confirm').disabled = true;
+  openModal('add-athlete-modal');
+  setTimeout(() => document.getElementById('add-athlete-search').focus(), 100);
+}
+
+function searchAddAthlete() {
+  clearTimeout(_addAthleteSearchTimer);
+  const q = document.getElementById('add-athlete-search').value.trim();
+  const res = document.getElementById('add-athlete-results');
+  if (!q) { res.classList.add('hidden'); return; }
+  _addAthleteSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json().catch(() => ({athletes:[]}));
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0, 8).map(a => `
+      <div onclick="selectAddAthlete(${a.id},'${esc(a.full_name)}','${esc(a.usars_no||'')}','${esc(a.club||'')}','${esc(a.gender||'')}')"
+        class="px-4 py-2.5 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function selectAddAthlete(id, name, usars, club, gender) {
+  _addAthleteId = id;
+  document.getElementById('add-athlete-search').value = name;
+  document.getElementById('add-athlete-results').classList.add('hidden');
+  document.getElementById('add-athlete-name').textContent = name;
+  document.getElementById('add-athlete-meta').textContent = `${usars} · ${club}${gender ? ' · ' + gender : ''}`;
+  document.getElementById('add-athlete-selected').classList.remove('hidden');
+  document.getElementById('add-athlete-confirm').disabled = false;
+}
+
+async function doAddAthlete() {
+  if (!_addAthleteId || !_addAthleteGroup) return;
+  const btn = document.getElementById('add-athlete-confirm');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  const r = await fetch(`/api/comp/${COMP_ID}/add_athlete_to_group`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({group: _addAthleteGroup, athlete_id: _addAthleteId})
+  });
+  const d = await r.json();
+  btn.disabled = false; btn.textContent = '+ Add to Group';
+  if (d.ok) {
+    closeModal('add-athlete-modal');
+    toast(`✓ ${d.skater.full_name} added to ${_addAthleteGroup}`, 'success');
+    selectGroup(curGroup); // refresh group view
+  } else toast(d.error, 'error');
+}
+
+
+let _relayPool = [];
+
+async function loadRelayPool() {
+  const r = await fetch(`/api/${COMP_ID}/relay_pool`);
+  _relayPool = await r.json().catch(() => []);
+}
+
+function openRelayPoolModal() {
+  ['rp-first','rp-last','rp-club','rp-usars'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('rp-search').value = '';
+  document.getElementById('rp-search-results').classList.add('hidden');
+  openModal('relay-pool-modal');
+}
+
+let _rpSearchTimer = null;
+function searchRelayPool() {
+  clearTimeout(_rpSearchTimer);
+  const q = document.getElementById('rp-search').value.trim();
+  if (!q) { document.getElementById('rp-search-results').classList.add('hidden'); return; }
+  _rpSearchTimer = setTimeout(async () => {
+    const r = await fetch(`/api/registry?q=${encodeURIComponent(q)}`);
+    const d = await r.json().catch(() => ({athletes:[]}));
+    const res = document.getElementById('rp-search-results');
+    if (!d.athletes?.length) { res.classList.add('hidden'); return; }
+    res.innerHTML = d.athletes.slice(0,6).map(a => `
+      <div onclick="fillRelayPool(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+        class="px-3 py-2.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+        <div class="text-sm font-semibold">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.usars_no} · ${a.club}</div>
+      </div>`).join('');
+    res.classList.remove('hidden');
+  }, 200);
+}
+
+function fillRelayPool(a) {
+  document.getElementById('rp-first').value = a.first || '';
+  document.getElementById('rp-last').value  = a.last  || '';
+  document.getElementById('rp-club').value  = a.club  || '';
+  document.getElementById('rp-usars').value = a.usars_no || '';
+  document.getElementById('rp-search-results').classList.add('hidden');
+}
+
+async function doAddRelayPool() {
+  const first = document.getElementById('rp-first').value.trim();
+  const last  = document.getElementById('rp-last').value.trim();
+  if (!first || !last) { toast('First and Last required', 'error'); return; }
+  const r = await fetch('/api/relay_pool/add', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      comp_id: COMP_ID, first, last,
+      club: document.getElementById('rp-club').value.trim(),
+      usars_no: document.getElementById('rp-usars').value.trim(),
+    })
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('relay-pool-modal');
+    toast(`✓ ${d.athlete.full_name} added to pool`, 'success');
+    await loadRelayPool();
+    renderRelayPoolPanel();
+  } else toast(d.error, 'error');
+}
+
+async function removeFromPool(id) {
+  const r = await fetch(`/api/relay_pool/${id}`, {method:'DELETE'});
+  const d = await r.json();
+  if (d.ok) {
+    await loadRelayPool();
+    renderRelayPoolPanel();
+    toast('✓ Removed from pool', 'success');
+  } else toast(d.error, 'error');
+}
+
+function renderRelayPoolPanel() {
+  const panel = document.getElementById('relay-pool-panel');
+  if (!panel) return;
+  if (!_relayPool.length) {
+    panel.innerHTML = `<div class="text-center py-6 text-gray-400">
+      <div class="text-2xl mb-2">🏊</div>
+      <p class="text-sm">No athletes in pool yet</p>
+      <p class="text-xs mt-1">Add athletes to assign them to teams</p>
+    </div>`;
+    return;
+  }
+  panel.innerHTML = _relayPool.map(a => `
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 group">
+      <div class="flex-1">
+        <div class="text-sm font-medium">${a.full_name}</div>
+        <div class="text-xs text-gray-400 font-mono">${a.club}${a.usars_no ? ' · ' + a.usars_no : ''}</div>
+      </div>
+      <button onclick="removeFromPool(${a.id})"
+        class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition">✕</button>
+    </div>`).join('');
+}
+
+
+document.getElementById('up-sched').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  toast('Loading schedule…');
+  const r = await fetch(`/api/upload/schedule/${COMP_ID}`, {method:'POST', body:fd});
+  const d = await r.json();
+  if (d.ok) { toast(`✓ ${d.event_count} schedule events loaded`, 'success'); showSchedule(); }
+  else toast(d.error || 'Error loading schedule', 'error');
+  e.target.value = '';
+});
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
+async function showSchedule() {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn text-gray-700 hover:bg-gray-100`;
+  });
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+
+  document.getElementById('grp-view').innerHTML = `
+    <div class="flex items-center gap-3 mb-5">
+      <h2 class="text-xl font-bold">📅 Schedule</h2>
+      <span class="text-xs text-gray-400">Click a row to update status</span>
+    </div>
+    <div id="sched-body"><div class="text-gray-400 text-sm py-4">Loading…</div></div>`;
+
+  const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
+  const events = await r.json();
+  renderScheduleOperator(events);
+}
+
+function renderScheduleOperator(events) {
+  const body = document.getElementById('sched-body');
+  if (!events.length) {
+    body.innerHTML = `<div class="text-center py-16 text-gray-400">
+      <div class="text-4xl mb-3">📋</div>
+      <p class="font-semibold">No schedule loaded yet</p>
+      <p class="text-sm mt-1">Upload a Program Excel file using the 📋 Schedule button in the header</p>
+    </div>`;
+    return;
+  }
+
+  let html = '';
+  let curSection = '';
+
+  events.forEach(ev => {
+    if (ev.section !== curSection) {
+      curSection = ev.section;
+      html += `<div class="flex items-center gap-3 mt-6 mb-3">
+        <span class="text-xs font-bold bg-gray-100 text-gray-500 px-3 py-1 rounded-full whitespace-nowrap">${ev.section_time}</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-gray-400">${ev.section}</span>
+        <div class="flex-1 h-px bg-gray-200"></div>
+      </div>`;
+    }
+
+    const statusStyles = {
+      pending:     'bg-white border-gray-200',
+      in_progress: 'bg-amber-50 border-amber-300',
+      done:        'bg-green-50 border-green-300',
+    };
+    const badgeStyles = {
+      pending:     'bg-gray-100 text-gray-500',
+      in_progress: 'bg-amber-100 text-amber-800',
+      done:        'bg-green-100 text-green-800',
+    };
+    const badgeLabel = {pending:'Upcoming', in_progress:'In Progress', done:'Done'};
+
+    html += `<div class="flex items-center gap-3 px-4 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
+      <span class="text-xs font-mono text-gray-400 w-16 flex-shrink-0">${ev.race_number}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold">${ev.label}</div>
+        <div class="text-xs text-gray-400">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
+      </div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button onclick="setSchedStatus(${ev.id},'pending')"
+          class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='pending'?'bg-gray-200 border-gray-300 font-semibold':'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}">
+          Upcoming
+        </button>
+        <button onclick="setSchedStatus(${ev.id},'in_progress')"
+          class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='in_progress'?'bg-amber-200 border-amber-300 font-semibold text-amber-900':'bg-white border-gray-200 text-gray-500 hover:bg-amber-50'}">
+          ⚡ In Progress
+        </button>
+        <button onclick="setSchedStatus(${ev.id},'done')"
+          class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='done'?'bg-green-200 border-green-300 font-semibold text-green-900':'bg-white border-gray-200 text-gray-500 hover:bg-green-50'}">
+          ✓ Done
+        </button>
+      </div>
+    </div>`;
+  });
+
+  body.innerHTML = html;
+}
+
+async function setSchedStatus(eventId, status) {
+  const r = await fetch(`/api/schedule/${eventId}/status`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  const d = await r.json();
+  if (d.ok) { showSchedule(); }
+  else toast(d.error || 'Error', 'error');
+}
+
+
+async function syncFromRegistry() {
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
+  const r = await fetch(`/api/comp/${COMP_ID}/sync_from_registry`, {method:'POST'});
+  const d = await r.json();
+  if (btn) { btn.disabled = false; btn.textContent = '📋 Sync from Registry'; }
+  if (d.ok) {
+    let msg = `✓ ${d.updated} athletes updated from registry`;
+    if (d.not_found_count > 0) msg += ` · ${d.not_found_count} not in registry`;
+    toast(msg, 'success');
+    if (curGroup) selectGroup(curGroup);
+  } else toast(d.error || 'Sync failed', 'error');
+}
+
+async function showRegistrations() {
+  curGroup = null;
+  document.querySelectorAll('.group-btn').forEach(b => {
+    b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn text-gray-700 hover:bg-gray-100`;
+  });
+  document.getElementById('welcome').classList.add('hidden');
+  document.getElementById('grp-view').classList.remove('hidden');
+
+  document.getElementById('grp-view').innerHTML = `
+    <div class="flex items-center gap-3 mb-5 flex-wrap">
+      <h2 class="text-xl font-bold">🔗 Registrations</h2>
+      <div class="ml-auto flex gap-2">
+        <button onclick="exportCSV('attending')"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
+          ⬇ Export Attending
+        </button>
+        <a href="/relay_assign/${COMP_ID}" style="display:none"
+          class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition">
+          🔄 Assign Relay Teams
+        </a>
+        <a href="/assign_groups/${COMP_ID}" style="display:none"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+          🗂 Assign Groups
+        </a>
+        <button onclick="seedFromRegistrations()" style="display:none"
+          class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+          ⚡ Seed from Registrations
+        </button>
+        <button onclick="exportCSV('all')" style="display:none"
+          class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 transition">
+          ⬇ Export All
+        </button>
+      </div>
+    </div>
+    <div id="reg-body"><div class="text-gray-400 text-sm py-4">Loading…</div></div>`;
+
+  const r = await fetch(`/api/comp/${COMP_ID}/registrations`);
+  const data = await r.json();
+  const clubs = Object.keys(data).sort();
+  const body = document.getElementById('reg-body');
+  const baseUrl = `${location.protocol}//${location.host}`;
+
+  if (!clubs.length) {
+    body.innerHTML = `<div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-400">
+      <div class="text-4xl mb-3">🔗</div>
+      <p class="font-semibold">No registration links yet</p>
+      <p class="text-sm mt-1">Generate links from the competition card on the home page</p>
+    </div>`;
+    return;
+  }
+
+  body.innerHTML = clubs.map(club => {
+    const d = data[club];
+    const attending    = d.athletes.filter(a => a.status === 'attending').length;
+    const notAttending = d.athletes.filter(a => a.status === 'not_attending').length;
+    const pending      = d.athletes.filter(a => a.status === 'pending').length;
+    const url = `${baseUrl}/register/${d.token}`;
+
+    const rows = d.athletes.map(a => `
+      <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 ${a.status==='attending'?'bg-green-50':a.status==='not_attending'?'bg-red-50':''}">
+        <div class="flex-1">
+          <div class="text-sm font-semibold">${a.full_name}</div>
+          <div class="text-xs text-gray-400 font-mono">${a.usars_no}${a.gender?' · '+a.gender:''}</div>
+        </div>
+        <select onchange="overrideReg(${a.id},this.value)"
+          class="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-brand bg-white">
+          <option value="attending"     ${a.status==='attending'    ?'selected':''}>✅ Attending</option>
+          <option value="not_attending" ${a.status==='not_attending'?'selected':''}>❌ Not Going</option>
+          <option value="pending"       ${a.status==='pending'      ?'selected':''}>⬜ No Response</option>
+        </select>
+      </div>`).join('');
+
+    return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
+      <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <span class="font-bold">${club}</span>
+          <span class="ml-3 text-xs text-gray-500">✅ ${attending} · ❌ ${notAttending} · ⬜ ${pending}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold ${d.is_open?'text-green-600':'text-orange-500'}">${d.is_open?'🔓 Open':'🔒 Closed'}</span>
+          <button onclick="navigator.clipboard.writeText('${url}').then(()=>toast('✓ Copied','success'))"
+            class="text-xs px-2 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 font-semibold text-gray-600">📋 Copy Link</button>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+async function exportCSV(filter) {
+  const r = await fetch(`/api/comp/${COMP_ID}/registrations`);
+  const data = await r.json();
+
+  // Flatten all athletes
+  const allAthletes = [];
+  Object.entries(data).sort().forEach(([club, d]) => {
+    d.athletes.forEach(a => {
+      if (filter === 'attending' && a.status !== 'attending') return;
+      allAthletes.push(a);
+    });
+  });
+
+  // Sort: age ASC (nulls last) → lap_time ASC (nulls last) → name
+  allAthletes.sort((a, b) => {
+    const ageA = a.age !== '' && a.age != null ? Number(a.age) : Infinity;
+    const ageB = b.age !== '' && b.age != null ? Number(b.age) : Infinity;
+    if (ageA !== ageB) return ageA - ageB;
+    const lapA = a.lap_time !== '' && a.lap_time != null ? Number(a.lap_time) : Infinity;
+    const lapB = b.lap_time !== '' && b.lap_time != null ? Number(b.lap_time) : Infinity;
+    if (lapA !== lapB) return lapA - lapB;
+    return (a.full_name||'').localeCompare(b.full_name||'');
+  });
+
+  const rows = [['Name','Club','USARS No','Gender','Age','Lap Time (sec)','DOB','Status','Race Group']];
+  allAthletes.forEach(a => {
+    rows.push([
+      a.full_name, a.club||'', a.usars_no||'', a.gender||'',
+      a.age||'', a.lap_time||'', a.dob||'',
+      a.status==='attending'?'Attending':a.status==='not_attending'?'Not Going':'No Response',
+      a.group_name||'',
+    ]);
+  });
+
+  const csv = rows.map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `registrations_${filter}_${COMP_ID}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('✓ CSV downloaded', 'success');
+}
+
+
+async function overrideReg(regId, status) {
+  const r = await fetch(`/api/registration/${regId}/override`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  const d = await r.json();
+  if (!d.ok) toast(d.error || 'Error','error');
+}
+
+async function seedFromRegistrations() {
+  if (!confirm('Seed heats from all attending athletes?\nThis will replace existing individual event data.')) return;
+  toast('⏳ Seeding heats…');
+  const r = await fetch(`/api/comp/${COMP_ID}/seed_from_reg`, {method:'POST'});
+  const d = await r.json();
+  if (d.ok) {
+    toast(`✓ ${d.skater_count} athletes seeded into ${d.groups.length} groups`, 'success');
+    await refreshGroups();
+    const gs = Object.keys(allGroups);
+    if (gs.length) selectGroup(gs[0]);
+  } else toast(d.error || 'Error seeding', 'error');
+}
+
+
+// ── Transfer ──────────────────────────────────────────────────────────────────
+let xferGroup = null;
+async function openXfer(group) {
+  xferGroup = group;
+  document.getElementById('xfer-from').textContent = group;
+  const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
+  const evs = await r.json();
+  const firstEv = Object.values(evs)[0];
+  const seen = new Set(), skaters = [];
+  if (firstEv) [...(firstEv.heats||[]),...(firstEv.semis||[]),...(firstEv.finals||[])].forEach(h=>
+    h.skaters.forEach(s=>{if(!seen.has(s.panel)){seen.add(s.panel);skaters.push(s);}}));
+  skaters.sort((a,b)=>(a.last||'').localeCompare(b.last||''));
+  document.getElementById('xfer-sk-list').innerHTML = skaters.map(s=>`
+    <label class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition">
+      <input type="checkbox" value="${s.panel}" class="accent-brand w-4 h-4">
+      <div>
+        <div class="text-sm font-semibold">${s.full_name}</div>
+        <div class="text-xs mono text-gray-400">#${s.panel} · ${s.club}</div>
+      </div>
+    </label>`).join('') || '<p class="text-sm text-gray-400 px-4 py-3">No skaters</p>';
+  const others = Object.keys(allGroups).filter(g=>g!==group).sort();
+  document.getElementById('xfer-to').innerHTML = others.map(g=>`<option value="${esc(g)}">${g}</option>`).join('');
+  openModal('xfer-modal');
+}
+
+async function doTransfer() {
+  const panels = [...document.querySelectorAll('#xfer-sk-list input:checked')].map(c=>c.value);
+  if (!panels.length) { toast('Select at least one skater','error'); return; }
+  const toGroup = document.getElementById('xfer-to').value;
+  const r = await fetch('/api/transfer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,panels,to_group:toGroup})});
+  const d = await r.json();
+  if (d.ok) { closeModal('xfer-modal'); toast(`✓ ${panels.length} skater(s) moved`,'success'); await refreshGroups(); selectGroup(curGroup); }
+  else toast(d.error,'error');
+}
+
+// ── Add Event ─────────────────────────────────────────────────────────────────
+let addEvGroup = null;
+function openAddEv(group) {
+  addEvGroup = group;
+  document.getElementById('ev-name-inp').value = '';
+  document.getElementById('ev-points').checked = false;
+  document.querySelector('input[name="evtype"][value="heat_based"]').checked = true;
+  openModal('addEv-modal');
+}
+
+async function doAddEvent() {
+  const name = document.getElementById('ev-name-inp').value.trim();
+  if (!name) { toast('Enter event name','error'); return; }
+  const type = document.querySelector('input[name="evtype"]:checked').value;
+  const pts  = document.getElementById('ev-points').checked ? 1 : 0;
+  const r = await fetch('/api/add_event',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({comp_id:COMP_ID,group:addEvGroup,name,type,points_event:pts})});
+  const d = await r.json();
+  if (d.ok) { closeModal('addEv-modal'); curEvent=name; toast('✓ Created','success'); selectGroup(curGroup); }
+  else toast(d.error,'error');
+}
+
+
+
+// ── State persistence ─────────────────────────────────────────────────────────
+const STATE_KEY = `pw_op_state_${COMP_ID}`;
+
+function saveState(type, value) {
+  try { localStorage.setItem(STATE_KEY, JSON.stringify({type, value})); } catch(e) {}
+}
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY)); } catch(e) { return null; }
+}
+
+// Patch selectGroup, showRelayByName, showRegistrations, showSchedule to save state
+const _origSelectGroup = selectGroup;
+selectGroup = async function(group) {
+  saveState('group', group);
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) {
+    document.querySelector('aside.sidebar')?.classList.remove('open');
+    document.getElementById('sidebar-overlay')?.classList.remove('open');
+  }
+  return _origSelectGroup(group);
+};
+
+const _origShowRelayByName = showRelayByName;
+showRelayByName = function(name) {
+  saveState('relay', name);
+  return _origShowRelayByName(name);
+};
+
+const _origShowRegistrations = showRegistrations;
+showRegistrations = async function() {
+  saveState('section', 'registrations');
+  return _origShowRegistrations();
+};
+
+const _origShowSchedule = showSchedule;
+showSchedule = async function() {
+  saveState('section', 'schedule');
+  return _origShowSchedule();
+};
+
+// Ensure all fetch calls send session cookie
+const _origFetch = window.fetch;
+window.fetch = (url, opts={}) => {
+  if (typeof url === 'string' && url.startsWith('/')) {
+    opts = {...opts, credentials: opts.credentials || 'include'};
+  }
+  return _origFetch(url, opts);
+};
+
+
+// ── Check-in state ────────────────────────────────────────────────────────────
+let checkinStatus = {}; // key -> 'pending'|'checked_in'|'dns'
+const COMP_ID_CI = {{comp.id}};
+
+async function loadCheckinStatus() {
+  try {
+    const r = await fetch(`/api/comp/${COMP_ID_CI}/checkin_status`);
+    if (r.ok) checkinStatus = await r.json();
+  } catch(e) {}
+}
+
+async function toggleCheckin(key, evName, btn) {
   const cur  = checkinStatus[key] || 'pending';
   const next = cur==='pending'?'checked_in':cur==='checked_in'?'dns':'pending';
   checkinStatus[key] = next;
   btn.className = `ci-btn ci-${next}`;
   btn.textContent = next==='pending'?'Check In':next==='checked_in'?'✅ Present':'❌ DNS';
-  await fetch(`/api/comp/${COMP_ID}/checkin_status`,{
+  const nameEl = btn.closest('tr')?.querySelector('.name-cell');
+  if (nameEl) nameEl.classList.toggle('name-dns', next==='dns');
+  await fetch(`/api/comp/${COMP_ID_CI}/checkin_status`,{
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({panel:`relay__${club}__${color}`, event_name:'relay', status:next})
+    body:JSON.stringify({panel: key, event_name: evName, status: next})
   }).catch(()=>{});
 }
-async function selectGroup(group) {
-  curGroup = {type:'group', key:group};
-  setActiveTab(`tab-${CSS.escape(group)}`);
-  if (!allGroupData[group]) await loadGroup(group);
-  renderGroup(group);
+
+function toggleSidebar() {
+  const sidebar  = document.querySelector('aside.sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const isOpen   = sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', !isOpen);
+  overlay.classList.toggle('open', !isOpen);
 }
 
-async function loadGroup(group) {
-  try {
-    const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}`);
-    allGroupData[group] = await r.json();
-  } catch(e) {}
-}
 
-function renderGroup(group) {
-  const data   = allGroupData[group] || {};
-  const events = data.events || data || {};
-  const count  = allGroups[group]?.skater_count || allGroups[group] || '';
-  const ORDER  = ['Short Distance','Medium Distance','Long Distance'];
-  const evNames = Object.keys(events).filter(n => n !== '__standings__');
-  const ordered = [...ORDER.filter(n=>evNames.includes(n)), ...evNames.filter(n=>!ORDER.includes(n))];
-
-  if (!ordered.length) {
-    setContent(`<div class="text-center py-16 text-gray-400">No heats seeded yet</div>`);
-    return;
-  }
-
-  let html = `<div class="flex items-center gap-3 mb-5">
-    <h2 class="text-2xl font-bold text-gray-900">${group}</h2>
-    <span class="text-sm text-gray-400 bg-gray-100 px-3 py-1 rounded-full">${count} skaters</span>
-  </div>`;
-
-  for (const evName of ordered) {
-    const ev = events[evName];
-    if (!ev) continue;
-    const allStages = [
-      ...(ev.heats||[]).map(h=>({...h,_key:'heat'})),
-      ...(ev.semis||[]).map(h=>({...h,_key:'semi'})),
-      ...(ev.finals||[]).map(h=>({...h,_key:'final'})),
-    ];
-    if (!allStages.length) continue;
-
-    html += `<div class="mb-5">
-      <div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-3">
-        ${evName}<div class="flex-1 h-px bg-gray-200"></div>
-      </div>
-      ${allStages.map(h => hCard(h, h._key, evName)).join('')}
-    </div>`;
-  }
-  setContent(html);
-}
-
-// ── Relay view ────────────────────────────────────────────────────────────────
-function selectRelay(name) {
-  curGroup = {type:'relay', key:name};
-  const idx = Object.keys(allRelays).sort().indexOf(name);
-  setActiveTab(`tab-relay-${idx}`);
-  renderRelay(name);
-}
-
-function renderRelay(name) {
-  const ev = allRelays[name];
-  if (!ev) { setContent('<div class="text-center py-16 text-gray-400">No relay data</div>'); return; }
-  const allStages = [
-    ...(ev.heats||[]).map(h=>({...h,_key:'heat'})),
-    ...(ev.semis||[]).map(h=>({...h,_key:'semi'})),
-    ...(ev.finals||[]).map(h=>({...h,_key:'final'})),
-  ];
-  let html = `<h2 class="text-xl font-bold text-gray-900 mb-5">🔄 ${name}</h2>
-    ${allStages.map(h => relayHCard(h, h._key)).join('') || '<p class="text-gray-400 text-sm">No heats yet</p>'}`;
-  setContent(html);
-}
-
-// ── Search ────────────────────────────────────────────────────────────────────
-function doSearch(q) {
-  q = q.trim().toLowerCase();
-  if (!q) { if (curGroup) { curGroup.type==='group'?renderGroup(curGroup.key):renderRelay(curGroup.key); } return; }
-  const results = [];
-  Object.entries(allGroupData).forEach(([group, data]) => {
-    const events = data.events || data || {};
-    Object.entries(events).forEach(([evName, ev]) => {
-      if (evName === '__standings__') return;
-      const allStages = [...(ev.heats||[]),...(ev.semis||[]),...(ev.finals||[])];
-      allStages.forEach(heat => {
-        (heat.skaters||[]).forEach(s => {
-          if (s.full_name.toLowerCase().includes(q) || (s.panel||'').toString().includes(q)) {
-            results.push({group, evName, heat, s});
-          }
-        });
-      });
-    });
+if (READONLY) {
+  document.body.classList.add('readonly');
+  // Add check-in banner
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#1D4ED8;color:white;text-align:center;padding:6px 16px;font-size:13px;font-weight:600;letter-spacing:.02em;position:sticky;top:56px;z-index:49';
+  banner.innerHTML = '👁 Check-in View — Read Only';
+  document.querySelector('header').after(banner);
+  // Hide all upload labels and action buttons in header
+  document.querySelectorAll('header label, header a[href*="checkin"], header button').forEach(el => {
+    if (el.id !== 'lock-btn') el.style.display = 'none';
   });
-  if (!results.length) { setContent('<div class="text-center py-16 text-gray-400">No results found</div>'); return; }
-  const byGroup = {};
-  results.forEach(r => { (byGroup[r.group] = byGroup[r.group]||[]).push(r); });
-  let html = '';
-  Object.entries(byGroup).sort().forEach(([group, rows]) => {
-    html += `<div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2 mt-4">${group}</div>`;
-    rows.forEach(({evName, heat, s}) => {
-      const key = `${s.panel}__${evName}`;
-      const status = checkinStatus[key] || 'pending';
-      const btnLabel = status==='pending'?'Check In':status==='checked_in'?'✅ Present':'❌ DNS';
-      html += `<div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 mb-2 flex items-center gap-3">
-        <span class="mono text-xs text-gray-400 w-12">#${s.panel}</span>
-        <span class="text-sm flex-1 ${status==='dns'?'name-dns':''}">${s.full_name}</span>
-        <span class="text-xs text-gray-400">${s.club}</span>
-        <span class="text-xs text-gray-300 mx-1">·</span>
-        <span class="text-xs text-gray-400">${evName}</span>
-        <button class="ci-btn ci-${status}"
-          onclick="toggleCheckin('${esc(s.panel)}','${esc(evName)}',this)">${btnLabel}</button>
-      </div>`;
-    });
-  });
-  setContent(html);
+  // Keep sidebar visible but hide registrations button
+  document.querySelectorAll('[onclick="showRegistrations()"]').forEach(el => el.closest('div')?.style.setProperty('display','none'));
 }
 
-// ── Schedule ──────────────────────────────────────────────────────────────────
-async function renderSchedule() {
-  setContent('<div class="text-center py-16 text-gray-400">Loading schedule…</div>');
-  try {
-    const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
-    const evs = await r.json().catch(() => []);
-    if (!evs.length) { setContent('<div class="text-center py-16 text-gray-400">No schedule uploaded yet</div>'); return; }
-    let html = '', curSection = '';
-    evs.forEach(ev => {
-      if (ev.section !== curSection) {
-        curSection = ev.section;
-        html += `<div class="flex items-center gap-3 mb-3 mt-5 first:mt-0">
-          <span class="text-xs text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5 whitespace-nowrap">${ev.section_time}</span>
-          <span class="text-xs font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">${ev.section}</span>
-          <div class="flex-1 h-px bg-gray-200"></div>
-        </div>`;
-      }
-      const badge = ev.status==='in_progress'
-        ? `<span class="sched-badge in_progress"><span class="live-dot"></span>In Progress</span>`
-        : ev.status==='done' ? `<span class="sched-badge done">✓ Done</span>`
-        : `<span class="sched-badge pending">Upcoming</span>`;
-      html += `<div class="sched-row ${ev.status} mb-2">
-        <div class="mono text-xs text-gray-400 w-14 flex-shrink-0">${ev.race_number}</div>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm text-gray-900">${ev.label}</div>
-          <div class="text-xs text-gray-400 mt-0.5">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
-        </div>
-        ${badge}
-      </div>`;
-    });
-    setContent(html);
-  } catch(e) { setContent('<div class="text-center py-16 text-gray-400">Failed to load schedule</div>'); }
-}
-
-// ── Init & Refresh ────────────────────────────────────────────────────────────
-async function doRefresh() {
-  if (curMode==='schedule') { renderSchedule(); return; }
-  await loadCheckinStatus();
-  try {
-    const [gr, rr] = await Promise.all([
-      fetch(`/api/${COMP_ID}/groups`), fetch(`/api/${COMP_ID}/relays`)
-    ]);
-    allGroups = await gr.json().catch(() => allGroups);
-    allRelays  = await rr.json().catch(() => allRelays);
-  } catch(e) {}
-  if (curGroup) {
-    if (curGroup.type==='group') { delete allGroupData[curGroup.key]; await loadGroup(curGroup.key); renderGroup(curGroup.key); }
-    else renderRelay(curGroup.key);
+loadCheckinStatus();
+refreshGroups().then(async () => {
+  const state = loadState();
+  if (state) {
+    if (state.type === 'group' && allGroups[state.value]) {
+      await selectGroup(state.value);
+    } else if (state.type === 'relay') {
+      await refreshRelays();
+      showRelayByName(state.value);
+      return; // refreshRelays already called
+    } else if (state.type === 'section' && state.value === 'registrations') {
+      showRegistrations();
+    } else if (state.type === 'section' && state.value === 'schedule') {
+      showSchedule();
+    } else {
+      const gs = Object.keys(allGroups);
+      if (gs.length) selectGroup(gs[0]);
+    }
+  } else {
+    const gs = Object.keys(allGroups);
+    if (gs.length) selectGroup(gs[0]);
   }
-  document.getElementById('last-upd').textContent = 'Updated ' + ts();
-}
+  refreshRelays();
+});
 
-async function init() {
-  try {
-    const [gr, rr] = await Promise.all([
-      fetch(`/api/${COMP_ID}/groups`), fetch(`/api/${COMP_ID}/relays`)
-    ]);
-    allGroups = await gr.json().catch(() => ({}));
-    allRelays  = await rr.json().catch(() => ({}));
-    await loadCheckinStatus();
-    buildTabs();
-    const first = Object.keys(allGroups).sort()[0];
-    if (first) selectGroup(first);
-    document.getElementById('last-upd').textContent = 'Updated ' + ts();
-  } catch(e) {
-    setContent('<div class="text-center py-16 text-gray-400">Failed to load. Tap Refresh to retry.</div>');
-  }
-  timer = setInterval(doRefresh, 20000);
-}
-
-init();
 </script>
 </body>
 </html>
