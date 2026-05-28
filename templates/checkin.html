@@ -198,7 +198,7 @@ function hCard(heat, colorKey, evName) {
     </tr>`;
   }).join('');
 
-  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-w-64 border border-gray-100">
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
     <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
       <span class="text-white text-sm font-bold">${label}</span>
       <span class="text-white/70 text-xs">${count} skaters</span>
@@ -216,44 +216,74 @@ function hCard(heat, colorKey, evName) {
   </div>`;
 }
 
-// Relay heat card
+// Relay heat card with check-in button per team
 function relayHCard(heat, colorKey) {
   const label = heat.stage==='Final' ? 'Final' : `${heat.stage} ${heat.number}`;
   const hdrs  = {heat:'bg-blue-600', semi:'bg-purple-600', final:'bg-yellow-500'};
   const hdrBg = hdrs[colorKey] || 'bg-gray-600';
   const teams = heat.teams || [];
 
+  if (!teams.length) return `
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
+      <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
+        <span class="text-white text-sm font-bold">${label}</span>
+        <span class="text-white/70 text-xs">0 teams</span>
+      </div>
+      <div class="p-6 text-center text-gray-400 text-sm">No teams assigned</div>
+    </div>`;
+
   const rows = teams.map((t,i) => {
     const bibColor = RBIB[(t.color||'').toLowerCase()] || '#9E9E9E';
-    const members = (t.members||[]).filter(m=>m&&m!=='nan');
-    return `<tr class="border-b border-gray-50">
+    const members  = (t.members||[]).filter(m=>m&&m!=='nan');
+    // Key per team: use club+color as identifier
+    const key    = `relay__${t.club}__${t.color||'none'}`;
+    const status = checkinStatus[key] || 'pending';
+    const btnLabel = status==='pending'?'Check In':status==='checked_in'?'✅ Present':'❌ DNS';
+    return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition">
       <td class="px-3 py-2.5 text-xs text-gray-400 w-6">${i+1}</td>
       <td class="px-3 py-2.5">
-        <div class="text-sm">${members.join(', ')||'—'}</div>
+        <div class="text-sm font-medium text-gray-900">${members.join(', ')||'—'}</div>
         <div class="flex items-center gap-1.5 mt-0.5">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor}"></span>
-          <span class="text-xs text-gray-400">${t.club}</span>
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor};flex-shrink:0"></span>
+          <span class="text-xs text-gray-500">${t.club}</span>
           <span class="text-xs text-gray-400">· ${t.color||'No helmet cover'}</span>
         </div>
+      </td>
+      <td class="px-3 py-2.5">
+        <button class="ci-btn ci-${status}"
+          onclick="toggleRelayCheckin('${esc(t.club)}','${esc(t.color||'none')}',this)">${btnLabel}</button>
       </td>
     </tr>`;
   }).join('');
 
-  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden flex-1 min-w-64 border border-gray-100">
+  return `<div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-4">
     <div class="${hdrBg} px-4 py-2.5 flex items-center justify-between">
       <span class="text-white text-sm font-bold">${label}</span>
       <span class="text-white/70 text-xs">${teams.length} teams</span>
     </div>
     <table class="w-full">
       <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-        <th class="px-3 py-2">#</th><th class="px-3 py-2 text-left">Team</th>
+        <th class="px-3 py-2">#</th>
+        <th class="px-3 py-2 text-left">Team</th>
+        <th class="px-3 py-2 text-left">Check-in</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
 }
 
-// ── Group view ────────────────────────────────────────────────────────────────
+async function toggleRelayCheckin(club, color, btn) {
+  const key = `relay__${club}__${color}`;
+  const cur  = checkinStatus[key] || 'pending';
+  const next = cur==='pending'?'checked_in':cur==='checked_in'?'dns':'pending';
+  checkinStatus[key] = next;
+  btn.className = `ci-btn ci-${next}`;
+  btn.textContent = next==='pending'?'Check In':next==='checked_in'?'✅ Present':'❌ DNS';
+  await fetch(`/api/comp/${COMP_ID}/checkin_status`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({panel:`relay__${club}__${color}`, event_name:'relay', status:next})
+  }).catch(()=>{});
+}
 async function selectGroup(group) {
   curGroup = {type:'group', key:group};
   setActiveTab(`tab-${CSS.escape(group)}`);
@@ -300,9 +330,7 @@ function renderGroup(group) {
       <div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-3">
         ${evName}<div class="flex-1 h-px bg-gray-200"></div>
       </div>
-      <div class="flex gap-4 flex-wrap">
-        ${allStages.map(h => hCard(h, h._key, evName)).join('')}
-      </div>
+      ${allStages.map(h => hCard(h, h._key, evName)).join('')}
     </div>`;
   }
   setContent(html);
@@ -325,9 +353,7 @@ function renderRelay(name) {
     ...(ev.finals||[]).map(h=>({...h,_key:'final'})),
   ];
   let html = `<h2 class="text-xl font-bold text-gray-900 mb-5">🔄 ${name}</h2>
-    <div class="flex gap-4 flex-wrap">
-      ${allStages.map(h => relayHCard(h, h._key)).join('') || '<p class="text-gray-400 text-sm">No heats yet</p>'}
-    </div>`;
+    ${allStages.map(h => relayHCard(h, h._key)).join('') || '<p class="text-gray-400 text-sm">No heats yet</p>'}`;
   setContent(html);
 }
 
