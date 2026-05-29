@@ -1671,6 +1671,7 @@ def update_skater_panel(comp_id, panel):
 
 
 
+@app.route("/api/comp/<int:comp_id>/sync_from_registry", methods=["POST"])
 def sync_from_registry(comp_id):
     """
     Sync skater details (panel, club, gender) from AthleteRegistry
