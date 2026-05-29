@@ -526,10 +526,12 @@ async function refreshRelays() {
   // Store relay data in a JS map — avoids HTML attribute encoding issues
   window._relayData = data;
   const list = document.getElementById('relay-list');
-  list.innerHTML = Object.keys(data).map(ev => `
-    <button onclick="showRelayByName('${esc(ev)}')"
-      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
-  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+  list.innerHTML = Object.keys(data).map(ev => {
+    const short = ev.replace(/\s*\(.*?\)\s*/g,'').replace(/\s*Final\s*$/i,'').trim();
+    return `<button onclick="showRelayByName('${esc(ev)}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate"
+      title="${ev}">${short}</button>`;
+  }).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
 
   // If a relay event is currently shown, refresh it
   const curRelayName = document.getElementById('grp-view')._curRelayName;
@@ -871,10 +873,12 @@ async function refreshAndShowRelay() {
   window._relayData = data;
   // Re-render sidebar
   const list = document.getElementById('relay-list');
-  list.innerHTML = Object.keys(data).map(ev => `
-    <button onclick="showRelayByName('${esc(ev)}')"
-      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate">${ev}</button>`
-  ).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
+  list.innerHTML = Object.keys(data).map(ev => {
+    const short = ev.replace(/\s*\(.*?\)\s*/g,'').replace(/\s*Final\s*$/i,'').trim();
+    return `<button onclick="showRelayByName('${esc(ev)}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 truncate"
+      title="${ev}">${short}</button>`;
+  }).join('') || '<p class="text-xs text-gray-400 px-2">No relay data</p>';
   // Re-render current relay view
   const curRelayName = document.getElementById('grp-view')._curRelayName;
   if (curRelayName && data[curRelayName]) {
