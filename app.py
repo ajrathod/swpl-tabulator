@@ -1083,8 +1083,11 @@ def upload_individual(comp_id):
         # Deduplicate by panel, enrich gender/usars from registry
         # Also track heat assignments from sheet: {group: {panel: heat_val}}
         seen = set(); panels_by_group = {}; heat_assignments = {}
+        duplicates = []
         for r in raw:
-            if r["panel"] in seen: continue
+            if r["panel"] in seen:
+                duplicates.append(f"{r['first']} {r['last']} (panel {r['panel']})")
+                continue
             seen.add(r["panel"])
             usars = r.get("usars_no","").strip()
             reg = None
@@ -1126,6 +1129,7 @@ def upload_individual(comp_id):
         session.commit()
         return jsonify({"ok":True, "skater_count":len(seen), "groups":sorted(panels_by_group.keys()),
                         "auto_registered": auto_added,
+                        "duplicates": duplicates,
                         "message": f"{len(seen)} athletes loaded, {auto_added} new athletes added to registry" if auto_added else None})
     except Exception as e:
         session.rollback(); return jsonify({"error":str(e)}), 500
@@ -1645,7 +1649,28 @@ def advance_relay():
 
 # ── Reseed ────────────────────────────────────────────────────────────────────
 
-@app.route("/api/comp/<int:comp_id>/sync_from_registry", methods=["POST"])
+@app.route("/api/comp/<int:comp_id>/skater/<path:panel>/update_panel", methods=["PATCH"])
+def update_skater_panel(comp_id, panel):
+    new_panel = (request.json.get("panel") or "").strip()
+    if not new_panel: return jsonify({"error": "Panel required"}), 400
+    session = db()
+    try:
+        sk = session.query(Skater).filter_by(competition_id=comp_id, panel=panel).first()
+        if not sk: return jsonify({"error": "Skater not found"}), 404
+        # Check for conflict
+        conflict = session.query(Skater).filter_by(competition_id=comp_id, panel=new_panel).first()
+        if conflict and conflict.id != sk.id:
+            return jsonify({"error": f"Panel {new_panel} already assigned to {conflict.first} {conflict.last}"}), 409
+        sk.panel = new_panel
+        session.commit()
+        return jsonify({"ok": True, "panel": new_panel})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+
 def sync_from_registry(comp_id):
     """
     Sync skater details (panel, club, gender) from AthleteRegistry
@@ -1668,24 +1693,11 @@ def sync_from_registry(comp_id):
                     usars_no=sk.usars_no).first()
             if reg:
                 changed = False
-                # Get the best panel number from registry:
-                # prefer panel_no, then usars_no if it looks like a real panel (not AUTO-)
-                reg_panel = reg.panel_no
-                if not reg_panel and reg.usars_no and not reg.usars_no.startswith('AUTO-'):
-                    reg_panel = reg.usars_no
-
-                # Update panel if current is TBC placeholder or blank
-                if (not sk.panel or sk.panel.startswith('TBC')) and reg_panel:
-                    sk.panel = reg_panel; changed = True
-                # Also update if registry has a panel_no and current panel differs
-                elif reg.panel_no and sk.panel != reg.panel_no:
-                    sk.panel = reg.panel_no; changed = True
-
-                # Update usars_no from registry if ours is AUTO- or blank
+                # Only sync safe fields — panel is managed manually in heat cards
+                # to avoid unique constraint conflicts
                 if reg.usars_no and not reg.usars_no.startswith('AUTO-'):
                     if not sk.usars_no or sk.usars_no.startswith('AUTO-') or sk.usars_no.startswith('TBC'):
                         sk.usars_no = reg.usars_no; changed = True
-
                 if not sk.club and reg.club:
                     sk.club = reg.club; changed = True
                 if not sk.gender and reg.gender:
@@ -1703,7 +1715,8 @@ def sync_from_registry(comp_id):
             "not_found_count": len(not_found),
         })
     except Exception as e:
-        session.rollback(); return jsonify({"error": str(e)}), 500
+        session.rollback()
+        return jsonify({"error": f"Sync failed: {str(e)}", "updated": updated}), 500
     finally:
         session.close()
 
