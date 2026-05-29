@@ -1878,8 +1878,6 @@ async function inlineEditPanel(span, oldPanel) {
       s.onclick = () => inlineEditPanel(s, newPanel);
       inp.replaceWith(s);
       toast(`Panel updated: ${oldPanel} → ${newPanel}`, 'success');
-      // Refresh current group to reflect change
-      setTimeout(() => { if (curGroup) selectGroup(curGroup); }, 800);
     } else {
       toast(d.error || 'Update failed', 'error');
       const s = document.createElement('span');
