@@ -9,7 +9,7 @@
 <style>
 :root {
   --orange: #F4511E; --orange-dim: #BF360C;
-  --gold: #FFD54F; --silver: #B0BEC5; --bronze: #FFAB91;
+  --gold: #F59E0B; --silver: #64748B; --bronze: #C2622D;
   --blue-stage: #4FC3F7; --green-stage: #81C784;
 }
 
@@ -155,11 +155,11 @@ body {
 /* Heat card */
 .hcard { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
 .hcard-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
-.hcard-head.hh { background: rgba(79,195,247,.12); border-bottom: 1px solid rgba(79,195,247,.15); }
-.hcard-head.sh { background: rgba(129,199,132,.12); border-bottom: 1px solid rgba(129,199,132,.15); }
-.hcard-head.fh { background: rgba(255,213,79,.12);  border-bottom: 1px solid rgba(255,213,79,.15); }
+.hcard-head.hh { background: #EFF6FF; border-bottom: 1px solid #BFDBFE; }
+.hcard-head.sh { background: #F0FDF4; border-bottom: 1px solid #BBF7D0; }
+.hcard-head.fh { background: #FFFBEB; border-bottom: 1px solid #FDE68A; }
 .hcard-head h3 { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; letter-spacing: .02em; }
-.hcard-head.hh h3 { color: var(--blue-stage); } .hcard-head.sh h3 { color: var(--green-stage); } .hcard-head.fh h3 { color: var(--gold); }
+.hcard-head.hh h3 { color: #1D4ED8; } .hcard-head.sh h3 { color: #15803D; } .hcard-head.fh h3 { color: #D97706; }
 .hcard-head .sc { font-size: 11px; color: var(--text-faint); font-weight: 600; }
 
 /* Skater row */
@@ -167,7 +167,7 @@ body {
 .sk-row:last-child { border-bottom: none; }
 .sk-row.r1 { background: var(--r1-bg); } .sk-row.r2 { background: var(--r2-bg); } .sk-row.r3 { background: var(--r3-bg); }
 .rank-num { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; width: 32px; text-align: center; flex-shrink: 0; line-height: 1; }
-.rank-num.r1 { color: var(--gold); } .rank-num.r2 { color: var(--silver); } .rank-num.r3 { color: var(--bronze); } .rank-num.rn { color: var(--text-faint); font-size: 15px; font-weight: 600; }
+.rank-num.r1 { color: var(--gold); } .rank-num.r2 { color: var(--silver); } .rank-num.r3 { color: var(--bronze); } .rank-num.rn { color: var(--text-dim); font-size: 18px; font-weight: 700; }
 .sk-info { flex: 1; min-width: 0; }
 .sk-name { font-size: 16px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .sk-meta { font-size: 13px; color: var(--text-dim); margin-top: 2px; font-family: 'DM Mono', monospace; letter-spacing: .02em; }
@@ -185,8 +185,8 @@ body {
 .standings-row { display: flex; align-items: center; padding: 12px 16px; gap: 12px; border-bottom: 1px solid var(--row-sep); }
 .standings-row:last-child { border-bottom: none; }
 .standings-row.r1 { background: var(--r1-bg); } .standings-row.r2 { background: var(--r2-bg); } .standings-row.r3 { background: var(--r3-bg); }
-.st-pos { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 900; width: 32px; text-align: center; flex-shrink: 0; }
-.st-pos.p1 { color: var(--gold); } .st-pos.p2 { color: var(--silver); } .st-pos.p3 { color: var(--bronze); } .st-pos.pn { color: var(--text-faint); font-size: 16px; }
+.st-pos { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; width: 36px; text-align: center; flex-shrink: 0; line-height: 1; }
+.st-pos.p1 { color: var(--gold); } .st-pos.p2 { color: var(--silver); } .st-pos.p3 { color: var(--bronze); } .st-pos.pn { color: var(--text-dim); font-size: 18px; font-weight: 700; }
 .st-info { flex: 1; min-width: 0; }
 .st-name { font-size: 16px; font-weight: 600; color: var(--text); }
 .st-breakdown { font-size: 10px; color: var(--text-dim); margin-top: 2px; font-family: 'DM Mono', monospace; }
@@ -781,8 +781,9 @@ async function showStandings(group) {
       return `${ev.replace(' Distance','')}: ${info.pts}pts (${info.place}${s})${ev===tbEv?' ⚖':''}`;
     }).join('  ·  ');
     const tie = row.tb_needed ? '<span class="tie-badge">TIE</span>' : '';
+    const medal = {1:'🥇',2:'🥈',3:'🥉'}[pos] || '';
     return `<div class="standings-row ${rc}">
-      <div class="st-pos ${pcls}">${pos}</div>
+      <div class="st-pos ${pcls}">${medal||pos}</div>
       <div class="st-info">
         <div class="st-name">${row.name}${tie}</div>
         ${bd ? `<div class="st-breakdown">${bd}</div>` : ''}
@@ -976,11 +977,13 @@ function renderStandingsHtml(group, events) {
   const standings = ev.standings || [];
   if (!standings.length) return '';
 
+  const MEDALS = {1:'🥇', 2:'🥈', 3:'🥉'};
   const rows = standings.map((s, i) => {
     const pos = i + 1;
     const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    const medal = MEDALS[pos] || '';
     return `<div class="standings-row ${pos<=3?'r'+pos:''}">
-      <div class="st-pos ${pcls}">${pos}</div>
+      <div class="st-pos ${pcls}">${medal||pos}</div>
       <div class="st-info">
         <div class="st-name">${s.full_name}</div>
         <div class="st-breakdown">${s.breakdown||''}</div>
