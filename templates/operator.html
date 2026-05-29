@@ -6,6 +6,15 @@
 <title>{{comp.name}} — {% if readonly %}Check-in View{% else %}Operator{% endif %}</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
+// Patch fetch ASAP so ALL subsequent calls include credentials
+const _origFetch = window.fetch;
+window.fetch = (url, opts={}) => {
+  if (typeof url === 'string' && url.startsWith('/'))
+    opts = {...opts, credentials: opts.credentials || 'include'};
+  return _origFetch(url, opts);
+};
+</script>
+<script>
 const READONLY = {{ 'true' if readonly else 'false' }};
 tailwind.config = {
   theme: {
@@ -2165,15 +2174,6 @@ const _origShowSchedule = showSchedule;
 showSchedule = async function() {
   saveState('section', 'schedule');
   return _origShowSchedule();
-};
-
-// Ensure all fetch calls send session cookie
-const _origFetch = window.fetch;
-window.fetch = (url, opts={}) => {
-  if (typeof url === 'string' && url.startsWith('/')) {
-    opts = {...opts, credentials: opts.credentials || 'include'};
-  }
-  return _origFetch(url, opts);
 };
 
 function toggleSidebar() {
