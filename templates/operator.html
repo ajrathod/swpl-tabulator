@@ -462,6 +462,9 @@ document.getElementById('up-ind').addEventListener('change', async e => {
       ? `✓ ${d.skater_count} skaters loaded · ${d.auto_registered} new athletes added to registry`
       : `✓ ${d.skater_count} skaters loaded`;
     toast(msg, 'success');
+    if (d.duplicates?.length) {
+      setTimeout(() => toast(`⚠️ ${d.duplicates.length} duplicate panels skipped: ${d.duplicates.slice(0,3).join(', ')}${d.duplicates.length>3?'…':''}`, 'error'), 1000);
+    }
     await refreshGroups();
     if (d.groups.length) selectGroup(d.groups[0]);
   } else {
