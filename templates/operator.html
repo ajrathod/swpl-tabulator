@@ -1906,6 +1906,7 @@ async function inlineEditPanel(span, oldPanel) {
 }
 
 
+async function syncFromRegistry() {
   const btn = event?.target;
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
   const r = await fetch(`/api/comp/${COMP_ID}/sync_from_registry`, {method:'POST'});
