@@ -781,7 +781,10 @@ function hCard(heat, color, parentId, kind) {
       <td class="px-3 py-2">
         <div class="flex items-center gap-1">${nameCell}${scratchBtn}</div>
       </td>
-      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">${s.panel}</td>
+      ${!isRelay ? `<td class="px-3 py-2 text-xs mono text-gray-400">
+        <span class="panel-val cursor-pointer hover:text-brand hover:underline" title="Click to edit panel #"
+          onclick="inlineEditPanel(this,'${esc(s.panel)}')">${s.panel}</span>
+      </td>
         <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
       <td class="px-3 py-2">
         <input type="text" value="${pl||''}" placeholder="—"
@@ -1841,7 +1844,61 @@ async function setSchedStatus(eventId, status) {
 }
 
 
-async function syncFromRegistry() {
+async function inlineEditPanel(span, oldPanel) {
+  // Replace span with input
+  const inp = document.createElement('input');
+  inp.value = oldPanel;
+  inp.className = 'w-16 px-1 py-0.5 border border-brand rounded text-xs mono font-semibold outline-none';
+  inp.style.width = '60px';
+  span.replaceWith(inp);
+  inp.focus(); inp.select();
+
+  async function save() {
+    const newPanel = inp.value.trim();
+    if (!newPanel || newPanel === oldPanel) {
+      // Revert
+      const s = document.createElement('span');
+      s.className = 'panel-val cursor-pointer hover:text-brand hover:underline';
+      s.title = 'Click to edit panel #';
+      s.textContent = oldPanel;
+      s.onclick = () => inlineEditPanel(s, oldPanel);
+      inp.replaceWith(s); return;
+    }
+    inp.disabled = true;
+    const r = await fetch(`/api/comp/${COMP_ID}/skater/${encodeURIComponent(oldPanel)}/update_panel`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({panel: newPanel})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const s = document.createElement('span');
+      s.className = 'panel-val cursor-pointer hover:text-brand hover:underline text-green-600';
+      s.title = 'Click to edit panel #';
+      s.textContent = newPanel;
+      s.onclick = () => inlineEditPanel(s, newPanel);
+      inp.replaceWith(s);
+      toast(`Panel updated: ${oldPanel} → ${newPanel}`, 'success');
+      // Refresh current group to reflect change
+      setTimeout(() => { if (curGroup) selectGroup(curGroup); }, 800);
+    } else {
+      toast(d.error || 'Update failed', 'error');
+      const s = document.createElement('span');
+      s.className = 'panel-val cursor-pointer hover:text-brand hover:underline';
+      s.title = 'Click to edit panel #';
+      s.textContent = oldPanel;
+      s.onclick = () => inlineEditPanel(s, oldPanel);
+      inp.replaceWith(s);
+    }
+  }
+
+  inp.addEventListener('blur', save);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = oldPanel; inp.blur(); }
+  });
+}
+
+
   const btn = event?.target;
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing…'; }
   const r = await fetch(`/api/comp/${COMP_ID}/sync_from_registry`, {method:'POST'});
