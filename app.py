@@ -27,7 +27,7 @@ PUBLIC_ROUTES = {
     'update_registration', 'get_registrations_public',
     # Public read APIs
     'api_groups', 'api_group', 'api_relays', 'api_standings',
-    'get_schedule', 'get_checkin_status', 'set_checkin_status',
+    'get_schedule', 'get_checkin_status', 'set_checkin_status', 'update_schedule_status',
 }
 
 def is_app_authed():
@@ -2991,6 +2991,7 @@ def set_checkin_status(comp_id):
 
 
 
+@app.route("/api/schedule/<int:event_id>/status", methods=["POST"])
 def update_schedule_status(event_id):
     data   = request.json
     status = data.get("status")  # pending / in_progress / done
