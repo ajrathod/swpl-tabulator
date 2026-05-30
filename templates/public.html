@@ -691,11 +691,14 @@ async function doProgramSearch(q) {
   }));
 
   // Load schedule for time slots
-  let scheduleMap = {}; // label -> section_time
+  let scheduleMap = {}; // "group_distance" -> section_time
   try {
     const sr = await fetch(`/api/comp/${COMP_ID}/schedule`);
     const evs = await sr.json();
-    evs.forEach(ev => { scheduleMap[ev.label] = ev.section_time || ''; });
+    evs.forEach(ev => {
+      // Store by label for direct lookup
+      scheduleMap[ev.label] = ev.section_time || '';
+    });
   } catch(e) {}
 
   const ORDER = ['Short Distance','Medium Distance','Long Distance'];
@@ -739,12 +742,11 @@ async function doProgramSearch(q) {
         ...(ev.finals||[]).map(h=>({...h,lbl:'Final',cls:'fh'})),
       ];
 
-      // Find schedule time for this distance+group combo
-      const schedKey = Object.keys(scheduleMap).find(k =>
-        k.toLowerCase().includes(group.toLowerCase()) &&
-        k.toLowerCase().includes(evName.toLowerCase().replace(' distance','').substring(0,5))
-      );
-      const timeSlot = schedKey ? scheduleMap[schedKey] : '';
+      // Find schedule time — look for label containing group name
+      const timeSlot = Object.entries(scheduleMap).find(([label]) =>
+        label.toLowerCase().includes(`group ${group.toLowerCase()}`) ||
+        label.toLowerCase().includes(group.toLowerCase())
+      )?.[1] || '';
 
       html += `<div style="font-size:12px;font-weight:600;color:var(--text-faint);
         display:flex;align-items:center;gap:8px;padding:4px 0 4px">
@@ -777,8 +779,11 @@ async function doProgramSearch(q) {
 }
 
 async function doSearch(q) {
-  // In program mode — filter by skater name/panel
-  if (curMode === 'program') { await doProgramSearch(q); return; }
+  // Program and Schedule both use program-style search with time slots
+  if (curMode === 'program' || curMode === 'schedule') {
+    await doProgramSearch(q);
+    return;
+  }
 
   // Results mode search — across all loaded group data
   const groups = Object.keys(allGroups).sort();
