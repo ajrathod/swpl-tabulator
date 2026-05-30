@@ -705,19 +705,6 @@ async function doProgramSearch(q) {
     } catch(e) {}
   }));
 
-  // Load schedule for time slots
-  let scheduleMap = {}; // "group_distance" -> section_time
-  try {
-    const sr = await fetch(`/api/comp/${COMP_ID}/schedule`);
-    const evs = await sr.json();
-    evs.forEach(ev => {
-      scheduleMap[ev.label] = ev.section_time || '';
-      // Store with note for distance matching
-      const key = `${ev.label}|${(ev.note||'').toLowerCase()}|${(ev.stage||'').toLowerCase()}`;
-      scheduleMap[key] = ev.section_time || '';
-    });
-  } catch(e) {}
-
   const ORDER = ['Short Distance','Medium Distance','Long Distance'];
 
   // Find which groups contain the athlete
@@ -748,17 +735,8 @@ async function doProgramSearch(q) {
     const evNames = Object.keys(events).filter(n => n !== '__standings__');
     const ordered = [...ORDER.filter(n => evNames.includes(n)), ...evNames.filter(n => !ORDER.includes(n))];
 
-    // Find schedule time for this group (one slot per group)
-    const groupTimeSlot = Object.entries(scheduleMap).find(([label]) =>
-      label.toLowerCase() === `group ${group.toLowerCase()}`
-    )?.[1] || '';
-
     html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-      color:var(--text-faint);padding:12px 0 6px;display:flex;align-items:center;gap:8px">
-      Group ${group}
-      ${groupTimeSlot ? `<span style="background:var(--input-bg);border:1px solid var(--border);
-        border-radius:12px;padding:1px 8px;font-size:11px;font-weight:400;text-transform:none">🕐 ${groupTimeSlot}</span>` : ''}
-    </div>`;
+      color:var(--text-faint);padding:12px 0 6px">Group ${group}</div>`;
 
     for (const evName of ordered) {
       const ev = events[evName];
