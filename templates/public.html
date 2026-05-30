@@ -282,25 +282,26 @@ body {
 
   <!-- Filter bar -->
   <div class="filter-bar">
-    <!-- Mode toggle + Search row -->
-    <div style="display:flex;gap:8px;align-items:center">
+    <!-- Row 1: Mode tabs + Refresh -->
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
       <div class="mode-toggle">
         <button class="mode-btn active" id="mode-results" onclick="setMode('results')">📊 Results</button>
         <button class="mode-btn" id="mode-program" onclick="setMode('program')">📋 Program</button>
-      <button class="mode-btn" id="mode-schedule" onclick="setMode('schedule')">📅 Schedule</button>
+        <button class="mode-btn" id="mode-schedule" onclick="setMode('schedule')">📅 Schedule</button>
       </div>
       <button onclick="doRefresh()" title="Refresh"
         style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;
                font-size:13px;font-weight:600;color:var(--orange);cursor:pointer;
-               font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:5px">
+               font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:5px;white-space:nowrap">
         ↻ <span id="last-upd" style="font-size:11px;font-weight:400;color:var(--text-faint)">Refresh</span>
       </button>
-      <div class="search-wrap" style="flex:1">
-        <span class="search-icon">🔍</span>
-        <input class="search-inp" id="search-inp" type="text" placeholder="Search skater name or panel #…" oninput="onSearch()" autocomplete="off" autocorrect="off" spellcheck="false">
-      </div>
     </div>
-    <!-- Group + Event dropdowns -->
+    <!-- Row 2: Search bar (full width, Program/Schedule only) -->
+    <div class="search-wrap" id="search-wrap" style="display:none;margin-top:8px">
+      <span class="search-icon">🔍</span>
+      <input class="search-inp" id="search-inp" type="text" placeholder="Search skater name or panel #…" oninput="onSearch()" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <!-- Group + Event dropdowns (Results only) -->
     <div class="filter-row" id="filter-row">
       <select class="filter-sel" id="group-sel" onchange="onGroupChange()">
         <option value="" disabled selected>Group…</option>
@@ -351,7 +352,7 @@ function setMode(mode) {
   document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
   document.getElementById('search-inp').value = '';
 
-  const searchWrap = document.querySelector('.search-wrap');
+  const searchWrap = document.getElementById('search-wrap');
   const filterRow  = document.getElementById('filter-row');
 
   if (mode === 'results') {
@@ -460,7 +461,7 @@ async function init() {
     document.getElementById('mode-schedule').classList.toggle('active', curMode === 'schedule');
     document.getElementById('event-sel').style.display = (curMode === 'program' || curMode === 'schedule') ? 'none' : '';
     document.getElementById('filter-row').style.display = curMode === 'schedule' ? 'none' : (curMode === 'program' ? 'none' : '');
-    document.querySelector('.search-wrap').style.display = curMode === 'results' ? 'none' : '';
+    document.getElementById('search-wrap').style.display = curMode === 'results' ? 'none' : '';
 
     if (curMode === 'schedule') {
       renderSchedulePublic();
