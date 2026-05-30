@@ -763,7 +763,8 @@ async function doProgramSearch(q) {
         </div>`;
       }
     }
-  } // end matchedGroups
+  }
+  } // end if (matchedGroups.size)
 
   // Search relay teams by member name or club
   for (const [evName, ev] of Object.entries(allRelays)) {
