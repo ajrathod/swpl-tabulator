@@ -593,7 +593,7 @@ function showEventSmart(ev) {
   if (ev.type === 'direct_final') {
     html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
     html += (ev.finals || []).map(h => h.skaters?.length ? hCard(h,'fh') : waiting('Not yet started')).join('');
-    setContent(html, token); return;
+    setContent(html); return;
   }
 
   if (finalHasResults || finalHasSkaters) {
@@ -622,7 +622,7 @@ function showEventSmart(ev) {
       html += ev.finals.map(h => hCard(h,'fh')).join('');
     }
   }
-  setContent(html, token);
+  setContent(html);
 }
 
 let renderToken = 0; // increments on every setMode — stale renders check this
@@ -686,6 +686,7 @@ function clearSearch() {
 }
 
 async function doProgramSearch(q) {
+  const token = renderToken;
   if (!q) { renderAllProgram(); return; }
 
   // Load all group data we don't have
@@ -966,7 +967,7 @@ function showRelay(evName, ev) {
   } else {
     html = '<div class="waiting"><div class="wi">⏳</div><p>No results yet</p></div>';
   }
-  setContent(html, token);
+  setContent(html);
 }
 
 // ── Heat card ────────────────────────────────────────────────────────────────
