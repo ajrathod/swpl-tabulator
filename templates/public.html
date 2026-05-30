@@ -385,10 +385,6 @@ function setMode(mode) {
     return;
   }
 }
-    showRelay(name, allRelays[name]);
-  }
-}
-
 async function renderSchedulePublic() {
   setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading schedule…</p></div>');
   const r  = await fetch(`/api/comp/${COMP_ID}/schedule`);
