@@ -767,7 +767,9 @@ async function doProgramSearch(q) {
   setContent(html);
 }
 
-
+async function doSearch(q) {
+  // In program mode — filter by skater name/panel
+  if (curMode === 'program') { await doProgramSearch(q); return; }
 
   // Results mode search — across all loaded group data
   const groups = Object.keys(allGroups).sort();
