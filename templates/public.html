@@ -345,6 +345,7 @@ let curMode = 'results'; // 'results' | 'program'
 
 function setMode(mode) {
   curMode = mode;
+  renderToken++; // invalidate any in-flight renders
   document.getElementById('mode-results').classList.toggle('active', mode === 'results');
   document.getElementById('mode-program').classList.toggle('active', mode === 'program');
   document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
@@ -386,6 +387,7 @@ function setMode(mode) {
   }
 }
 async function renderSchedulePublic() {
+  const token = renderToken;
   setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading schedule…</p></div>');
   const r  = await fetch(`/api/comp/${COMP_ID}/schedule`);
   const evs = await r.json().catch(() => []);
@@ -416,7 +418,7 @@ async function renderSchedulePublic() {
       ${badge}
     </div>`;
   });
-  setContent(html);
+  setContent(html, token);
 }
 
 
@@ -590,7 +592,7 @@ function showEventSmart(ev) {
   if (ev.type === 'direct_final') {
     html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
     html += (ev.finals || []).map(h => h.skaters?.length ? hCard(h,'fh') : waiting('Not yet started')).join('');
-    setContent(html); return;
+    setContent(html, token); return;
   }
 
   if (finalHasResults || finalHasSkaters) {
@@ -619,10 +621,14 @@ function showEventSmart(ev) {
       html += ev.finals.map(h => hCard(h,'fh')).join('');
     }
   }
-  setContent(html);
+  setContent(html, token);
 }
 
-function setContent(html) {
+let renderToken = 0; // increments on every setMode — stale renders check this
+
+function setContent(html, token) {
+  // If a token is provided, only render if it still matches current token
+  if (token !== undefined && token !== renderToken) return;
   document.getElementById('content').innerHTML = html || waiting('No data');
 }
 
@@ -775,7 +781,7 @@ async function doProgramSearch(q) {
     }
   }
 
-  setContent(html);
+  setContent(html, token);
 }
 
 async function doSearch(q) {
@@ -959,7 +965,7 @@ function showRelay(evName, ev) {
   } else {
     html = '<div class="waiting"><div class="wi">⏳</div><p>No results yet</p></div>';
   }
-  setContent(html);
+  setContent(html, token);
 }
 
 // ── Heat card ────────────────────────────────────────────────────────────────
@@ -995,10 +1001,12 @@ function waiting(msg) { return `<div class="waiting"><div class="wi">⏳</div><p
 
 // ── Results: show all events for selected group ───────────────────────────────
 async function renderGroupAllResults(group) {
+  const token = renderToken;
   const events = allGroupData[group] || {};
   if (!Object.keys(events).length) {
-    setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>');
+    setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>', token);
     await loadGroupData(group);
+    if (token !== renderToken) return; // mode changed while loading
     return renderGroupAllResults(group);
   }
 
@@ -1073,7 +1081,7 @@ async function renderGroupAllResults(group) {
     } catch(e) {}
   }
 
-  setContent(html);
+  setContent(html, token);
 }
 
 function renderStandingsHtml(group, events) {
@@ -1115,7 +1123,8 @@ function renderStandingsHtml(group, events) {
 
 // ── Program: all groups + relays, collapsible, 3 per row ─────────────────────
 async function renderAllProgram() {
-  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading program…</p></div>');
+  const token = renderToken;
+  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading program…</p></div>', token);
 
   const groups = Object.keys(allGroups).sort();
   // Pre-fetch all group data since cards start expanded
@@ -1172,7 +1181,7 @@ async function renderAllProgram() {
   }
 
   html += '</div>';
-  setContent(html);
+  setContent(html, token);
 }
 
 async function toggleProgCard(hdr, type, key) {
