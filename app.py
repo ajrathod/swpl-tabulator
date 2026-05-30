@@ -2088,13 +2088,16 @@ def add_athlete_to_group(comp_id):
         if not athlete:
             return jsonify({"error": "Athlete not found in registry"}), 404
 
-        panel = (athlete.usars_no or str(athlete.id)).strip()
+        panel = (athlete.panel_no or athlete.usars_no or str(athlete.id)).strip()
 
-        # Check for duplicate in this competition
+        # Check for duplicate in this competition — by panel or by name
         existing = session.query(Skater).filter_by(
             competition_id=comp_id, panel=panel).first()
+        if not existing:
+            existing = session.query(Skater).filter_by(
+                competition_id=comp_id, first=athlete.first, last=athlete.last).first()
         if existing:
-            return jsonify({"error": f"{athlete.full_name} is already in this competition (Panel #{panel})"}), 409
+            return jsonify({"error": f"{athlete.full_name} is already in this competition (Panel #{existing.panel}, Group {existing.group_name})"}), 409
 
         # Create skater record — no heat assignment, will appear in DD Unassigned pool
         sk = Skater(
@@ -2110,8 +2113,28 @@ def add_athlete_to_group(comp_id):
             status="active",
         )
         session.add(sk)
+        session.flush()
+
+        # Auto-assign to final heats if group is a direct final (no heats stage)
+        events = session.query(Event).filter_by(
+            competition_id=comp_id, group_name=group_name).all()
+        auto_assigned = 0
+        for ev in events:
+            heats = session.query(Heat).filter_by(event_id=ev.id).all()
+            heat_stages = [h.stage for h in heats]
+            # Direct final = only has Final stage, no Heat stage
+            if 'Heat' not in heat_stages:
+                final = next((h for h in heats if h.stage == 'Final'), None)
+                if final:
+                    # Get max seed order
+                    max_order = session.query(HeatSkater).filter_by(
+                        heat_id=final.id).count()
+                    session.add(HeatSkater(
+                        heat_id=final.id, panel=panel, seed_order=max_order))
+                    auto_assigned += 1
+
         session.commit()
-        return jsonify({"ok": True, "skater": {
+        return jsonify({"ok": True, "auto_assigned": auto_assigned, "skater": {
             "panel": panel,
             "full_name": athlete.full_name,
             "club": athlete.club or "",
