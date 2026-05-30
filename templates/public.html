@@ -371,20 +371,22 @@ function setMode(mode) {
   }
 
   if (mode === 'program') {
-    // Program: show search, hide dropdowns, clear any group filter
     searchWrap.style.display = '';
     filterRow.style.display = 'none';
     document.getElementById('search-inp').value = '';
+    document.getElementById('active-filters').style.display = 'none';
+    document.getElementById('active-filters').innerHTML = '';
     savePubState();
     renderAllProgram();
     return;
   }
 
   if (mode === 'schedule') {
-    // Schedule: show search, hide dropdowns, clear any group filter
     searchWrap.style.display = '';
     filterRow.style.display = 'none';
     document.getElementById('search-inp').value = '';
+    document.getElementById('active-filters').style.display = 'none';
+    document.getElementById('active-filters').innerHTML = '';
     savePubState();
     renderSchedulePublic();
     return;
