@@ -2130,7 +2130,7 @@ def add_athlete_to_group(comp_id):
                     max_order = session.query(HeatSkater).filter_by(
                         heat_id=final.id).count()
                     session.add(HeatSkater(
-                        heat_id=final.id, panel=panel, seed_order=max_order))
+                        heat_id=final.id, skater_id=sk.id, seed_order=max_order))
                     auto_assigned += 1
 
         session.commit()
