@@ -356,9 +356,10 @@ function setMode(mode) {
   const filterRow  = document.getElementById('filter-row');
 
   if (mode === 'results') {
-    // Results: show dropdowns, hide search
+    // Results: show dropdowns, hide search, clear search input
     searchWrap.style.display = 'none';
     filterRow.style.display = '';
+    document.getElementById('search-inp').value = '';
     document.getElementById('event-sel').style.display = 'none';
     savePubState();
     if (curGroup && !curGroup.startsWith('__relay__')) renderGroupAllResults(curGroup);
@@ -370,18 +371,20 @@ function setMode(mode) {
   }
 
   if (mode === 'program') {
-    // Program: show search, hide dropdowns
+    // Program: show search, hide dropdowns, clear any group filter
     searchWrap.style.display = '';
     filterRow.style.display = 'none';
+    document.getElementById('search-inp').value = '';
     savePubState();
     renderAllProgram();
     return;
   }
 
   if (mode === 'schedule') {
-    // Schedule: show search, hide dropdowns
+    // Schedule: show search, hide dropdowns, clear any group filter
     searchWrap.style.display = '';
     filterRow.style.display = 'none';
+    document.getElementById('search-inp').value = '';
     savePubState();
     renderSchedulePublic();
     return;
@@ -430,7 +433,9 @@ const PUB_STATE_KEY = `pw_pub_state_${COMP_ID}`;
 function savePubState() {
   try {
     localStorage.setItem(PUB_STATE_KEY, JSON.stringify({
-      mode: curMode, group: curGroup, event: curEvent
+      mode: curMode,
+      group: (curMode === 'program' || curMode === 'schedule') ? null : curGroup,
+      event: (curMode === 'program' || curMode === 'schedule') ? null : curEvent
     }));
   } catch(e) {}
 }
