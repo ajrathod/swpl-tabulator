@@ -702,8 +702,10 @@ async function doProgramSearch(q) {
     const sr = await fetch(`/api/comp/${COMP_ID}/schedule`);
     const evs = await sr.json();
     evs.forEach(ev => {
-      // Store by label for direct lookup
       scheduleMap[ev.label] = ev.section_time || '';
+      // Store with note for distance matching
+      const key = `${ev.label}|${(ev.note||'').toLowerCase()}|${(ev.stage||'').toLowerCase()}`;
+      scheduleMap[key] = ev.section_time || '';
     });
   } catch(e) {}
 
@@ -737,8 +739,17 @@ async function doProgramSearch(q) {
     const evNames = Object.keys(events).filter(n => n !== '__standings__');
     const ordered = [...ORDER.filter(n => evNames.includes(n)), ...evNames.filter(n => !ORDER.includes(n))];
 
+    // Find schedule time for this group (one slot per group)
+    const groupTimeSlot = Object.entries(scheduleMap).find(([label]) =>
+      label.toLowerCase() === `group ${group.toLowerCase()}`
+    )?.[1] || '';
+
     html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-      color:var(--text-faint);padding:12px 0 6px">Group ${group}</div>`;
+      color:var(--text-faint);padding:12px 0 6px;display:flex;align-items:center;gap:8px">
+      Group ${group}
+      ${groupTimeSlot ? `<span style="background:var(--input-bg);border:1px solid var(--border);
+        border-radius:12px;padding:1px 8px;font-size:11px;font-weight:400;text-transform:none">🕐 ${groupTimeSlot}</span>` : ''}
+    </div>`;
 
     for (const evName of ordered) {
       const ev = events[evName];
@@ -748,18 +759,7 @@ async function doProgramSearch(q) {
         ...(ev.finals||[]).map(h=>({...h,lbl:'Final',cls:'fh'})),
       ];
 
-      // Find schedule time — look for label containing group name
-      const timeSlot = Object.entries(scheduleMap).find(([label]) =>
-        label.toLowerCase().includes(`group ${group.toLowerCase()}`) ||
-        label.toLowerCase().includes(group.toLowerCase())
-      )?.[1] || '';
-
-      html += `<div style="font-size:12px;font-weight:600;color:var(--text-faint);
-        display:flex;align-items:center;gap:8px;padding:4px 0 4px">
-        ${evName}
-        ${timeSlot ? `<span style="background:var(--input-bg);border:1px solid var(--border);
-          border-radius:12px;padding:1px 8px;font-size:11px;font-weight:400">🕐 ${timeSlot}</span>` : ''}
-      </div>`;
+      html += `<div style="font-size:12px;font-weight:600;color:var(--text-faint);padding:4px 0 4px">${evName}</div>`;
 
       for (const heat of stages) {
         const skaters = heat.skaters || [];
