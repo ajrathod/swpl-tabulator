@@ -350,29 +350,41 @@ function setMode(mode) {
   document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
   document.getElementById('search-inp').value = '';
 
-  // Always hide event dropdown — results shows all events, program shows all groups
-  document.getElementById('event-sel').style.display = 'none';
+  const searchWrap = document.querySelector('.search-wrap');
+  const filterRow  = document.getElementById('filter-row');
 
-  if (mode === 'schedule') {
-    document.getElementById('filter-row').style.display = 'none';
+  if (mode === 'results') {
+    // Results: show dropdowns, hide search
+    searchWrap.style.display = 'none';
+    filterRow.style.display = '';
+    document.getElementById('event-sel').style.display = 'none';
     savePubState();
-    renderSchedulePublic();
+    if (curGroup && !curGroup.startsWith('__relay__')) renderGroupAllResults(curGroup);
+    else if (curGroup?.startsWith('__relay__')) {
+      const name = curGroup.slice(9);
+      showRelay(name, allRelays[name]);
+    }
     return;
   }
 
-  document.getElementById('filter-row').style.display = '';
-  savePubState();
-
   if (mode === 'program') {
+    // Program: show search, hide dropdowns
+    searchWrap.style.display = '';
+    filterRow.style.display = 'none';
+    savePubState();
     renderAllProgram();
     return;
   }
 
-  // Results mode — show all events for selected group
-  if (curGroup && !curGroup.startsWith('__relay__')) {
-    renderGroupAllResults(curGroup);
-  } else if (curGroup?.startsWith('__relay__')) {
-    const name = curGroup.slice(9);
+  if (mode === 'schedule') {
+    // Schedule: show search, hide dropdowns
+    searchWrap.style.display = '';
+    filterRow.style.display = 'none';
+    savePubState();
+    renderSchedulePublic();
+    return;
+  }
+}
     showRelay(name, allRelays[name]);
   }
 }
@@ -449,7 +461,8 @@ async function init() {
     document.getElementById('mode-program').classList.toggle('active', curMode === 'program');
     document.getElementById('mode-schedule').classList.toggle('active', curMode === 'schedule');
     document.getElementById('event-sel').style.display = (curMode === 'program' || curMode === 'schedule') ? 'none' : '';
-    document.getElementById('filter-row').style.display = curMode === 'schedule' ? 'none' : '';
+    document.getElementById('filter-row').style.display = curMode === 'schedule' ? 'none' : (curMode === 'program' ? 'none' : '');
+    document.querySelector('.search-wrap').style.display = curMode === 'results' ? 'none' : '';
 
     if (curMode === 'schedule') {
       renderSchedulePublic();
@@ -664,13 +677,14 @@ function onSearch() {
 }
 
 function clearSearch() {
-  const sr = document.getElementById('search-results');
-  if (sr) sr.remove();
   if (curMode === 'program') { renderAllProgram(); return; }
+  if (curMode === 'schedule') { renderSchedulePublic(); return; }
   renderCurrentEvent();
 }
 
 async function doProgramSearch(q) {
+  if (!q) { renderAllProgram(); return; }
+
   // Load all group data we don't have
   const groups = Object.keys(allGroups).sort();
   await Promise.all(groups.filter(g => !allGroupData[g]).map(async g => {
@@ -680,88 +694,87 @@ async function doProgramSearch(q) {
     } catch(e) {}
   }));
 
-  const matches = []; // {group, evName, stage, lbl, skaters[]}
+  // Load schedule for time slots
+  let scheduleMap = {}; // label -> section_time
+  try {
+    const sr = await fetch(`/api/comp/${COMP_ID}/schedule`);
+    const evs = await sr.json();
+    evs.forEach(ev => { scheduleMap[ev.label] = ev.section_time || ''; });
+  } catch(e) {}
 
+  const ORDER = ['Short Distance','Medium Distance','Long Distance'];
+
+  // Find which groups contain the athlete
+  const matchedGroups = new Set();
   for (const group of groups) {
     const events = allGroupData[group] || {};
-    const ORDER = ['Short Distance','Medium Distance','Long Distance'];
     const evNames = Object.keys(events).filter(n => n !== '__standings__');
     const firstEv = ORDER.find(n => evNames.includes(n)) || evNames[0];
     if (!firstEv) continue;
     const ev = events[firstEv];
-    const allStages = [
-      ...(ev.heats||[]).map(h=>({...h,lbl:`Heat ${h.number}`})),
-      ...(ev.finals||[]).map(h=>({...h,lbl:'Final'})),
-    ];
+    const allStages = [...(ev.heats||[]), ...(ev.finals||[])];
     for (const heat of allStages) {
-      const matched = (heat.skaters||[]).filter(s =>
+      if ((heat.skaters||[]).some(s =>
         s.full_name?.toLowerCase().includes(q) || (s.panel||'').toLowerCase().includes(q)
-      );
-      if (matched.length) matches.push({group, lbl: heat.lbl, skaters: matched});
+      )) { matchedGroups.add(group); break; }
     }
   }
 
-  // Also search relays
-  const relayMatches = [];
-  for (const [name, ev] of Object.entries(allRelays)) {
-    const allStages = [
-      ...(ev.heats||[]).map(h=>({...h,lbl:`Heat ${h.number}`})),
-      ...(ev.finals||[]).map(h=>({...h,lbl:'Final'})),
-    ];
-    for (const heat of allStages) {
-      const matched = (heat.teams||[]).filter(t =>
-        (t.members||[]).some(m => m?.toLowerCase().includes(q)) ||
-        t.club?.toLowerCase().includes(q)
-      );
-      if (matched.length) relayMatches.push({name, lbl: heat.lbl, teams: matched});
-    }
-  }
-
-  if (!matches.length && !relayMatches.length) {
+  if (!matchedGroups.size) {
     setContent(`<div class="waiting"><div class="wi">🔍</div><p>No results for "${q}"</p></div>`);
     return;
   }
 
   let html = '';
 
-  if (matches.length) {
-    html += `<div class="section-label" style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);padding:8px 0 6px">Individual</div>`;
-    matches.forEach(({group, lbl, skaters}) => {
-      html += `<div class="hcard" style="margin-bottom:10px">
-        <div class="hcard-head fh" style="display:flex;align-items:center;gap:8px">
-          <h3>${group} — ${lbl}</h3>
-        </div>
-        ${skaters.map(s => `
-          <div class="sk-row">
-            <div class="rank-num rn">—</div>
-            <div class="sk-info">
-              <div class="sk-name">${s.full_name}</div>
-              <div class="sk-meta">#${s.panel} · ${s.club}</div>
-            </div>
-          </div>`).join('')}
-      </div>`;
-    });
-  }
+  for (const group of [...matchedGroups].sort()) {
+    const events = allGroupData[group] || {};
+    const evNames = Object.keys(events).filter(n => n !== '__standings__');
+    const ordered = [...ORDER.filter(n => evNames.includes(n)), ...evNames.filter(n => !ORDER.includes(n))];
 
-  if (relayMatches.length) {
-    html += `<div class="section-label" style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint);padding:16px 0 6px">Relay</div>`;
-    relayMatches.forEach(({name, lbl, teams}) => {
-      html += `<div class="hcard" style="margin-bottom:10px">
-        <div class="hcard-head hh" style="display:flex;align-items:center;gap:8px">
-          <h3>🔄 ${name.replace(/\s*\(.*?\)\s*/g,'').replace(/Final/gi,'').trim()} — ${lbl}</h3>
-        </div>
-        ${teams.map(t => {
-          const members = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
-          return `<div class="sk-row">
-            <div class="rank-num rn">—</div>
-            <div class="sk-info">
-              <div class="sk-name">${members}</div>
-              <div class="sk-meta">${t.club}</div>
-            </div>
-          </div>`;
-        }).join('')}
+    html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--text-faint);padding:12px 0 6px">Group ${group}</div>`;
+
+    for (const evName of ordered) {
+      const ev = events[evName];
+      if (!ev) continue;
+      const stages = [
+        ...(ev.heats||[]).map(h=>({...h,lbl:`Heat ${h.number}`,cls:'hh'})),
+        ...(ev.finals||[]).map(h=>({...h,lbl:'Final',cls:'fh'})),
+      ];
+
+      // Find schedule time for this distance+group combo
+      const schedKey = Object.keys(scheduleMap).find(k =>
+        k.toLowerCase().includes(group.toLowerCase()) &&
+        k.toLowerCase().includes(evName.toLowerCase().replace(' distance','').substring(0,5))
+      );
+      const timeSlot = schedKey ? scheduleMap[schedKey] : '';
+
+      html += `<div style="font-size:12px;font-weight:600;color:var(--text-faint);
+        display:flex;align-items:center;gap:8px;padding:4px 0 4px">
+        ${evName}
+        ${timeSlot ? `<span style="background:var(--input-bg);border:1px solid var(--border);
+          border-radius:12px;padding:1px 8px;font-size:11px;font-weight:400">🕐 ${timeSlot}</span>` : ''}
       </div>`;
-    });
+
+      for (const heat of stages) {
+        const skaters = heat.skaters || [];
+        if (!skaters.length) continue;
+        html += `<div class="hcard" style="margin-bottom:10px">
+          <div class="hcard-head ${heat.cls}"><h3>${heat.lbl} — ${skaters.length} skaters</h3></div>
+          ${skaters.map(s => {
+            const isMatch = s.full_name?.toLowerCase().includes(q) || (s.panel||'').toLowerCase().includes(q);
+            return `<div class="sk-row" style="${isMatch?'background:rgba(244,81,30,.06)':''}">
+              <div class="rank-num rn">—</div>
+              <div class="sk-info">
+                <div class="sk-name" style="${isMatch?'font-weight:600;color:var(--orange)':''}">${s.full_name}</div>
+                <div class="sk-meta">#${s.panel} · ${s.club}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+    }
   }
 
   setContent(html);
