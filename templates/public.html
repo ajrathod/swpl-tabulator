@@ -723,12 +723,9 @@ async function doProgramSearch(q) {
     }
   }
 
-  if (!matchedGroups.size) {
-    setContent(`<div class="waiting"><div class="wi">🔍</div><p>No results for "${q}"</p></div>`);
-    return;
-  }
-
   let html = '';
+
+  if (matchedGroups.size) {
 
   for (const group of [...matchedGroups].sort()) {
     const events = allGroupData[group] || {};
@@ -766,6 +763,50 @@ async function doProgramSearch(q) {
         </div>`;
       }
     }
+  } // end matchedGroups
+
+  // Search relay teams by member name or club
+  for (const [evName, ev] of Object.entries(allRelays)) {
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,lbl:`Heat ${h.number}`,cls:'hh'})),
+      ...(ev.semis||[]).map(h=>({...h,lbl:`Semi ${h.number}`,cls:'sh'})),
+      ...(ev.finals||[]).map(h=>({...h,lbl:'Final',cls:'fh'})),
+    ];
+    const shortName = evName.replace(/\s*\(.*?\)\s*/g,'').replace(/\s*Final\s*$/i,'').trim();
+    for (const heat of allStages) {
+      const matchedTeams = (heat.teams||[]).filter(t =>
+        (t.members||[]).some(m => m?.toLowerCase().includes(q)) ||
+        t.club?.toLowerCase().includes(q)
+      );
+      if (!matchedTeams.length) continue;
+      if (!html) html = '';
+      html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+        color:var(--text-faint);padding:12px 0 6px">🔄 ${shortName}</div>`;
+      html += `<div class="hcard" style="margin-bottom:10px">
+        <div class="hcard-head ${heat.cls}"><h3>${heat.lbl} — ${heat.teams.length} teams</h3></div>
+        ${heat.teams.map(t => {
+          const members = (t.members||[]).filter(m=>m&&m!=='nan');
+          const bibColor = ({green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'})[(t.color||'').toLowerCase()] || '#9E9E9E';
+          const isMatch = (t.members||[]).some(m=>m?.toLowerCase().includes(q)) || t.club?.toLowerCase().includes(q);
+          return `<div class="sk-row" style="${isMatch?'background:rgba(244,81,30,.06)':''}">
+            <div class="rank-num rn">—</div>
+            <div class="sk-info">
+              <div class="sk-name" style="${isMatch?'font-weight:600;color:var(--orange)':''}">${members.join(', ')||'—'}</div>
+              <div class="sk-meta" style="display:flex;align-items:center;gap:5px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor}"></span>
+                ${t.club} · ${t.color||'No helmet cover'}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+      break; // only show each relay event once even if multiple heats match
+    }
+  }
+
+  if (!html) {
+    setContent(`<div class="waiting"><div class="wi">🔍</div><p>No results for "${q}"</p></div>`, token);
+    return;
   }
 
   setContent(html, token);
