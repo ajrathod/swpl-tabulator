@@ -201,6 +201,7 @@ body:not(.readonly) .readonly-color { display: none; }
     <div class="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50">
       <button onclick="ddAddHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">+ Add Heat</button>
       <button onclick="ddRemoveLastHeat()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">− Remove Last Heat</button>
+      <button onclick="ddConvertToFinal()" class="px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-sm font-semibold text-amber-600 hover:bg-amber-50 transition" title="Merge all heats into a single final">→ Single Final</button>
       <div class="flex-1"></div>
       <span class="text-xs text-gray-400" id="dd-unassigned-count"></span>
     </div>
@@ -1035,6 +1036,28 @@ function ddRemoveLastHeat() {
   [...last.querySelectorAll('[data-panel]')].forEach(card => pool.appendChild(card));
   last.remove();
   updateUnassignedCount();
+}
+
+async function ddConvertToFinal() {
+  const cols = document.getElementById('dd-columns');
+  const totalSkaters = cols.querySelectorAll('.dd-list:not([data-col="pool"]) [data-panel]').length
+    + cols.querySelectorAll('[data-col="pool"] [data-panel]').length;
+  if (totalSkaters > 7) {
+    if (!confirm(`This group has ${totalSkaters} skaters. A single final usually has 7 or fewer. Convert anyway?`)) return;
+  } else {
+    if (!confirm(`Merge all heats into a single final with ${totalSkaters} skaters?`)) return;
+  }
+  const r = await fetch('/api/convert_to_final', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({event_id: ddEvId, kind: ddKind})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast('✓ Converted to single final','success');
+    closeDDModal();
+    if (ddKind === 'relay') refreshAndShowRelay();
+    else selectGroup(curGroup);
+  } else toast(d.error || 'Convert failed','error');
 }
 
 async function saveDDModal() {
