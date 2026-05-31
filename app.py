@@ -1179,6 +1179,81 @@ def upload_relay(comp_id):
         session.close()
 
 
+@app.route("/api/convert_to_final", methods=["POST"])
+def convert_to_final():
+    """
+    Merge all heats/semis of an event into a single Final.
+    Collects all skaters/teams across all stages, deletes all heats,
+    creates one Final with everyone in it.
+    Payload: {event_id, kind: 'individual'|'relay'}
+    """
+    data     = request.json
+    event_id = data["event_id"]
+    kind     = data.get("kind", "individual")
+
+    session = db()
+    try:
+        if kind == "relay":
+            re = session.query(RelayEvent).get(event_id)
+            if not re: return jsonify({"error": "Relay event not found"}), 404
+
+            # Collect all team ids across all heats, preserving order, no dupes
+            seen = set(); ordered_team_ids = []
+            for h in sorted(re.relay_heats, key=lambda h: (h.stage != 'Heat', h.number)):
+                for rht in sorted(h.teams, key=lambda t: t.seed_order):
+                    if rht.team_id not in seen:
+                        seen.add(rht.team_id); ordered_team_ids.append(rht.team_id)
+
+            # Delete all existing relay heats (cascades heat_teams)
+            for h in list(re.relay_heats):
+                for rht in list(h.teams):
+                    session.delete(rht)
+                session.delete(h)
+            session.flush()
+
+            # Create single Final
+            final = RelayHeat(relay_event_id=event_id, stage="Final", number=1)
+            session.add(final); session.flush()
+            for order, tid in enumerate(ordered_team_ids):
+                session.add(RelayHeatTeam(
+                    relay_heat_id=final.id, team_id=tid, seed_order=order))
+
+            session.commit()
+            return jsonify({"ok": True, "team_count": len(ordered_team_ids)})
+
+        # ── Individual ──────────────────────────────────────────────────────
+        ev = session.query(Event).get(event_id)
+        if not ev: return jsonify({"error": "Event not found"}), 404
+
+        # Collect all skater ids across all heats, preserving order, no dupes
+        seen = set(); ordered_skater_ids = []
+        for h in sorted(ev.heats, key=lambda h: (h.stage != 'Heat', h.number)):
+            for hs in sorted(h.skaters, key=lambda s: s.seed_order):
+                if hs.skater_id not in seen:
+                    seen.add(hs.skater_id); ordered_skater_ids.append(hs.skater_id)
+
+        # Delete all existing heats (cascades heat_skaters)
+        for h in list(ev.heats):
+            for hs in list(h.skaters):
+                session.delete(hs)
+            session.delete(h)
+        session.flush()
+
+        # Create single Final
+        final = Heat(event_id=event_id, stage="Final", number=1)
+        session.add(final); session.flush()
+        for order, sid in enumerate(ordered_skater_ids):
+            session.add(HeatSkater(
+                heat_id=final.id, skater_id=sid, seed_order=order))
+
+        session.commit()
+        return jsonify({"ok": True, "skater_count": len(ordered_skater_ids)})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
 @app.route("/api/arrange_heats", methods=["POST"])
 def arrange_heats():
     """
