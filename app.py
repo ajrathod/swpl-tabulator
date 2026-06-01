@@ -1468,6 +1468,7 @@ def create_relay_event_for_comp(comp_id):
 
 
 
+@app.route("/api/comp/<int:comp_id>/relay_assign_data")
 def relay_assign_data(comp_id):
     session = db()
     relay_events = session.query(RelayEvent).filter_by(competition_id=comp_id)\
@@ -1798,6 +1799,7 @@ def sync_from_registry(comp_id):
 
 
 
+@app.route("/api/reseed", methods=["POST"])
 def reseed():
     data = request.json; event_id = data["event_id"]
     session = db()
@@ -2222,6 +2224,7 @@ def add_athlete_to_group(comp_id):
 
 
 
+@app.route("/api/add_standby", methods=["POST"])
 def add_standby():
     """
     Add a standby athlete to the competition roster.
