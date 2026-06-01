@@ -791,11 +791,12 @@ function hCard(heat, color, parentId, kind) {
         <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
       <td class="px-3 py-2">
         ${(()=>{
-          const ciKey = isRelay ? 'relay__'+s.club+'__'+(s.color||'none') : s.panel+'__'+evCtx;
-          const ciEv  = isRelay ? 'relay' : evCtx;
-          const ciSt  = checkinStatus[ciKey]||'pending';
-          const ciLbl = ciSt==='pending'?'Check In':ciSt==='checked_in'?'✅ Present':'❌ DNS';
-          return `<button class="ci-btn ci-${ciSt}" onclick="toggleCheckin('${ciKey}','${ciEv}',this)">${ciLbl}</button>`;
+          const ciPanel = isRelay ? 'relay__'+s.club+'__'+(s.color||'none') : String(s.panel);
+          const ciEv    = isRelay ? 'relay' : evCtx;
+          const ciKey   = ciPanel+'__'+ciEv;
+          const ciSt    = checkinStatus[ciKey]||'pending';
+          const ciLbl   = ciSt==='pending'?'Check In':ciSt==='checked_in'?'✅ Present':'❌ DNS';
+          return `<button class="ci-btn ci-${ciSt}" onclick="toggleCheckin('${ciPanel}','${ciEv}',this)">${ciLbl}</button>`;
         })()}
       </td>
     </tr>`;
@@ -2142,7 +2143,8 @@ async function loadCheckinStatus() {
   } catch(e) {}
 }
 
-async function toggleCheckin(key, evName, btn) {
+async function toggleCheckin(panel, evName, btn) {
+  const key  = panel + '__' + evName;
   const cur  = checkinStatus[key] || 'pending';
   const next = cur==='pending'?'checked_in':cur==='checked_in'?'dns':'pending';
   checkinStatus[key] = next;
@@ -2152,7 +2154,7 @@ async function toggleCheckin(key, evName, btn) {
   if (nameEl) nameEl.classList.toggle('name-dns', next==='dns');
   await fetch(`/api/comp/${COMP_ID_CI}/checkin_status`,{
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({panel: key, event_name: evName, status: next})
+    body:JSON.stringify({panel: panel, event_name: evName, status: next})
   }).catch(()=>{});
 }
 
@@ -2180,8 +2182,7 @@ if (READONLY) {
   document.querySelectorAll('[onclick="showRegistrations()"]').forEach(el => el.closest('div')?.style.setProperty('display','none'));
 }
 
-loadCheckinStatus();
-refreshGroups().then(async () => {
+loadCheckinStatus().then(() => refreshGroups()).then(async () => {
   const state = loadState();
   if (state) {
     if (state.type === 'group' && allGroups[state.value]) {
