@@ -2,17 +2,19 @@
 # so `static/dist/` never has to be committed to git.
 #
 # NOTE: defining [phases.setup] here replaces Nixpacks' auto-detected Python
-# setup (which normally provisions pip for you), so we provision it
-# explicitly via ensurepip and call pip/gunicorn through `python3 -m` to
-# avoid relying on PATH.
+# setup, which normally creates a virtualenv for you. Nix's system Python is
+# marked "externally managed" (PEP 668), so pip can't install into it
+# directly — we create our own venv at /opt/venv, same as Nixpacks' default
+# Python provider does, and use that venv's pip/python for everything.
 
 [phases.setup]
 nixPkgs = ["python311", "nodejs_20"]
 
 [phases.install]
 cmds = [
-  "python3 -m ensurepip --upgrade",
-  "python3 -m pip install -r requirements.txt",
+  "python3 -m venv /opt/venv",
+  "/opt/venv/bin/pip install --upgrade pip",
+  "/opt/venv/bin/pip install -r requirements.txt",
   "cd frontend && npm install"
 ]
 
@@ -22,4 +24,4 @@ cmds = [
 ]
 
 [start]
-cmd = "python3 -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+cmd = "/opt/venv/bin/python -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
