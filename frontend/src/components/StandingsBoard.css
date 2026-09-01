@@ -1,0 +1,67 @@
+.standings-board {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.standings-board table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.standings-board thead th {
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 600;
+  padding: 10px 16px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.standings-board td {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+
+.standings-board tr:first-child td { border-top: none; }
+
+.col-rank { width: 56px; }
+.col-num { text-align: right; width: 90px; font-weight: 600; }
+
+.rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.pill-gold   { background: rgba(244,195,67,0.16); color: var(--gold); }
+.pill-silver { background: rgba(199,210,224,0.14); color: var(--silver); }
+.pill-bronze { background: rgba(217,138,79,0.16); color: var(--bronze); }
+
+.standings-note {
+  padding: 8px 16px;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-raised);
+}
+
+.standings-empty {
+  color: var(--text-faint);
+  font-size: 0.9rem;
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-lg);
+}

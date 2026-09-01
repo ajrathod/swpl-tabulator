@@ -1,0 +1,36 @@
+.nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.nav-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.nav-field label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.nav-field select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.nav-field select:focus {
+  outline: none;
+  border-color: var(--ice-dim);
+}
