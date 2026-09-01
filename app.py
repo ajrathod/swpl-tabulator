@@ -16,6 +16,30 @@ from seeding import compute_stages, distribute
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'swpl-dev-secret-key-change-in-prod')
 
+# ── React frontend (Vite build) ────────────────────────────────────────────────
+# The React app builds into static/dist/ with a manifest mapping entry names to
+# their hashed filenames. This lets templates reference the current build's
+# assets without hardcoding hashes that change on every `npm run build`.
+import json as _json
+
+_VITE_MANIFEST_PATH = os.path.join(app.root_path, "static", "dist", ".vite", "manifest.json")
+_vite_manifest_cache = None
+
+def vite_asset(entry_html):
+    """Return {'js': 'dist/assets/xxx.js', 'css': ['dist/assets/xxx.css']} for a Vite entry."""
+    global _vite_manifest_cache
+    if _vite_manifest_cache is None or app.debug:
+        try:
+            with open(_VITE_MANIFEST_PATH) as f:
+                _vite_manifest_cache = _json.load(f)
+        except FileNotFoundError:
+            _vite_manifest_cache = {}
+    entry = _vite_manifest_cache.get(entry_html, {})
+    return {
+        "js": f"dist/{entry['file']}" if entry.get("file") else None,
+        "css": [f"dist/{c}" for c in entry.get("css", [])],
+    }
+
 # ── Global App Passcode ───────────────────────────────────────────────────────
 APP_PASSCODE = os.environ.get('APP_PASSCODE', '')  # Set in Railway env vars
 
@@ -613,7 +637,9 @@ def public_view(comp_id):
     comp = session.query(Competition).get(comp_id)
     session.close()
     if not comp: return "Not found", 404
-    return render_template("public.html", comp=comp.to_dict())
+    asset = vite_asset("public.html")
+    return render_template("public.html", comp=comp.to_dict(),
+                            public_js=asset["js"], public_css=asset["css"][0] if asset["css"] else None)
 
 
 @app.route("/checkin/<int:comp_id>")
