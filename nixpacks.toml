@@ -1,12 +1,18 @@
 # Tells Railway (Nixpacks) to build the React frontend as part of every deploy,
 # so `static/dist/` never has to be committed to git.
+#
+# NOTE: defining [phases.setup] here replaces Nixpacks' auto-detected Python
+# setup (which normally provisions pip for you), so we provision it
+# explicitly via ensurepip and call pip/gunicorn through `python3 -m` to
+# avoid relying on PATH.
 
 [phases.setup]
 nixPkgs = ["python311", "nodejs_20"]
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt",
+  "python3 -m ensurepip --upgrade",
+  "python3 -m pip install -r requirements.txt",
   "cd frontend && npm install"
 ]
 
@@ -16,4 +22,4 @@ cmds = [
 ]
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+cmd = "python3 -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
