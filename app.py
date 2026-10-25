@@ -16,30 +16,6 @@ from seeding import compute_stages, distribute
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'swpl-dev-secret-key-change-in-prod')
 
-# ── React frontend (Vite build) ────────────────────────────────────────────────
-# The React app builds into static/dist/ with a manifest mapping entry names to
-# their hashed filenames. This lets templates reference the current build's
-# assets without hardcoding hashes that change on every `npm run build`.
-import json as _json
-
-_VITE_MANIFEST_PATH = os.path.join(app.root_path, "static", "dist", ".vite", "manifest.json")
-_vite_manifest_cache = None
-
-def vite_asset(entry_html):
-    """Return {'js': 'dist/assets/xxx.js', 'css': ['dist/assets/xxx.css']} for a Vite entry."""
-    global _vite_manifest_cache
-    if _vite_manifest_cache is None or app.debug:
-        try:
-            with open(_VITE_MANIFEST_PATH) as f:
-                _vite_manifest_cache = _json.load(f)
-        except FileNotFoundError:
-            _vite_manifest_cache = {}
-    entry = _vite_manifest_cache.get(entry_html, {})
-    return {
-        "js": f"dist/{entry['file']}" if entry.get("file") else None,
-        "css": [f"dist/{c}" for c in entry.get("css", [])],
-    }
-
 # ── Global App Passcode ───────────────────────────────────────────────────────
 APP_PASSCODE = os.environ.get('APP_PASSCODE', '')  # Set in Railway env vars
 
@@ -637,9 +613,7 @@ def public_view(comp_id):
     comp = session.query(Competition).get(comp_id)
     session.close()
     if not comp: return "Not found", 404
-    asset = vite_asset("public.html")
-    return render_template("public.html", comp=comp.to_dict(),
-                            public_js=asset["js"], public_css=asset["css"][0] if asset["css"] else None)
+    return render_template("public.html", comp=comp.to_dict())
 
 
 @app.route("/checkin/<int:comp_id>")
@@ -1606,6 +1580,7 @@ def api_relays(comp_id):
 def save_results():
     data = request.json
     heat_id = data["heat_id"]; results = data["results"]
+    dq_reasons = data.get("dq_reasons", {})   # {panel: reason_string}
     session = db()
     try:
         heat = session.query(Heat).get(heat_id)
@@ -1614,6 +1589,23 @@ def save_results():
             val = str(results.get(hs.skater.panel,"")).strip().upper()
             hs.placement = "DQ" if val=="DQ" else (val if val.isdigit() else None)
         session.commit()
+        # Save DQ reasons via raw SQL (graceful no-op if column not yet migrated)
+        if dq_reasons:
+            try:
+                from sqlalchemy import text as _text
+                for hs in heat.skaters:
+                    if hs.placement == "DQ":
+                        reason = dq_reasons.get(hs.skater.panel, "") or ""
+                        session.execute(_text(
+                            "UPDATE heat_skaters SET dq_reason=:r WHERE id=:id"),
+                            {"r": reason or None, "id": hs.id})
+                    else:
+                        session.execute(_text(
+                            "UPDATE heat_skaters SET dq_reason=NULL WHERE id=:id"),
+                            {"id": hs.id})
+                session.commit()
+            except Exception:
+                session.rollback()   # silently ignore if column doesn't exist yet
         return jsonify({"ok": True})
     except Exception as e:
         session.rollback(); return jsonify({"error":str(e)}), 500
@@ -1725,21 +1717,7 @@ def advance_relay():
             for order, team in enumerate(bucket):
                 session.add(RelayHeatTeam(relay_heat_id=heat.id, team_id=team.id, seed_order=order))
 
-            # Resolve color conflicts within this advanced heat
-            # Keep original color if no conflict, assign new unused color if clash
-            COLOR_POOL = ["Green","Blue","Yellow","Pink","Light Blue","Black","Red"]
-            used_colors = {}  # color.lower() -> team_id that claimed it
-            for team in bucket:
-                col = (team.color or "").lower()
-                if col and col not in used_colors:
-                    used_colors[col] = team.id  # first team keeps its color
-                elif col:
-                    # Conflict — find next unused color
-                    for candidate in COLOR_POOL:
-                        if candidate.lower() not in used_colors:
-                            team.color = candidate
-                            used_colors[candidate.lower()] = team.id
-                            break
+            # Keep original team colors — operator will manually reassign if there's a conflict
 
         session.commit()
         return jsonify({"ok":True, "message":f"{len(qualifiers)} teams advanced"})
@@ -1801,7 +1779,7 @@ def sync_from_registry(comp_id):
                 if reg.usars_no and not reg.usars_no.startswith('AUTO-'):
                     if not sk.usars_no or sk.usars_no.startswith('AUTO-') or sk.usars_no.startswith('TBC'):
                         sk.usars_no = reg.usars_no; changed = True
-                if not sk.club and reg.club:
+                if reg.club and reg.club != sk.club:
                     sk.club = reg.club; changed = True
                 if not sk.gender and reg.gender:
                     sk.gender = reg.gender; changed = True
@@ -2400,18 +2378,21 @@ def delete_relay_pool(athlete_id):
 
 @app.route("/api/relay_team/update_members", methods=["POST"])
 def update_relay_team_members():
-    """Replace a team's member list and optionally update color.
-    If members is null, only the color is updated."""
+    """Replace a team's member list and optionally update color and/or club name.
+    If members is null, only the color/club is updated."""
     data = request.json
     team_id = data["team_id"]
     members = data.get("members")   # None = color-only update
     color   = data.get("color", "").strip()
+    club    = data.get("club")      # None = don't update
     session = db()
     try:
         team = session.query(RelayTeam).get(team_id)
         if not team: return jsonify({"error": "Team not found"}), 404
         if color:
             team.color = color
+        if club is not None:
+            team.club = club.strip()
         if members is not None:
             for m in list(team.members):
                 session.delete(m)
