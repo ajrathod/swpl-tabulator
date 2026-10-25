@@ -367,6 +367,11 @@ body:not(.readonly) .readonly-color { display: none; }
       <button onclick="closeModal('edit-team-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
     </div>
     <div class="overflow-y-auto flex-1 p-5 space-y-4">
+      <!-- Club / Team name -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Team / Club Name</label>
+        <input id="et-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Club name…">
+      </div>
       <!-- Color picker -->
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Bib Color</label>
@@ -789,6 +794,10 @@ function hCard(heat, color, parentId, kind) {
   const rows = items.map((s,i) => {
     const pl = s.placement;
     const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
+    // Pre-populate DQ reasons from saved data so re-save preserves them
+    if (pl === 'DQ' && s.dq_reason && !_dqReasons[`${heat.id}_${s.panel}`]) {
+      _dqReasons[`${heat.id}_${s.panel}`] = s.dq_reason;
+    }
     const idAttr = isRelay ? `data-team="${s.team_id}"` : `data-panel="${s.panel}"`;
 
     let nameCell = '';
@@ -838,10 +847,11 @@ function hCard(heat, color, parentId, kind) {
         <td class="px-3 py-2 text-xs text-gray-400">${s.club}</td>` : ''}
       <td class="px-3 py-2">
         <input type="text" value="${pl||''}" placeholder="—"
-          class="place-input w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition"
+          class="place-input w-12 px-2 py-1 border border-gray-200 rounded-lg text-xs mono font-semibold text-center outline-none focus:border-brand transition ${pl==='DQ'?'bg-red-50 text-red-600':''}"
           data-heatid="${heat.id}" ${idAttr} data-kind="${kind}"
-          onkeydown="if(event.key==='Enter')saveCard(${heat.id},'${kind}')"
+          onkeydown="handlePlacementKey(event,${heat.id},'${kind}','${esc(isRelay?String(s.team_id):s.panel)}')"
           oninput="this.classList.toggle('bg-red-50',this.value.toUpperCase()==='DQ');this.classList.toggle('text-red-600',this.value.toUpperCase()==='DQ')">
+        ${!isRelay && pl==='DQ' && s.dq_reason ? `<div class="text-xs text-red-400 mt-0.5 max-w-[120px] truncate" title="${esc(s.dq_reason)}">${s.dq_reason}</div>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -870,17 +880,37 @@ function hCard(heat, color, parentId, kind) {
 }
 
 
+// ── DQ reason tracking ────────────────────────────────────────────────────────
+const _dqReasons = {};  // key: `${heatId}_${panel}` → reason string
+
+function handlePlacementKey(event, heatId, kind, panel) {
+  const inp = event.target;
+  const val = inp.value.trim().toUpperCase();
+  if (event.key === 'Enter') {
+    if (val === 'DQ') {
+      const existing = _dqReasons[`${heatId}_${panel}`] || '';
+      const reason = window.prompt('DQ reason (optional):', existing);
+      if (reason !== null) _dqReasons[`${heatId}_${panel}`] = reason.trim();
+    }
+    saveCard(heatId, kind);
+  }
+}
+
 // ── Save results ──────────────────────────────────────────────────────────────
 async function saveCard(heatId, kind) {
   const inputs = document.querySelectorAll(`input[data-heatid="${heatId}"]`);
   const results = {};
+  const dq_reasons = {};
   inputs.forEach(inp => {
     const v = inp.value.trim(); if (!v) return;
     const key = kind==='relay' ? inp.dataset.team : inp.dataset.panel;
     results[key] = v;
+    if (v.toUpperCase() === 'DQ' && kind !== 'relay') {
+      dq_reasons[key] = _dqReasons[`${heatId}_${key}`] || '';
+    }
   });
   const url     = kind==='relay' ? '/api/save_relay_results' : '/api/save_results';
-  const payload = kind==='relay' ? {relay_heat_id:heatId,results} : {heat_id:heatId,results};
+  const payload = kind==='relay' ? {relay_heat_id:heatId,results} : {heat_id:heatId,results,dq_reasons};
   const r = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const d = await r.json();
   if (d.ok) toast('✓ Saved','success'); else toast(d.error,'error');
@@ -1521,7 +1551,8 @@ function openEditTeam(teamId, club, color, members, relayEvId) {
   _editTeamId = teamId;
   _editRelayEvId = relayEvId;
   _editTeamMembers = [...members];
-  document.getElementById('edit-team-title').textContent = `✏️ ${club} — ${color} bib`;
+  document.getElementById('edit-team-title').textContent = `✏️ Edit Team`;
+  document.getElementById('et-club').value = club || '';
   document.getElementById('edit-team-search').value = '';
   document.getElementById('edit-team-adhoc').value = '';
   document.getElementById('edit-team-search-results').classList.add('hidden');
@@ -1613,9 +1644,10 @@ function addEditMemberFromPool(name) {
 
 async function saveTeamMembers() {
   const color = document.getElementById('et-color').value;
+  const club  = document.getElementById('et-club').value.trim();
   const r = await fetch('/api/relay_team/update_members', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({team_id: _editTeamId, members: _editTeamMembers, color})
+    body: JSON.stringify({team_id: _editTeamId, members: _editTeamMembers, color, club})
   });
   const d = await r.json();
   if (d.ok) {
