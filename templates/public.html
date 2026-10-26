@@ -1,17 +1,1392 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ comp.name }} — Results</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script>
-      window.__COMP__ = {{ comp | tojson }};
-      window.__COMP_ID__ = {{ comp.id }};
-    </script>
-    <script type="module" crossorigin src="{{ url_for('static', filename=public_js) }}"></script>
-    <link rel="stylesheet" crossorigin href="{{ url_for('static', filename=public_css) }}">
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>{{comp.name}} — Live Results</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange: #F4511E; --orange-dim: #BF360C;
+  --gold: #F59E0B; --silver: #64748B; --bronze: #C2622D;
+  --blue-stage: #4FC3F7; --green-stage: #81C784;
+}
+
+/* ── Dark theme (default) ── */
+body {
+  --bg:        #0A0A0F;
+  --bg-2:      #13131C;
+  --bg-header: #1E2330;
+  --border:    rgba(255,255,255,.1);
+  --text:      #FFFFFF;
+  --text-dim:  rgba(255,255,255,.55);
+  --text-faint:rgba(255,255,255,.3);
+  --input-bg:  rgba(255,255,255,.07);
+  --input-bg-focus: rgba(255,255,255,.1);
+  --card-bg:   #13131C;
+  --row-sep:   rgba(255,255,255,.04);
+  --r1-bg:     rgba(255,213,79,.05);
+  --r2-bg:     rgba(176,190,197,.03);
+  --r3-bg:     rgba(255,171,145,.04);
+  --sel-opt:   #1E2330;
+  --theme-icon: '☀️';
+  --chevron-color: rgba(255,255,255,.4);
+}
+
+/* ── Light theme ── */
+body.light {
+  --bg:        #F5F5F7;
+  --bg-2:      #FFFFFF;
+  --bg-header: #FFFFFF;
+  --border:    rgba(0,0,0,.1);
+  --text:      #1A1A2E;
+  --text-dim:  rgba(0,0,0,.55);
+  --text-faint:rgba(0,0,0,.38);
+  --input-bg:  rgba(0,0,0,.05);
+  --input-bg-focus: rgba(0,0,0,.08);
+  --card-bg:   #FFFFFF;
+  --row-sep:   rgba(0,0,0,.05);
+  --r1-bg:     rgba(255,213,79,.12);
+  --r2-bg:     rgba(176,190,197,.1);
+  --r3-bg:     rgba(255,171,145,.12);
+  --sel-opt:   #FFFFFF;
+  --theme-icon: '🌙';
+  --chevron-color: rgba(0,0,0,.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; padding-bottom: 64px; overflow-x: hidden;
+  transition: background .2s, color .2s;
+}
+
+/* ── Header ── */
+.header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 1px 8px rgba(0,0,0,.08);
+}
+.header-top { display: flex; align-items: center; padding: 12px 16px 10px; gap: 10px; }
+.header-logo { font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: .04em; color: var(--text); line-height: 1; }
+.header-logo .slash { color: var(--orange); }
+.header-comp { font-size: 12px; color: var(--text-dim); margin-top: 1px; line-height: 1; }
+.live-pill { display: flex; align-items: center; gap: 5px; background: rgba(244,81,30,.15); border: 1px solid rgba(244,81,30,.3); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--orange); flex-shrink: 0; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); animation: pulse 1.4s ease-in-out infinite; }
+
+/* Theme toggle button */
+.theme-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.theme-btn:hover { background: var(--input-bg-focus); }
+
+@keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.4; transform:scale(.75); } }
+
+/* ── Filter bar ── */
+.filter-bar { padding: 12px 14px; background: var(--bg-2); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+
+.search-wrap { position: relative; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; opacity: .5; }
+.search-inp {
+  width: 100%; padding: 9px 12px 9px 36px;
+  background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 14px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif; outline: none; transition: border-color .15s, background .15s;
+}
+.search-inp::placeholder { color: var(--text-faint); }
+.search-inp:focus { border-color: var(--orange); background: var(--input-bg-focus); }
+
+.filter-row { display: flex; gap: 8px; }
+.filter-sel {
+  flex: 1; padding: 8px 10px; min-width: 0;
+  background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif; outline: none; cursor: pointer;
+  transition: border-color .15s; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(128,128,128,.6)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px;
+}
+.filter-sel:focus { border-color: var(--orange); }
+.filter-sel option { background: var(--sel-opt); color: var(--text); }
+.filter-sel option:disabled { color: var(--text-faint); }
+
+.active-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.af-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(244,81,30,.15); border: 1px solid rgba(244,81,30,.3);
+  color: #F4511E; font-size: 11px; font-weight: 700;
+  padding: 3px 8px; border-radius: 20px; cursor: pointer; transition: all .15s;
+}
+.af-pill:hover { background: rgba(244,81,30,.25); }
+.af-pill .x { opacity: .7; }
+
+/* ── Content ── */
+.content { padding: 14px 12px; max-width: 640px; margin: 0 auto; }
+
+/* Search results */
+.sr-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.sr-head { padding: 10px 14px; display: flex; align-items: center; gap: 10px; background: var(--input-bg); border-bottom: 1px solid var(--border); }
+.sr-name { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; }
+.sr-meta { font-size: 11px; color: var(--text-faint); font-family: 'DM Mono', monospace; }
+.sr-row { display: flex; align-items: center; padding: 9px 14px; gap: 10px; border-bottom: 1px solid var(--row-sep); }
+.sr-row:last-child { border-bottom: none; }
+.sr-event { flex: 1; }
+.sr-ev-name { font-size: 13px; font-weight: 600; }
+.sr-ev-meta { font-size: 11px; color: var(--text-faint); margin-top: 1px; }
+.sr-place { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; line-height: 1; flex-shrink: 0; }
+.sr-place.p1 { color: var(--gold); } .sr-place.p2 { color: var(--silver); }
+.sr-place.p3 { color: var(--bronze); } .sr-place.pn { color: var(--text-dim); }
+.sr-place.pending { font-size: 16px; color: var(--text-faint); }
+
+/* Stage label */
+.slbl { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); margin: 18px 0 10px; }
+.slbl::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.slbl.ht { color: var(--blue-stage); } .slbl.sm { color: var(--green-stage); } .slbl.fn { color: var(--gold); }
+
+/* Heat card */
+.hcard { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.hcard-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
+.hcard-head.hh { background: #EFF6FF; border-bottom: 1px solid #BFDBFE; }
+.hcard-head.sh { background: #F0FDF4; border-bottom: 1px solid #BBF7D0; }
+.hcard-head.fh { background: #FFFBEB; border-bottom: 1px solid #FDE68A; }
+.hcard-head h3 { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; letter-spacing: .02em; }
+.hcard-head.hh h3 { color: #1D4ED8; } .hcard-head.sh h3 { color: #15803D; } .hcard-head.fh h3 { color: #D97706; }
+.hcard-head .sc { font-size: 11px; color: var(--text-faint); font-weight: 600; }
+
+/* Skater row */
+.sk-row { display: flex; align-items: center; padding: 12px 16px; gap: 12px; border-bottom: 1px solid var(--row-sep); transition: background .1s; }
+.sk-row:last-child { border-bottom: none; }
+.sk-row.r1 { background: var(--r1-bg); } .sk-row.r2 { background: var(--r2-bg); } .sk-row.r3 { background: var(--r3-bg); }
+.rank-num { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; width: 32px; text-align: center; flex-shrink: 0; line-height: 1; }
+.rank-num.r1 { color: var(--gold); } .rank-num.r2 { color: var(--silver); } .rank-num.r3 { color: var(--bronze); } .rank-num.rn { color: var(--text-dim); font-size: 18px; font-weight: 700; }
+.sk-info { flex: 1; min-width: 0; }
+.sk-name { font-size: 16px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.sk-meta { font-size: 13px; color: var(--text-dim); margin-top: 2px; font-family: 'DM Mono', monospace; letter-spacing: .02em; }
+.sk-place { text-align: right; flex-shrink: 0; }
+.place-num { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; line-height: 1; }
+.place-num.p1 { color: var(--gold); } .place-num.p2 { color: var(--silver); } .place-num.p3 { color: var(--bronze); } .place-num.pn { color: var(--text-dim); }
+.place-dq { font-size: 11px; font-weight: 800; color: #EF5350; background: rgba(239,83,80,.15); padding: 3px 8px; border-radius: 8px; letter-spacing: .06em; }
+.place-wait { font-size: 18px; color: var(--text-faint); font-weight: 700; }
+
+/* Standings */
+.standings-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.standings-head { padding: 12px 16px; background: rgba(255,213,79,.1); border-bottom: 1px solid rgba(255,213,79,.15); display: flex; align-items: center; justify-content: space-between; }
+.standings-head h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 800; color: var(--gold); letter-spacing: .04em; }
+.standings-pts-key { font-size: 10px; font-weight: 700; color: var(--text-faint); letter-spacing: .06em; }
+.standings-row { display: flex; align-items: center; padding: 12px 16px; gap: 12px; border-bottom: 1px solid var(--row-sep); }
+.standings-row:last-child { border-bottom: none; }
+.standings-row.r1 { background: var(--r1-bg); } .standings-row.r2 { background: var(--r2-bg); } .standings-row.r3 { background: var(--r3-bg); }
+.st-pos { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; width: 36px; text-align: center; flex-shrink: 0; line-height: 1; }
+.st-pos.p1 { color: var(--gold); } .st-pos.p2 { color: var(--silver); } .st-pos.p3 { color: var(--bronze); } .st-pos.pn { color: var(--text-dim); font-size: 18px; font-weight: 700; }
+.st-info { flex: 1; min-width: 0; }
+.st-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.st-breakdown { font-size: 10px; color: var(--text-dim); margin-top: 2px; font-family: 'DM Mono', monospace; }
+.st-pts { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; color: var(--orange); }
+.st-pts-label { font-size: 9px; color: var(--text-faint); font-weight: 700; text-align: right; }
+.tie-badge { font-size: 9px; font-weight: 800; background: rgba(255,152,0,.2); color: #FFB74D; padding: 2px 6px; border-radius: 6px; margin-left: 5px; }
+
+/* Waiting */
+.waiting { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 32px; text-align: center; margin-bottom: 10px; }
+.waiting .wi { font-size: 30px; margin-bottom: 8px; }
+.waiting p { font-size: 13px; color: var(--text-faint); }
+.qual-banner { background: rgba(129,199,132,.1); border: 1px solid rgba(129,199,132,.2); border-radius: 10px; padding: 9px 14px; margin-bottom: 10px; font-size: 12px; font-weight: 700; color: var(--green-stage); display: flex; align-items: center; gap: 6px; }
+.direct-pill { display: inline-flex; align-items: center; gap: 5px; background: rgba(179,136,255,.12); border: 1px solid rgba(179,136,255,.2); color: #CE93D8; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; margin-bottom: 12px; }
+
+/* Mode toggle */
+.mode-toggle {
+  display: flex; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border); background: var(--input-bg);
+  flex-shrink: 0;
+}
+.mode-btn {
+  padding: 6px 14px; font-size: 12px; font-weight: 700;
+  border: none; background: none; cursor: pointer;
+  color: var(--text-faint); font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: all .15s; letter-spacing: .02em;
+}
+.mode-btn.active {
+  background: var(--orange); color: #fff;
+}
+
+/* Program view event section */
+.prog-event { margin-bottom: 24px; }
+.prog-event-title {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px; font-weight: 400;
+  letter-spacing: .01em; color: var(--text);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.prog-pts-badge {
+  font-size: 10px; font-weight: 400; letter-spacing: .04em;
+  background: rgba(244,81,30,.12); color: var(--orange);
+  border: 1px solid rgba(244,81,30,.2);
+  padding: 2px 8px; border-radius: 20px;
+}
+.lineup-placeholder {
+  padding: 14px 16px; text-align: center;
+  font-size: 12px; color: var(--text-faint); font-style: italic;
+}
+/* end */
+
+/* Schedule view */
+.sched-section-hdr { display:flex; align-items:center; gap:10px; margin:24px 0 10px; }
+.sched-time { font-size:11px; font-weight:600; color:var(--text-faint);
+  background:var(--input-bg); border:1px solid var(--border);
+  border-radius:20px; padding:2px 10px; white-space:nowrap; }
+.sched-section-hdr .sched-name { font-size:10px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-faint); white-space:nowrap; }
+.sched-section-hdr::after { content:''; flex:1; height:1px; background:var(--border); }
+.sched-row { display:flex; align-items:center; gap:12px; padding:12px 16px;
+  border-radius:14px; border:1px solid var(--border);
+  background:var(--card-bg); margin-bottom:8px; transition:all .2s; }
+.sched-row.in_progress { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.4); }
+.sched-row.done { background:rgba(34,197,94,.07); border-color:rgba(34,197,94,.3); }
+.sched-num { font-size:11px; font-family:'DM Mono',monospace;
+  color:var(--text-faint); width:52px; flex-shrink:0; }
+.sched-info { flex:1; min-width:0; }
+.sched-label { font-size:16px; font-weight:600; color:var(--text); }
+.sched-meta { font-size:13px; color:var(--text-faint); margin-top:2px; }
+.sched-badge { display:inline-flex; align-items:center; gap:5px;
+  padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
+.sched-badge.pending { background:var(--input-bg); color:var(--text-faint); border:1px solid var(--border); }
+.sched-badge.in_progress { background:rgba(245,158,11,.15); color:#D97706; border:1px solid rgba(245,158,11,.3); }
+.sched-badge.done { background:rgba(34,197,94,.12); color:#16A34A; border:1px solid rgba(34,197,94,.3); }
+.sched-live-dot { width:7px; height:7px; border-radius:50%; background:#F59E0B;
+  animation:pulse 1.2s ease-in-out infinite; flex-shrink:0; }
+
+@keyframes result-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+.sk-row, .standings-row { animation: result-in .25s ease both; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-logo">SWPL<span class="slash">/</span>RACING</div>
+      <div class="header-comp">{{comp.name}}{% if comp.venue %} · {{comp.venue}}{% endif %}</div>
+    </div>
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark">☀️</button>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <!-- Row 1: Mode tabs + Refresh -->
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-results" onclick="setMode('results')">📊 Results</button>
+        <button class="mode-btn" id="mode-program" onclick="setMode('program')">📋 Program</button>
+        <button class="mode-btn" id="mode-schedule" onclick="setMode('schedule')">📅 Schedule</button>
+      </div>
+      <button onclick="doRefresh(true)" title="Refresh"
+        style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;
+               font-size:13px;font-weight:600;color:var(--orange);cursor:pointer;
+               font-family:inherit;flex-shrink:0;display:flex;align-items:center;gap:5px;white-space:nowrap">
+        ↻ <span id="last-upd" style="font-size:11px;font-weight:400;color:var(--text-faint)">Refresh</span>
+      </button>
+    </div>
+    <!-- Row 2: Search bar (full width, Program/Schedule only) -->
+    <div class="search-wrap" id="search-wrap" style="display:none;margin-top:8px">
+      <span class="search-icon">🔍</span>
+      <input class="search-inp" id="search-inp" type="text" placeholder="Search skater name or panel #…" oninput="onSearch()" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <!-- Group + Event dropdowns (Results only) -->
+    <div class="filter-row" id="filter-row">
+      <select class="filter-sel" id="group-sel" onchange="onGroupChange()">
+        <option value="" disabled selected>Group…</option>
+      </select>
+      <select class="filter-sel" id="event-sel" onchange="onEventChange()" disabled>
+        <option value="" disabled selected>Event…</option>
+      </select>
+    </div>
+    <!-- Active filter pills -->
+    <div class="active-filters" id="active-filters" style="display:none"></div>
+  </div>
+</div>
+
+<div class="content" id="content">
+
+<script>
+const COMP_ID = {{comp.id}};
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+  document.getElementById('theme-btn').textContent = theme === 'light' ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  const next = document.body.classList.contains('light') ? 'dark' : 'light';
+  try { localStorage.setItem('pw_theme', next); } catch(e) {}
+  applyTheme(next);
+}
+// Apply saved preference immediately (before first paint)
+(function() {
+  try {
+    const saved = localStorage.getItem('pw_theme');
+    if (saved === 'dark') applyTheme('dark');
+    else applyTheme('light'); // default to light
+  } catch(e) {}
+})();
+
+
+let allGroups = {}, allRelays = {}, allGroupData = {}, timer = null;
+let curGroup = null, curEvent = null, searchTimer = null;
+let curMode = 'results'; // 'results' | 'program'
+let contentRendered = false; // track if setContent was ever called
+
+function setMode(mode) {
+  curMode = mode;
+  renderToken++; // invalidate any in-flight renders
+  document.getElementById('mode-results').classList.toggle('active', mode === 'results');
+  document.getElementById('mode-program').classList.toggle('active', mode === 'program');
+  document.getElementById('mode-schedule').classList.toggle('active', mode === 'schedule');
+  document.getElementById('search-inp').value = '';
+
+  const searchWrap = document.getElementById('search-wrap');
+  const filterRow  = document.getElementById('filter-row');
+
+  if (mode === 'results') {
+    // Results: show dropdowns, hide search, clear search input
+    searchWrap.style.display = 'none';
+    filterRow.style.display = '';
+    document.getElementById('search-inp').value = '';
+    document.getElementById('event-sel').style.display = 'none';
+    savePubState();
+    if (curGroup && !curGroup.startsWith('__relay__')) renderGroupAllResults(curGroup);
+    else if (curGroup?.startsWith('__relay__')) {
+      const name = curGroup.slice(9);
+      showRelay(name, allRelays[name]);
+    }
+    return;
+  }
+
+  if (mode === 'program') {
+    searchWrap.style.display = '';
+    filterRow.style.display = 'none';
+    document.getElementById('search-inp').value = '';
+    document.getElementById('active-filters').style.display = 'none';
+    document.getElementById('active-filters').innerHTML = '';
+    savePubState();
+    renderAllProgram();
+    return;
+  }
+
+  if (mode === 'schedule') {
+    searchWrap.style.display = '';
+    filterRow.style.display = 'none';
+    document.getElementById('search-inp').value = '';
+    document.getElementById('active-filters').style.display = 'none';
+    document.getElementById('active-filters').innerHTML = '';
+    savePubState();
+    renderSchedulePublic();
+    return;
+  }
+}
+async function renderSchedulePublic() {
+  const token = renderToken;
+  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading schedule…</p></div>');
+  const r  = await fetch(`/api/comp/${COMP_ID}/schedule`);
+  const evs = await r.json().catch(() => []);
+  if (!evs.length) {
+    setContent('<div class="waiting"><div class="wi">📅</div><p>No schedule uploaded yet</p></div>');
+    return;
+  }
+  let html = ''; let curSection = '';
+  evs.forEach(ev => {
+    if (ev.status === 'done') return; // hide finished events from public view
+    if (ev.section !== curSection) {
+      curSection = ev.section;
+      html += `<div class="sched-section-hdr">
+        <span class="sched-time">${ev.section_time}</span>
+        <span class="sched-name">${ev.section}</span>
+      </div>`;
+    }
+    const badge = ev.status === 'in_progress'
+      ? `<span class="sched-badge in_progress"><span class="sched-live-dot"></span>In Progress</span>`
+      : `<span class="sched-badge pending">Upcoming</span>`;
+    html += `<div class="sched-row ${ev.status}">
+      <div class="sched-num">${ev.race_number}</div>
+      <div class="sched-info">
+        <div class="sched-label">${ev.label}</div>
+        <div class="sched-meta">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
+      </div>
+      ${badge}
+    </div>`;
+  });
+  if (!html) html = '<div class="waiting"><div class="wi">✅</div><p>All events completed!</p></div>';
+  setContent(html, token);
+}
+
+
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+// ── State persistence ─────────────────────────────────────────────────────────
+const PUB_STATE_KEY = `pw_pub_state_${COMP_ID}`;
+function savePubState() {
+  try {
+    localStorage.setItem(PUB_STATE_KEY, JSON.stringify({
+      mode: curMode,
+      group: (curMode === 'program' || curMode === 'schedule') ? null : curGroup,
+      event: (curMode === 'program' || curMode === 'schedule') ? null : curEvent
+    }));
+  } catch(e) {}
+}
+function loadPubState() {
+  try { return JSON.parse(localStorage.getItem(PUB_STATE_KEY)); } catch(e) { return null; }
+}
+
+async function init() {
+  try {
+    const [gr, rr] = await Promise.all([
+      fetch(`/api/${COMP_ID}/groups`),
+      fetch(`/api/${COMP_ID}/relays`),
+    ]);
+    allGroups = await gr.json().catch(() => ({}));
+    allRelays  = await rr.json().catch(() => ({}));
+  } catch(e) {
+    try { allGroups = await (await fetch(`/api/${COMP_ID}/groups`)).json(); } catch(e2) {}
+  }
+
+  populateGroupSel();
+
+  const state = loadPubState();
+  if (state) {
+    // Apply mode silently without triggering re-renders
+    curMode = state.mode || 'results';
+    document.getElementById('mode-results').classList.toggle('active', curMode === 'results');
+    document.getElementById('mode-program').classList.toggle('active', curMode === 'program');
+    document.getElementById('mode-schedule').classList.toggle('active', curMode === 'schedule');
+    document.getElementById('event-sel').style.display = (curMode === 'program' || curMode === 'schedule') ? 'none' : '';
+    document.getElementById('filter-row').style.display = curMode === 'schedule' ? 'none' : (curMode === 'program' ? 'none' : '');
+    document.getElementById('search-wrap').style.display = curMode === 'results' ? 'none' : '';
+
+    if (curMode === 'schedule') {
+      renderSchedulePublic();
+    } else if (curMode === 'program') {
+      renderAllProgram();
+    } else if (state.group?.startsWith('__relay__')) {
+      const name = state.group.slice(9);
+      curGroup = state.group;
+      if (allRelays[name]) {
+        document.getElementById('group-sel').value = state.group;
+        showRelay(name, allRelays[name]);
+      } else {
+        const groups = Object.keys(allGroups).sort();
+        if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+      }
+    } else if (state.group && allGroups[state.group]) {
+      await selectGroup(state.group);
+    } else {
+      const groups = Object.keys(allGroups).sort();
+      if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+    }
+  } else {
+    const groups = Object.keys(allGroups).sort();
+    if (groups.length) { curGroup = groups[0]; await selectGroup(curGroup); }
+  }
+
+  document.getElementById('last-upd').textContent = 'Updated ' + timestamp();
+  timer = setInterval(doRefresh, 120000); // auto-refresh every 2 min
+
+  // If init() never called setContent (no groups, no data), show a helpful empty state
+  if (!contentRendered) {
+    setContent('<div class="waiting"><div class="wi">📋</div><p>No groups have been set up for this competition yet. Check back soon!</p></div>');
+  }
+}
+
+function populateGroupSel() {
+  const sel = document.getElementById('group-sel');
+  sel.innerHTML = '<option value="" disabled>Group…</option>';
+  Object.keys(allGroups).sort().forEach(g => {
+    sel.innerHTML += `<option value="${esc(g)}">${g} (${allGroups[g].skater_count})</option>`;
+  });
+  if (Object.keys(allRelays).length) {
+    sel.innerHTML += `<option value="" disabled>── Relays ──</option>`;
+    Object.keys(allRelays).sort().forEach(n => {
+      sel.innerHTML += `<option value="__relay__${esc(n)}">🔄 ${n}</option>`;
+    });
+  }
+  if (curGroup) sel.value = curGroup;
+}
+
+// ── Group / Event selection ─────────────────────────────────────────────────
+async function onGroupChange() {
+  const val = document.getElementById('group-sel').value;
+  if (!val) return;
+  document.getElementById('search-inp').value = '';
+  clearSearch();
+  curGroup = val; curEvent = null;
+  savePubState();
+  if (val.startsWith('__relay__')) {
+    const name = val.slice(9);
+    updateEventSel([], true);
+    updatePills();
+    if (curMode === 'program') renderAllProgram();
+    else showRelay(name, allRelays[name]);
+  } else {
+    updatePills();
+    await selectGroup(val);
+  }
+}
+
+async function loadGroupData(group) {
+  if (!allGroupData[group]) {
+    try {
+      const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(group)}?t=${Date.now()}`);
+      allGroupData[group] = await r.json();
+    } catch(e) {}
+  }
+  return allGroupData[group] || {};
+}
+
+async function selectGroup(group) {
+  await loadGroupData(group);
+  document.getElementById('group-sel').value = group;
+  document.getElementById('event-sel').style.display = 'none';
+
+  if (curMode === 'program') {
+    renderAllProgram();
+  } else {
+    renderGroupAllResults(group);
+  }
+  updatePills();
+}
+
+function onEventChange() {
+  const val = document.getElementById('event-sel').value;
+  if (!val) return;
+  curEvent = val;
+  savePubState();
+  renderCurrentEvent();
+  updatePills();
+}
+
+function updateEventSel(evNames, disabled = false) {
+  const sel = document.getElementById('event-sel');
+  sel.disabled = disabled || evNames.length === 0;
+  sel.innerHTML = '<option value="" disabled>Event…</option>';
+  evNames.forEach(n => {
+    const label = n === '__standings__' ? '🏆 Standings' : n;
+    sel.innerHTML += `<option value="${esc(n)}">${label}</option>`;
+  });
+}
+
+// ── Render current group/event ───────────────────────────────────────────────
+function renderCurrentEvent() {
+  if (!curGroup || !curEvent) return;
+  if (curGroup.startsWith('__relay__')) return; // relay handled separately
+
+  const events = allGroupData[curGroup] || {};
+  if (curEvent === '__standings__') { showStandings(curGroup); return; }
+
+  const ev = events[curEvent];
+  if (!ev) return;
+  showEventSmart(ev);
+}
+
+function showEventSmart(ev) {
+  // Smart: show Final if any placements exist, else show most advanced stage with skaters
+  let html = '';
+  const finalHasResults = ev.finals?.some(h => h.skaters?.some(s => s.placement));
+  const finalHasSkaters = ev.finals?.some(h => h.skaters?.length);
+  const semiHasSkaters  = ev.semis?.some(h => h.skaters?.length);
+  const heatHasResults  = ev.heats?.some(h => h.skaters?.some(s => s.placement));
+
+  if (ev.type === 'direct_final') {
+    html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
+    html += (ev.finals || []).map(h => h.skaters?.length ? hCard(h,'fh') : waiting('Not yet started')).join('');
+    setContent(html); return;
+  }
+
+  if (finalHasResults || finalHasSkaters) {
+    // Show final
+    html += `<div class="slbl fn">Final</div>`;
+    html += ev.finals.map(h => h.skaters?.length ? hCard(h,'fh') : waiting('Final lineup coming soon')).join('');
+  } else if (semiHasSkaters) {
+    // Show semis
+    html += `<div class="slbl sm">Semi-Finals</div>`;
+    html += ev.semis.map(h => h.skaters?.length ? hCard(h,'sh') : waiting('Waiting for heat results')).join('');
+    html += `<div class="slbl fn" style="margin-top:16px">Final</div>`;
+    html += ev.finals.map(h => waiting('Final lineup coming soon')).join('');
+  } else if (heatHasResults) {
+    // Heats in progress
+    html += `<div class="slbl ht">Heats</div>`;
+    html += ev.heats.map(h => hCard(h,'hh')).join('');
+    const adv = semiHasSkaters || finalHasSkaters;
+    if (adv) html += `<div class="qual-banner">✓ Qualifiers advanced</div>`;
+  } else {
+    // Show heats (no results yet)
+    if (ev.heats?.length) {
+      html += `<div class="slbl ht">Heats</div>`;
+      html += ev.heats.map(h => hCard(h,'hh')).join('');
+    } else {
+      html += `<div class="slbl fn">Final</div>`;
+      html += ev.finals.map(h => hCard(h,'fh')).join('');
+    }
+  }
+  setContent(html);
+}
+
+let renderToken = 0; // increments on every setMode — stale renders check this
+
+function setContent(html, token) {
+  // If a token is provided, only render if it still matches current token
+  if (token !== undefined && token !== renderToken) return;
+  contentRendered = true;
+  document.getElementById('content').innerHTML = html || waiting('No data');
+}
+
+// ── Active filter pills ──────────────────────────────────────────────────────
+function updatePills() {
+  const af = document.getElementById('active-filters');
+  const pills = [];
+  if (curGroup && !curGroup.startsWith('__relay__')) {
+    pills.push(`<span class="af-pill" onclick="clearGroup()">📍 ${curGroup} <span class="x">×</span></span>`);
+  } else if (curGroup?.startsWith('__relay__')) {
+    const name = curGroup.slice(9);
+    pills.push(`<span class="af-pill" onclick="clearGroup()">🔄 ${name.substring(0,20)}… <span class="x">×</span></span>`);
+  }
+  if (curEvent && curEvent !== '__standings__') {
+    pills.push(`<span class="af-pill" onclick="clearEvent()">🏁 ${curEvent} <span class="x">×</span></span>`);
+  } else if (curEvent === '__standings__') {
+    pills.push(`<span class="af-pill" onclick="clearEvent()">🏆 Standings <span class="x">×</span></span>`);
+  }
+  af.innerHTML = pills.join('');
+  af.style.display = pills.length ? 'flex' : 'none';
+}
+
+function clearGroup() {
+  curGroup = null; curEvent = null;
+  document.getElementById('group-sel').value = '';
+  document.getElementById('event-sel').value = '';
+  document.getElementById('event-sel').disabled = true;
+  document.getElementById('event-sel').innerHTML = '<option value="" disabled selected>Event…</option>';
+  updatePills();
+  setContent('<div class="waiting"><div class="wi">👆</div><p>Select a group above</p></div>');
+}
+
+function clearEvent() {
+  curEvent = Object.keys(allGroupData[curGroup] || {})[0] || null;
+  if (curEvent) {
+    document.getElementById('event-sel').value = curEvent;
+    renderCurrentEvent();
+  }
+  updatePills();
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function onSearch() {
+  clearTimeout(searchTimer);
+  const q = document.getElementById('search-inp').value.trim().toLowerCase();
+  if (!q) { clearSearch(); return; }
+  searchTimer = setTimeout(() => doSearch(q), 250);
+}
+
+function clearSearch() {
+  if (curMode === 'program') { renderAllProgram(); return; }
+  if (curMode === 'schedule') { renderSchedulePublic(); return; }
+  renderCurrentEvent();
+}
+
+async function doProgramSearch(q) {
+  const token = renderToken;
+  if (!q) { renderAllProgram(); return; }
+
+  // Load all group data we don't have
+  const groups = Object.keys(allGroups).sort();
+  await Promise.all(groups.filter(g => !allGroupData[g]).map(async g => {
+    try {
+      const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(g)}`);
+      allGroupData[g] = await r.json();
+    } catch(e) {}
+  }));
+
+  const ORDER = ['Short Distance','Medium Distance','Long Distance'];
+
+  // Find which groups contain the athlete
+  const matchedGroups = new Set();
+  for (const group of groups) {
+    const events = allGroupData[group] || {};
+    const evNames = Object.keys(events).filter(n => n !== '__standings__');
+    const firstEv = ORDER.find(n => evNames.includes(n)) || evNames[0];
+    if (!firstEv) continue;
+    const ev = events[firstEv];
+    const allStages = [...(ev.heats||[]), ...(ev.finals||[])];
+    for (const heat of allStages) {
+      if ((heat.skaters||[]).some(s =>
+        s.full_name?.toLowerCase().includes(q) || (s.panel||'').toLowerCase().includes(q)
+      )) { matchedGroups.add(group); break; }
+    }
+  }
+
+  let html = '';
+
+  if (matchedGroups.size) {
+
+  for (const group of [...matchedGroups].sort()) {
+    const events = allGroupData[group] || {};
+    const evNames = Object.keys(events).filter(n => n !== '__standings__');
+    const ordered = [...ORDER.filter(n => evNames.includes(n)), ...evNames.filter(n => !ORDER.includes(n))];
+
+    html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--text-faint);padding:12px 0 6px">Group ${group}</div>`;
+
+    for (const evName of ordered) {
+      const ev = events[evName];
+      if (!ev) continue;
+      const stages = [
+        ...(ev.heats||[]).map(h=>({...h,lbl:`Heat ${h.number}`,cls:'hh'})),
+        ...(ev.finals||[]).map(h=>({...h,lbl:'Final',cls:'fh'})),
+      ];
+
+      html += `<div style="font-size:12px;font-weight:600;color:var(--text-faint);padding:4px 0 4px">${evName}</div>`;
+
+      for (const heat of stages) {
+        const skaters = heat.skaters || [];
+        if (!skaters.length) continue;
+        html += `<div class="hcard" style="margin-bottom:10px">
+          <div class="hcard-head ${heat.cls}"><h3>${heat.lbl} — ${skaters.length} skaters</h3></div>
+          ${skaters.map(s => {
+            const isMatch = s.full_name?.toLowerCase().includes(q) || (s.panel||'').toLowerCase().includes(q);
+            return `<div class="sk-row" style="${isMatch?'background:rgba(244,81,30,.06)':''}">
+              <div class="rank-num rn">—</div>
+              <div class="sk-info">
+                <div class="sk-name" style="${isMatch?'font-weight:600;color:var(--orange)':''}">${s.full_name}</div>
+                <div class="sk-meta">#${s.panel} · ${s.club}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+    }
+  }
+  } // end if (matchedGroups.size)
+
+  // Search relay teams by member name or club
+  for (const [evName, ev] of Object.entries(allRelays)) {
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,lbl:`Heat ${h.number}`,cls:'hh'})),
+      ...(ev.semis||[]).map(h=>({...h,lbl:`Semi ${h.number}`,cls:'sh'})),
+      ...(ev.finals||[]).map(h=>({...h,lbl:'Final',cls:'fh'})),
+    ];
+    const shortName = evName.replace(/\s*\(.*?\)\s*/g,'').replace(/\s*Final\s*$/i,'').trim();
+    for (const heat of allStages) {
+      const matchedTeams = (heat.teams||[]).filter(t =>
+        (t.members||[]).some(m => m?.toLowerCase().includes(q)) ||
+        t.club?.toLowerCase().includes(q)
+      );
+      if (!matchedTeams.length) continue;
+      if (!html) html = '';
+      html += `<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+        color:var(--text-faint);padding:12px 0 6px">🔄 ${shortName}</div>`;
+      html += `<div class="hcard" style="margin-bottom:10px">
+        <div class="hcard-head ${heat.cls}"><h3>${heat.lbl} — ${heat.teams.length} teams</h3></div>
+        ${heat.teams.map(t => {
+          const members = (t.members||[]).filter(m=>m&&m!=='nan');
+          const bibColor = ({green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'})[(t.color||'').toLowerCase()] || '#9E9E9E';
+          const isMatch = (t.members||[]).some(m=>m?.toLowerCase().includes(q)) || t.club?.toLowerCase().includes(q);
+          return `<div class="sk-row" style="${isMatch?'background:rgba(244,81,30,.06)':''}">
+            <div class="rank-num rn">—</div>
+            <div class="sk-info">
+              <div class="sk-name" style="${isMatch?'font-weight:600;color:var(--orange)':''}">${members.join(', ')||'—'}</div>
+              <div class="sk-meta" style="display:flex;align-items:center;gap:5px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${bibColor}"></span>
+                ${t.club} · ${t.color||'No helmet cover'}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+      break; // only show each relay event once even if multiple heats match
+    }
+  }
+
+  if (!html) {
+    setContent(`<div class="waiting"><div class="wi">🔍</div><p>No results for "${q}"</p></div>`, token);
+    return;
+  }
+
+  setContent(html, token);
+}
+
+async function doSearch(q) {
+  // Program and Schedule both use program-style search with time slots
+  if (curMode === 'program' || curMode === 'schedule') {
+    await doProgramSearch(q);
+    return;
+  }
+
+  // Results mode search — across all loaded group data
+  const groups = Object.keys(allGroups).sort();
+  // Fetch all group data we don't have yet
+  const missing = groups.filter(g => !allGroupData[g]);
+  await Promise.all(missing.map(async g => {
+    try {
+      const r = await fetch(`/api/${COMP_ID}/group/${encodeURIComponent(g)}`);
+      allGroupData[g] = await r.json();
+    } catch(e) {}
+  }));
+
+  const results = []; // [{name, panel, club, group, event, stage, placement}]
+
+  for (const group of groups) {
+    const events = allGroupData[group] || {};
+    for (const [evName, ev] of Object.entries(events)) {
+      const allHeats = [...(ev.heats||[]), ...(ev.semis||[]), ...(ev.finals||[])];
+      for (const heat of allHeats) {
+        for (const s of (heat.skaters||[])) {
+          const nameMatch = s.full_name?.toLowerCase().includes(q);
+          const panelMatch = s.panel?.toLowerCase().includes(q);
+          if (nameMatch || panelMatch) {
+            results.push({
+              name: s.full_name, panel: s.panel, club: s.club,
+              group, event: evName, stage: heat.stage,
+              number: heat.number, placement: s.placement || ''
+            });
+          }
+        }
+      }
+    }
+  }
+
+  renderSearchResults(q, results);
+}
+
+function renderSearchResults(q, results) {
+  if (!results.length) {
+    setContent(`<div class="waiting"><div class="wi">🔍</div><p>No results for "${q}"</p></div>`);
+    return;
+  }
+
+  // Group by skater name+panel
+  const bySkater = {};
+  results.forEach(r => {
+    const key = `${r.panel}_${r.name}`;
+    if (!bySkater[key]) bySkater[key] = { name: r.name, panel: r.panel, club: r.club, results: [] };
+    // Only keep the most relevant result per event (prefer Final, then Semi, then Heat)
+    const existing = bySkater[key].results.find(x => x.event === r.event);
+    const stageRank = {Final:3, Semi:2, Heat:1};
+    if (!existing || (stageRank[r.stage]||0) > (stageRank[existing.stage]||0)) {
+      if (existing) bySkater[key].results.splice(bySkater[key].results.indexOf(existing), 1);
+      bySkater[key].results.push(r);
+    }
+  });
+
+  const html = Object.values(bySkater).map(sk => {
+    const rows = sk.results.map(r => {
+      const num = parseInt(r.placement);
+      const ranked = !isNaN(num);
+      const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+      const plEl = r.placement === 'DQ'
+        ? `<span class="place-dq">DQ</span>`
+        : ranked
+          ? `<div class="sr-place ${pcls}">${r.placement}</div>`
+          : `<div class="sr-place pending">—</div>`;
+      return `<div class="sr-row">
+        <div class="sr-event">
+          <div class="sr-ev-name">${r.event}</div>
+          <div class="sr-ev-meta">${r.group} · ${r.stage}${r.stage!=='Final'?' '+r.number:''}</div>
+        </div>
+        ${plEl}
+      </div>`;
+    }).join('');
+    return `<div class="sr-card">
+      <div class="sr-head">
+        <div>
+          <div class="sr-name">${sk.name}</div>
+          <div class="sr-meta">#${sk.panel} · ${sk.club}</div>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML =
+    `<div class="sr-header">${Object.keys(bySkater).length} skater(s) found for "${q}"</div>` + html;
+}
+
+// ── Standings ────────────────────────────────────────────────────────────────
+async function showStandings(group) {
+  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading standings…</p></div>');
+  const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+  const d = await r.json();
+  const data = d.standings || [], tbEv = d.tiebreaker_event || '';
+  if (!data.length) { setContent('<div class="waiting"><div class="wi">📊</div><p>No results yet</p></div>'); return; }
+  const rows = data.map(row => {
+    const pos = row.position;
+    const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    const rc   = pos===1?'r1':pos===2?'r2':pos===3?'r3':'';
+    const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+      const s = ['st','nd','rd'][info.place-1]||'th';
+      const ptsStr = info.pts > 0 ? ` ${info.pts}pts` : '';
+      return `${ev.replace(' Distance','')}: ${info.place}${s}${ptsStr}${ev===tbEv?' ⚖':''}`;
+    }).join('  ·  ');
+    const tie = row.tb_needed ? '<span class="tie-badge">TIE</span>' : '';
+    const medal = {1:'🥇',2:'🥈',3:'🥉'}[pos] || '';
+    const ptsDisplay = row.points > 0 ? row.points : '—';
+    return `<div class="standings-row ${rc}">
+      <div class="st-pos ${pcls}">${medal||pos}</div>
+      <div class="st-info">
+        <div class="st-name">${row.name}${tie}</div>
+        ${bd ? `<div class="st-breakdown">${bd}</div>` : ''}
+      </div>
+      <div><div class="st-pts">${ptsDisplay}</div><div class="st-pts-label">PTS</div></div>
+    </div>`;
+  }).join('');
+  setContent(`<div class="standings-card">
+    <div class="standings-head">
+      <h3>OVERALL STANDINGS</h3>
+      <div class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</div>
+    </div>${rows}</div>
+    ${tbEv ? `<div style="font-size:11px;color:var(--text-faint);text-align:center;padding:6px">⚖ Tiebreaker: ${tbEv}</div>` : ''}`);
+}
+
+// ── Relay view ───────────────────────────────────────────────────────────────
+function showRelay(evName, ev) {
+  if (!ev) { setContent('<div class="waiting"><div class="wi">⏳</div><p>No relay data</p></div>'); return; }
+  const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+  let html = '';
+
+  const relayHCard = (heat, cls) => {
+    const label = heat.stage==='Final' ? 'FINAL' : `${heat.stage.toUpperCase()} ${heat.number}`;
+    const sorted = [...(heat.teams||[])].sort((a,b) => {
+      const pa = /^\d+$/.test(a.placement) ? parseInt(a.placement) : 999;
+      const pb = /^\d+$/.test(b.placement) ? parseInt(b.placement) : 999;
+      return pa - pb;
+    });
+    if (!sorted.length) return `<div class="hcard"><div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">0 TEAMS</span></div><div style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px">Waiting for lineup</div></div>`;
+    const rows = sorted.map((t,i) => {
+      const pl = t.placement, num = parseInt(pl), ranked = !isNaN(num);
+      const rc = num===1?'r1':num===2?'r2':num===3?'r3':'';
+      const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+      const bibColor = COLORS[t.color?.toLowerCase()]||'#546E7A';
+      const memberList = (t.members||[]).filter(m=>m&&m!=='nan').join(', ');
+      let plEl = pl==='DQ' ? `<div class="sk-place"><span class="place-dq">DQ</span></div>`
+        : ranked ? `<div class="sk-place"><div class="place-num ${pcls}">${pl}</div></div>`
+        : `<div class="sk-place"><div class="place-wait">—</div></div>`;
+      return `<div class="sk-row ${rc}" style="animation-delay:${i*.04}s">
+        <div class="rank-num ${ranked?pcls:'rn'}">${ranked?num:i+1}</div>
+        <div class="sk-info">
+          <div class="sk-name" style="display:flex;align-items:center;gap:8px">
+            <span>${t.club}</span>
+            <span style="display:inline-flex;align-items:center;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;background:${bibColor}">${t.color||''}</span>
+          </div>
+          ${memberList?`<div class="sk-meta">${memberList}</div>`:''}
+        </div>${plEl}
+      </div>`;
+    }).join('');
+    return `<div class="hcard"><div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">${sorted.length} TEAMS</span></div>${rows}</div>`;
+  };
+
+  // Smart: show most advanced stage
+  const finalHasResults = ev.finals?.some(h=>h.teams?.some(t=>t.placement));
+  const finalHasTeams   = ev.finals?.some(h=>h.teams?.length);
+  const semiHasTeams    = ev.semis?.some(h=>h.teams?.length);
+
+  if (finalHasResults || finalHasTeams) {
+    html += `<div class="slbl fn">Final</div>` + ev.finals.map(h=>relayHCard(h,'fh')).join('');
+  } else if (semiHasTeams) {
+    html += `<div class="slbl sm">Semi-Finals</div>` + ev.semis.map(h=>relayHCard(h,'sh')).join('');
+  } else if (ev.heats?.length) {
+    html += `<div class="slbl ht">Heats</div>` + ev.heats.map(h=>relayHCard(h,'hh')).join('');
+  } else {
+    html = '<div class="waiting"><div class="wi">⏳</div><p>No results yet</p></div>';
+  }
+  setContent(html);
+}
+
+// ── Heat card ────────────────────────────────────────────────────────────────
+function hCard(heat, hdrCls) {
+  const label = heat.stage==='Final' ? 'FINAL' : `${heat.stage.toUpperCase()} ${heat.number}`;
+  const sorted = [...(heat.skaters||[])].sort((a,b) => {
+    const pa = /^\d+$/.test(a.placement) ? parseInt(a.placement) : 999;
+    const pb = /^\d+$/.test(b.placement) ? parseInt(b.placement) : 999;
+    return pa - pb;
+  });
+  const rows = sorted.map((s,i) => {
+    const pl = s.placement, num = parseInt(pl), ranked = !isNaN(num);
+    const rc = num===1?'r1':num===2?'r2':num===3?'r3':'';
+    const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+    let plEl = pl==='DQ' ? `<div class="sk-place"><span class="place-dq">DQ</span></div>`
+      : ranked ? `<div class="sk-place"><div class="place-num ${pcls}">${pl}</div></div>`
+      : `<div class="sk-place"><div class="place-wait">—</div></div>`;
+    return `<div class="sk-row ${rc}" style="animation-delay:${i*.04}s">
+      <div class="rank-num ${ranked?pcls:'rn'}">${ranked?num:i+1}</div>
+      <div class="sk-info">
+        <div class="sk-name">${s.full_name}</div>
+        <div class="sk-meta">#${s.panel} · ${s.club}</div>
+      </div>${plEl}
+    </div>`;
+  }).join('');
+  return `<div class="hcard">
+    <div class="hcard-head ${hdrCls}"><h3>${label}</h3><span class="sc">${sorted.length} SKATERS</span></div>
+    ${rows || '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:13px">Waiting for lineup</div>'}
+  </div>`;
+}
+
+function waiting(msg) { return `<div class="waiting"><div class="wi">⏳</div><p>${msg}</p></div>`; }
+
+// ── Results: show all events for selected group ───────────────────────────────
+async function renderGroupAllResults(group) {
+  const token = renderToken;
+  const events = allGroupData[group] || {};
+  if (!Object.keys(events).length) {
+    setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>', token);
+    await loadGroupData(group);
+    if (token !== renderToken) return; // mode changed while loading
+    return renderGroupAllResults(group);
+  }
+
+  // Order: Short → Medium → Long Distance
+  const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
+  const evNames = Object.keys(events);
+  const ordered = [
+    ...ORDER.filter(n => evNames.includes(n)),
+    ...evNames.filter(n => !ORDER.includes(n) && n !== '__standings__')
+  ];
+
+  let html = '';
+  for (const evName of ordered) {
+    const ev = events[evName];
+    if (!ev) continue;
+    const isPoints = ev.points_event;
+    html += `<div class="prog-event">
+      <div class="prog-event-title">${evName}${isPoints?'<span class="prog-pts-badge">🏆 POINTS</span>':''}</div>`;
+    if (ev.type === 'direct_final') {
+      html += `<div class="direct-pill">🏁 DIRECT FINAL</div>`;
+      html += (ev.finals||[]).map(h => progHCard(h,'fh','Final')).join('');
+    } else {
+      const allStages = [
+        ...(ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`})),
+        ...(ev.semis||[]).map(h=>({...h,_cls:'sh',_label:`Semi ${h.number}`})),
+        ...(ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'})),
+      ];
+      if (!allStages.length) {
+        html += `<div class="waiting" style="padding:16px"><p>No heats seeded yet</p></div>`;
+      } else {
+        html += allStages.map(h=>progHCard(h,h._cls,h._label)).join('');
+      }
+    }
+    html += '</div>';
+  }
+
+  // Fetch standings and append
+  const hasPoints = Object.values(events).some(e => e.points_event);
+  if (hasPoints) {
+    try {
+      const r = await fetch(`/api/${COMP_ID}/standings/${encodeURIComponent(group)}`);
+      const d = await r.json();
+      const data = d.standings || [];
+      const tbEv = d.tiebreaker_event || '';
+      if (data.length) {
+        const rows = data.map(row => {
+          const pos = row.position;
+          const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+          const rc   = pos===1?'r1':pos===2?'r2':pos===3?'r3':'';
+          const bd = Object.entries(row.breakdown||{}).map(([ev,info]) => {
+            const s = ['st','nd','rd'][info.place-1]||'th';
+            const ptsStr = info.pts > 0 ? ` ${info.pts}pts` : '';
+            return `${ev.replace(' Distance','')}: ${info.place}${s}${ptsStr}`;
+          }).join(' · ');
+          const tie = row.tb_needed ? '<span class="tie-badge">TIE</span>' : '';
+          const medal = {1:'🥇',2:'🥈',3:'🥉'}[pos] || '';
+          const ptsDisplay = row.points > 0 ? row.points : '—';
+          return `<div class="standings-row ${rc}">
+            <div class="st-pos ${pcls}">${medal||pos}</div>
+            <div class="st-info">
+              <div class="st-name">${row.name}${tie}</div>
+              ${bd?`<div class="st-breakdown">${bd}</div>`:''}
+            </div>
+            <div><div class="st-pts">${ptsDisplay}</div><div class="st-pts-label">PTS</div></div>
+          </div>`;
+        }).join('');
+        html += `<div class="standings-card">
+          <div class="standings-head">
+            <h3>🏆 Overall Standings — ${group}</h3>
+            <span class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</span>
+          </div>${rows}
+        </div>`;
+        if (tbEv) html += `<div style="font-size:11px;color:var(--text-faint);text-align:center;padding:6px">⚖ Tiebreaker: ${tbEv}</div>`;
+      }
+    } catch(e) {}
+  }
+
+  setContent(html, token);
+}
+
+function renderStandingsHtml(group, events) {
+  // Collect standings from events that have them
+  const pointsEvs = Object.values(events).filter(e => e.points_event && e.standings?.length);
+  if (!pointsEvs.length) return '';
+
+  // Use first event's standings (they should all reference same overall standings)
+  const ev = pointsEvs[0];
+  const standings = ev.standings || [];
+  if (!standings.length) return '';
+
+  const MEDALS = {1:'🥇', 2:'🥈', 3:'🥉'};
+  const rows = standings.map((s, i) => {
+    const pos = i + 1;
+    const pcls = pos===1?'p1':pos===2?'p2':pos===3?'p3':'pn';
+    const medal = MEDALS[pos] || '';
+    return `<div class="standings-row ${pos<=3?'r'+pos:''}">
+      <div class="st-pos ${pcls}">${medal||pos}</div>
+      <div class="st-info">
+        <div class="st-name">${s.full_name}</div>
+        <div class="st-breakdown">${s.breakdown||''}</div>
+      </div>
+      <div>
+        <div class="st-pts">${s.points}</div>
+        <div class="st-pts-label">PTS</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="standings-card">
+    <div class="standings-head">
+      <h3>🏆 Overall Standings — ${group}</h3>
+      <span class="standings-pts-key">1ST=30 · 2ND=20 · 3RD=10 · 4TH=5</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// ── Program: all groups + relays, collapsible, 3 per row ─────────────────────
+async function renderAllProgram() {
+  const token = renderToken;
+  setContent('<div class="waiting"><div class="wi">⏳</div><p>Loading program…</p></div>', token);
+
+  const groups = Object.keys(allGroups).sort();
+  // Pre-fetch all group data since cards start expanded
+  await Promise.all(groups.map(g => loadGroupData(g)));
+
+  let html = '<div id="program-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">';
+
+  // Individual race groups — start expanded
+  for (const group of groups) {
+    const events = allGroupData[group] || {};
+    const skaterCount = allGroups[group]?.skater_count || allGroups[group] || '';
+    const bodyContent = renderGroupProgramInline(group, events);
+    html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div class="prog-group-hdr" onclick="toggleProgCard(this,'group','${esc(group)}')"
+        style="display:flex;align-items:center;justify-content:space-between;
+               padding:12px 16px;cursor:pointer;user-select:none;
+               background:var(--input-bg)">
+        <div>
+          <span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400">${group}</span>
+          <span style="font-size:11px;color:var(--text-faint);margin-left:8px">${skaterCount} skaters</span>
+        </div>
+        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s;transform:rotate(180deg)">▼</span>
+      </div>
+      <div class="prog-group-body" style="display:block;padding:10px" data-group="${esc(group)}" data-rendered="1">
+        ${bodyContent}
+      </div>
+    </div>`;
+  }
+
+  // Relay events — start expanded
+  const relayNames = Object.keys(allRelays).sort();
+  for (const name of relayNames) {
+    const ev = allRelays[name];
+    // Show heats if exist, else fall back to final (direct-final relay)
+    const allStages = ev.heats?.length
+      ? (ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`}))
+      : (ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'}));
+    const bodyContent = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No lineup yet</p>';
+    html += `<div class="prog-group-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div class="prog-group-hdr" onclick="toggleProgCard(this,'relay','${esc(name)}')"
+        style="display:flex;align-items:center;justify-content:space-between;
+               padding:12px 16px;cursor:pointer;user-select:none;
+               background:rgba(79,195,247,.08)">
+        <div>
+          <span style="font-size:11px;color:var(--blue-stage);font-weight:400">🔄 RELAY</span>
+          <span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400;margin-left:6px">${name}</span>
+        </div>
+        <span class="prog-chevron" style="color:var(--text-faint);font-size:14px;transition:transform .2s;transform:rotate(180deg)">▼</span>
+      </div>
+      <div class="prog-group-body" style="display:block;padding:10px" data-relay="${esc(name)}" data-rendered="1">
+        ${bodyContent}
+      </div>
+    </div>`;
+  }
+
+  html += '</div>';
+  setContent(html, token);
+}
+
+async function toggleProgCard(hdr, type, key) {
+  const body = hdr.nextElementSibling;
+  const chevron = hdr.querySelector('.prog-chevron');
+  const isOpen = body.style.display !== 'none';
+
+  if (isOpen) {
+    body.style.display = 'none';
+    chevron.style.transform = '';
+  } else {
+    body.style.display = 'block';
+    chevron.style.transform = 'rotate(180deg)';
+
+    // Lazy render on first open
+    if (!body.dataset.rendered) {
+      body.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:12px">Loading…</div>';
+      if (type === 'group') {
+        await loadGroupData(key);
+        const events = allGroupData[key] || {};
+        body.innerHTML = renderGroupProgramInline(key, events);
+      } else if (type === 'relay') {
+        const ev = allRelays[key];
+        if (!ev) { body.innerHTML = '<p style="color:var(--text-faint);font-size:12px;padding:8px">No relay data</p>'; }
+        else {
+          // Show heats if exist, else fall back to final (direct-final relay)
+          const allStages = ev.heats?.length
+            ? (ev.heats||[]).map(h=>({...h,_cls:'hh',_label:`Heat ${h.number}`}))
+            : (ev.finals||[]).map(h=>({...h,_cls:'fh',_label:'Final'}));
+          body.innerHTML = allStages.map(h=>progRelayHCard(h,h._cls,h._label)).join('') || '<p style="color:var(--text-faint);font-size:12px;padding:8px">No lineup yet</p>';
+        }
+      }
+      body.dataset.rendered = '1';
+    }
+  }
+}
+
+function renderGroupProgramInline(group, events) {
+  // Just show heats from Short Distance (all distances have same heats)
+  // Pick first available event to get the heat structure
+  const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
+  const evNames = Object.keys(events);
+  const firstEv = ORDER.find(n => evNames.includes(n)) || evNames.find(n => n !== '__standings__');
+  if (!firstEv || !events[firstEv]) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No heats seeded yet</p>';
+
+  const ev = events[firstEv];
+  // Show heats if exist, else show final (direct final — ≤6 skaters)
+  const allStages = ev.heats?.length
+    ? (ev.heats||[]).map(h => ({...h, _label:`Heat ${h.number}`}))
+    : (ev.finals||[]).map(h => ({...h, _label:'Final'}));
+
+  if (!allStages.length) return '<p style="color:var(--text-faint);font-size:12px;padding:8px">No lineup yet</p>';
+
+  return allStages.map(h => {
+    const skaters = h.skaters || [];
+    if (!skaters.length) return `
+      <div style="margin-bottom:8px">
+        <div style="font-size:12px;color:var(--text-faint);padding:6px 0;letter-spacing:.04em;text-transform:uppercase;font-weight:600">${h._label}</div>
+        <div class="lineup-placeholder">No skaters assigned</div>
+      </div>`;
+    return `
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:var(--text-faint);padding:6px 0;letter-spacing:.04em;text-transform:uppercase;font-weight:600">${h._label}</div>
+        ${skaters.map(s => `
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--row-sep)">
+            <span style="font-size:13px;font-family:'DM Mono',monospace;color:var(--text-faint);width:36px">#${s.panel}</span>
+            <span style="font-size:16px;color:var(--text)">${s.full_name}</span>
+            <span style="font-size:13px;color:var(--text-faint);margin-left:auto">${s.club}</span>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+function progRelayHCard(heat, cls, label) {
+  const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+  const teams = heat.teams || [];
+  if (!teams.length) return `<div class="hcard"><div class="hcard-head ${cls}"><h3>${label}</h3></div><div class="lineup-placeholder">Lineup not yet posted</div></div>`;
+  const rows = teams.map((t,i) => {
+    const bib = COLORS[t.color?.toLowerCase()] || '#9E9E9E';
+    const members = (t.members||[]).filter(m=>m&&m!=='nan');
+    return `<div class="sk-row" style="font-family:'Inter',system-ui,sans-serif">
+      <div class="rank-num rn" style="font-family:'DM Mono',monospace">${i+1}</div>
+      <div class="sk-info">
+        <div style="font-size:16px;font-weight:400;color:var(--text);line-height:1.6">
+          ${members.join('<br>')||'—'}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+          <span style="font-size:13px;color:var(--text-faint)">${t.club}</span>
+          <span style="background:${bib};color:#fff;font-size:10px;font-weight:400;padding:1px 8px;border-radius:20px">${t.color||'No helmet cover'}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="hcard"><div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">${teams.length} TEAMS</span></div>${rows}</div>`;
+}
+
+
+// Shared heat card for program view (individual)
+function progHCard(heat, cls, label) {
+  const skaters = heat.skaters || [];
+  if (!skaters.length) {
+    return `<div class="hcard">
+      <div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">—</span></div>
+      <div class="lineup-placeholder">Lineup not yet posted</div>
+    </div>`;
+  }
+  const sorted = [...skaters].sort((a,b) => {
+    const pa = /^\d+$/.test(a.placement) ? parseInt(a.placement) : 999;
+    const pb = /^\d+$/.test(b.placement) ? parseInt(b.placement) : 999;
+    return pa - pb;
+  });
+  const rows = sorted.map((s,i) => {
+    const pl = s.placement, num = parseInt(pl), ranked = !isNaN(num);
+    const rc = num===1?'r1':num===2?'r2':num===3?'r3':'';
+    const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+    const plEl = pl==='DQ' ? `<div class="sk-place"><span class="place-dq">DQ</span></div>`
+      : ranked ? `<div class="sk-place"><div class="place-num ${pcls}">${pl}</div></div>`
+      : `<div class="sk-place"><div class="place-wait">—</div></div>`;
+    return `<div class="sk-row ${rc}">
+      <div class="rank-num rn">${i+1}</div>
+      <div class="sk-info">
+        <div class="sk-name">${s.full_name}</div>
+        <div class="sk-meta">#${s.panel} · ${s.club}</div>
+      </div>${plEl}
+    </div>`;
+  }).join('');
+  return `<div class="hcard">
+    <div class="hcard-head ${cls}"><h3>${label}</h3><span class="sc">${skaters.length} SKATERS</span></div>
+    ${rows}
+  </div>`;
+}
+
+
+async function doRefresh(isManual = false) {
+  try {
+    const q = document.getElementById('search-inp').value.trim();
+    if (q) { doSearch(q.toLowerCase()); return; }
+    // Don't auto-refresh schedule (scroll position is lost); manual refresh still works
+    if (curMode === 'schedule') { if (isManual) renderSchedulePublic(); return; }
+    if (curMode === 'program') {
+      const rr = await fetch(`/api/${COMP_ID}/relays`).catch(() => null);
+      if (rr?.ok) allRelays = await rr.json().catch(() => allRelays);
+      renderAllProgram(); return;
+    }
+    if (curGroup?.startsWith('__relay__')) {
+      const rr = await fetch(`/api/${COMP_ID}/relays`).catch(() => null);
+      if (rr?.ok) allRelays = await rr.json().catch(() => allRelays);
+      const name = curGroup.slice(9);
+      showRelay(name, allRelays[name]);
+    } else if (curGroup) {
+      delete allGroupData[curGroup];
+      await loadGroupData(curGroup);
+      renderGroupAllResults(curGroup);
+    }
+    document.getElementById('last-upd').textContent = 'Updated ' + timestamp();
+  } catch(e) {
+    console.warn('Refresh error (will retry):', e);
+  }
+}
+
+function timestamp() { return new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+init();
+</script>
+</body>
 </html>
