@@ -899,16 +899,16 @@ function renderSearchResults(q, results, relayResults = []) {
   results.forEach(r => {
     const key = `${r.panel}_${r.name}`;
     if (!bySkater[key]) bySkater[key] = { name: r.name, panel: r.panel, club: r.club, results: [] };
-    // Only keep the most relevant result per event (prefer Final, then Semi, then Heat)
-    const existing = bySkater[key].results.find(x => x.event === r.event);
-    const stageRank = {Final:3, Semi:2, Heat:1};
-    if (!existing || (stageRank[r.stage]||0) > (stageRank[existing.stage]||0)) {
-      if (existing) bySkater[key].results.splice(bySkater[key].results.indexOf(existing), 1);
-      bySkater[key].results.push(r);
-    }
+    // Keep all stages (Heat, Semi, Final) so skater sees every result
+    bySkater[key].results.push(r);
   });
 
+  const stageRank = {Heat:1, Semi:2, Final:3};
   const indHtml = Object.values(bySkater).map(sk => {
+    sk.results.sort((a,b) => {
+      if (a.event !== b.event) return a.event.localeCompare(b.event);
+      return (stageRank[a.stage]||0) - (stageRank[b.stage]||0);
+    });
     const rows = sk.results.map(r => {
       const num = parseInt(r.placement);
       const ranked = !isNaN(num);
