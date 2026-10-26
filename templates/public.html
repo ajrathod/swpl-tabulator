@@ -860,15 +860,40 @@ async function doSearch(q) {
     }
   }
 
-  renderSearchResults(q, results);
+  // Also search relay teams by member name
+  const relayResults = []; // [{evName, stage, number, club, color, members, placement}]
+  for (const [evName, ev] of Object.entries(allRelays)) {
+    const allStages = [
+      ...(ev.heats||[]).map(h=>({...h,_stage:'Heat'})),
+      ...(ev.semis||[]).map(h=>({...h,_stage:'Semi'})),
+      ...(ev.finals||[]).map(h=>({...h,_stage:'Final'})),
+    ];
+    for (const heat of allStages) {
+      for (const t of (heat.teams||[])) {
+        const members = (t.members||[]).filter(m=>m&&m!=='nan');
+        const memberMatch = members.some(m => m?.toLowerCase().includes(q));
+        const clubMatch   = t.club?.toLowerCase().includes(q);
+        if (memberMatch || clubMatch) {
+          relayResults.push({
+            evName, stage: heat._stage, number: heat.number,
+            club: t.club, color: t.color, members,
+            placement: t.placement || ''
+          });
+        }
+      }
+    }
+  }
+
+  renderSearchResults(q, results, relayResults);
 }
 
-function renderSearchResults(q, results) {
-  if (!results.length) {
+function renderSearchResults(q, results, relayResults = []) {
+  if (!results.length && !relayResults.length) {
     setContent(`<div class="waiting"><div class="wi">🔍</div><p>No results for "${q}"</p></div>`);
     return;
   }
 
+  // ── Individual results ──────────────────────────────────────────────────────
   // Group by skater name+panel
   const bySkater = {};
   results.forEach(r => {
@@ -883,7 +908,7 @@ function renderSearchResults(q, results) {
     }
   });
 
-  const html = Object.values(bySkater).map(sk => {
+  const indHtml = Object.values(bySkater).map(sk => {
     const rows = sk.results.map(r => {
       const num = parseInt(r.placement);
       const ranked = !isNaN(num);
@@ -912,8 +937,43 @@ function renderSearchResults(q, results) {
     </div>`;
   }).join('');
 
+  // ── Relay results ───────────────────────────────────────────────────────────
+  const COLORS = {green:'#2E7D32',blue:'#1565C0',yellow:'#F9A825',pink:'#E91E8C','light blue':'#29B6F6',black:'#212121',red:'#C62828'};
+  const relHtml = relayResults.map(r => {
+    const num = parseInt(r.placement);
+    const ranked = !isNaN(num);
+    const pcls = num===1?'p1':num===2?'p2':num===3?'p3':'pn';
+    const plEl = r.placement === 'DQ'
+      ? `<span class="place-dq">DQ</span>`
+      : ranked
+        ? `<div class="sr-place ${pcls}">${r.placement}</div>`
+        : `<div class="sr-place pending">—</div>`;
+    const bibColor = COLORS[(r.color||'').toLowerCase()] || '#9E9E9E';
+    return `<div class="sr-card">
+      <div class="sr-head">
+        <div>
+          <div class="sr-name" style="display:flex;align-items:center;gap:8px">
+            🔄 ${r.club}
+            <span style="background:${bibColor};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">${r.color||''}</span>
+          </div>
+          <div class="sr-meta">${r.members.join(' · ')}</div>
+        </div>
+      </div>
+      <div class="sr-row">
+        <div class="sr-event">
+          <div class="sr-ev-name">${r.evName}</div>
+          <div class="sr-ev-meta">${r.stage}${r.stage!=='Final'?' '+r.number:''}</div>
+        </div>
+        ${plEl}
+      </div>
+    </div>`;
+  }).join('');
+
+  const total = Object.keys(bySkater).length + relayResults.length;
+  contentRendered = true;
   document.getElementById('content').innerHTML =
-    `<div class="sr-header">${Object.keys(bySkater).length} skater(s) found for "${q}"</div>` + html;
+    `<div class="sr-header" style="font-size:11px;color:var(--text-faint);padding:4px 2px 10px;font-weight:600">${total} result(s) for "${q}"</div>` +
+    indHtml + relHtml;
 }
 
 // ── Standings ────────────────────────────────────────────────────────────────
