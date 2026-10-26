@@ -20,12 +20,17 @@ app.secret_key = os.environ.get('SECRET_KEY', 'swpl-dev-secret-key-change-in-pro
 APP_PASSCODE = os.environ.get('APP_PASSCODE', '')  # Set in Railway env vars
 
 # Routes that are always public (no passcode needed)
+# NOTE: 'home' and 'public_competitions' are intentionally public — parents use them.
+#       'index' (/manage) and all operator routes are intentionally NOT listed here.
 PUBLIC_ROUTES = {
-    # Page routes
+    # Public-facing pages
+    'home',          # / — public landing page (season + competition selector)
     'public_view', 'checkin_view', 'register_page', 'app_login', 'static',
+    # Public APIs consumed by the landing page and public results pages
+    'public_competitions',
     # Registration APIs
     'update_registration', 'get_registrations_public',
-    # Public read APIs
+    # Public read APIs (results, relays, standings — parents viewing live data)
     'api_groups', 'api_group', 'api_relays', 'api_standings',
     'get_schedule', 'get_checkin_status', 'set_checkin_status', 'update_schedule_status',
 }
@@ -108,6 +113,35 @@ print("[startup] Database tables initialised OK")
 
 def db():
     return SessionLocal()
+
+
+def run_migrations():
+    """
+    Auto-run pending DB migrations on every startup.
+    Uses IF NOT EXISTS for PostgreSQL (no-op when the column already exists).
+    For SQLite the same statements error on duplicates — caught and ignored.
+    """
+    from sqlalchemy import text as _text
+    sess = db()
+    stmts = [
+        "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS season VARCHAR(20)",
+        "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE heat_skaters ADD COLUMN IF NOT EXISTS dq_reason VARCHAR(200)",
+    ]
+    applied = []
+    for stmt in stmts:
+        try:
+            sess.execute(_text(stmt))
+            sess.commit()
+            applied.append(stmt.split("ADD COLUMN IF NOT EXISTS ")[1].split()[0])
+        except Exception:
+            sess.rollback()   # column already exists or unsupported syntax — safe to ignore
+    msg = f"applied: {', '.join(applied)}" if applied else "all columns already present"
+    print(f"[startup] Migrations: {msg}")
+    sess.close()
+
+
+run_migrations()
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
