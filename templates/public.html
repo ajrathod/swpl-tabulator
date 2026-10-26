@@ -299,7 +299,7 @@ body {
     <!-- Row 2: Search bar (full width, Program/Schedule only) -->
     <div class="search-wrap" id="search-wrap" style="display:none;margin-top:8px">
       <span class="search-icon">🔍</span>
-      <input class="search-inp" id="search-inp" type="text" placeholder="Search skater name or panel #…" oninput="onSearch()" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input class="search-inp" id="search-inp" type="text" placeholder="Search skater name…" oninput="onSearch()" autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
     <!-- Group + Event dropdowns (Results only) -->
     <div class="filter-row" id="filter-row">
@@ -357,8 +357,8 @@ function setMode(mode) {
   const filterRow  = document.getElementById('filter-row');
 
   if (mode === 'results') {
-    // Results: show dropdowns, hide search, clear search input
-    searchWrap.style.display = 'none';
+    // Results: show search + dropdowns together
+    searchWrap.style.display = '';
     filterRow.style.display = '';
     document.getElementById('search-inp').value = '';
     document.getElementById('event-sel').style.display = 'none';
@@ -469,7 +469,7 @@ async function init() {
     document.getElementById('mode-schedule').classList.toggle('active', curMode === 'schedule');
     document.getElementById('event-sel').style.display = (curMode === 'program' || curMode === 'schedule') ? 'none' : '';
     document.getElementById('filter-row').style.display = curMode === 'schedule' ? 'none' : (curMode === 'program' ? 'none' : '');
-    document.getElementById('search-wrap').style.display = curMode === 'results' ? 'none' : '';
+    document.getElementById('search-wrap').style.display = ''; // visible in all modes
 
     if (curMode === 'schedule') {
       renderSchedulePublic();
