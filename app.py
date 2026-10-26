@@ -589,6 +589,12 @@ def compute_group_standings(session, comp_id, group_name):
 # ── Home / competition routes ─────────────────────────────────────────────────
 
 @app.route("/")
+def home():
+    """Public-facing landing page — season + competition selector for parents."""
+    return render_template("home.html")
+
+
+@app.route("/manage")
 def index():
     session = db()
     comps = session.query(Competition).order_by(Competition.created_at.desc()).all()
@@ -905,13 +911,64 @@ def list_competitions():
     return jsonify([c.to_dict() for c in comps])
 
 
+@app.route("/api/public_competitions", methods=["GET"])
+def public_competitions():
+    """Return active competitions for the public landing page, grouped by season."""
+    session = db()
+    try:
+        from sqlalchemy import text as _text
+        # Use raw SQL to safely handle missing columns before migration
+        try:
+            comps = session.query(Competition).filter(
+                Competition.is_active == True  # noqa
+            ).order_by(Competition.date.desc(), Competition.created_at.desc()).all()
+        except Exception:
+            # is_active column not yet migrated — return nothing gracefully
+            session.rollback()
+            return jsonify({"seasons": [], "competitions": []})
+        result = [c.to_dict() for c in comps]
+        # Build ordered season list (newest first via date sort)
+        seen = {}
+        for c in result:
+            s = c.get("season") or "Other"
+            if s not in seen:
+                seen[s] = True
+        seasons = list(seen.keys())
+        return jsonify({"seasons": seasons, "competitions": result})
+    finally:
+        session.close()
+
+
+@app.route("/api/competitions/<int:comp_id>", methods=["PATCH"])
+def patch_competition(comp_id):
+    """Update season and/or is_active on a competition."""
+    data = request.json or {}
+    session = db()
+    try:
+        comp = session.query(Competition).get(comp_id)
+        if not comp:
+            return jsonify({"error": "Not found"}), 404
+        if "season" in data:
+            comp.season = (data["season"] or "").strip() or None
+        if "is_active" in data:
+            comp.is_active = bool(data["is_active"])
+        session.commit()
+        return jsonify({"ok": True, "comp": comp.to_dict()})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
 @app.route("/api/competitions", methods=["POST"])
 def create_competition():
     data = request.json
     session = db()
     comp = Competition(name=data["name"], venue=data.get("venue",""),
                        date=data.get("date",""), comp_type=data.get("type","indoor"),
-                       passcode=data.get("passcode","").strip() or None)
+                       passcode=data.get("passcode","").strip() or None,
+                       season=(data.get("season") or "").strip() or None)
     session.add(comp); session.commit()
     result = comp.to_dict()
     session.close()

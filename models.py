@@ -116,6 +116,10 @@ class Competition(Base):
     comp_type  = Column(String(20), default="indoor")
     tiebreaker_event = Column(String(200))
     passcode   = Column(String(100))           # operator access code
+    season     = Column(String(20))            # e.g. "2025-26"
+    # migration: ALTER TABLE competitions ADD COLUMN IF NOT EXISTS season VARCHAR(20);
+    is_active  = Column(Boolean, default=False) # show on public landing page
+    # migration: ALTER TABLE competitions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT FALSE;
     created_at = Column(DateTime, default=datetime.utcnow)
 
     skaters        = relationship("Skater",        back_populates="competition", cascade="all, delete-orphan")
@@ -128,6 +132,8 @@ class Competition(Base):
                 "date":self.date or "","type":self.comp_type,
                 "tiebreaker_event": self.tiebreaker_event or "",
                 "has_passcode": bool(self.passcode),
+                "season": self.season or "",
+                "is_active": bool(getattr(self, 'is_active', False)),
                 "created_at": self.created_at.strftime("%Y-%m-%d %H:%M") if self.created_at else ""}
 
 
@@ -217,6 +223,8 @@ class HeatSkater(Base):
     skater_id  = Column(Integer, ForeignKey("skaters.id"), nullable=False)
     seed_order = Column(Integer, default=0)
     placement  = Column(String(10))   # "1".."6", "DQ", or NULL
+    dq_reason  = Column(String(200))  # optional reason when placement="DQ"
+                                      # migration: ALTER TABLE heat_skaters ADD COLUMN IF NOT EXISTS dq_reason VARCHAR(200)
 
     heat   = relationship("Heat",   back_populates="skaters")
     skater = relationship("Skater", back_populates="heat_skaters")
@@ -225,7 +233,8 @@ class HeatSkater(Base):
         s = self.skater
         return {"panel":s.panel,"full_name":s.full_name,"first":s.first,"last":s.last,
                 "club":s.club,"age":s.age,"gender":s.gender,
-                "placement":self.placement or "","seed_order":self.seed_order}
+                "placement":self.placement or "","seed_order":self.seed_order,
+                "dq_reason": getattr(self, 'dq_reason', '') or ""}
 
 
 # ── Relay models (teams as participants, same heat structure) ─────────────────
