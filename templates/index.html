@@ -579,11 +579,17 @@ body {
       <div class="comp-card-top">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
           <div class="comp-name">{{c.name}}</div>
-          <span class="comp-badge badge-{{c.type}}">{{c.type}}</span>
+          <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
+            {% if c.is_active %}
+            <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:#E8F5E9;color:#2E7D32;letter-spacing:.05em">🌐 PUBLIC</span>
+            {% endif %}
+            <span class="comp-badge badge-{{c.type}}">{{c.type}}</span>
+          </div>
         </div>
         <div class="comp-meta">
           {% if c.venue %}<span>📍 {{c.venue}}</span>{% endif %}
           {% if c.date  %}<span>📅 {{c.date}}</span>{% endif %}
+          {% if c.season %}<span>📆 {{c.season}}</span>{% endif %}
           <span>🕐 {{c.created_at}}</span>
         </div>
       </div>
@@ -593,6 +599,7 @@ body {
         <button class="btn btn-outline" onclick="editEvents({{c.id}},'{{c.name}}')">📋 Events</button>
         <button class="btn btn-outline" onclick="openRegLinks({{c.id}},'{{c.name}}')">🔗 Links</button>
         <button class="btn btn-outline" onclick="editPasscode({{c.id}},'{{c.name}}',{{c.has_passcode|tojson}})">🔒</button>
+        <button class="btn btn-outline" onclick="editSeasonActive({{c.id}},'{{c.name}}','{{c.season}}',{{c.is_active|tojson}})">🌐 Landing</button>
         <button class="btn btn-danger" onclick="deleteComp({{c.id}},'{{c.name}}')">🗑 Delete</button>
       </div>
     </div>
@@ -697,6 +704,10 @@ function renderStep1(){
         <option value="outdoor">Outdoor</option>
       </select></div>
     <div class="form-grp">
+      <label class="form-lbl">Season <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(shown on public landing page, e.g. 2025-26)</span></label>
+      <input class="form-inp" id="c-season" type="text" placeholder="e.g. 2025-26" autocomplete="off">
+    </div>
+    <div class="form-grp">
       <label class="form-lbl">Operator Passcode <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(optional — locks operator view)</span></label>
       <input class="form-inp" id="c-passcode" type="text" placeholder="e.g. SWPL2026" autocomplete="off">
     </div>`;
@@ -711,7 +722,8 @@ async function goStep2(){
   const r=await fetch('/api/competitions',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name,venue:document.getElementById('c-venue').value.trim(),
       date:document.getElementById('c-date').value,type:document.getElementById('c-type').value,
-      passcode:document.getElementById('c-passcode').value.trim()})});
+      passcode:document.getElementById('c-passcode').value.trim(),
+      season:document.getElementById('c-season').value.trim()})});
   const d=await r.json();
   if(!d.id){toast(d.error||'Error','error');return;}
   wizCompId=d.id;renderStep2(new Set(['Short Distance','Medium Distance','Long Distance']),'');
@@ -839,6 +851,64 @@ async function editPasscode(id, name, hasPasscode) {
   const d = await r.json();
   if (d.ok) toast(code.trim() ? `✓ Passcode set` : '✓ Passcode removed', 'success');
   else toast(d.error || 'Error', 'error');
+}
+
+// ── Season / Public Landing ───────────────────────────────────────────────────
+async function editSeasonActive(id, name, currentSeason, currentActive) {
+  // Build a simple inline modal so we avoid multiple prompts
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.3)">
+      <div style="padding:20px 24px 0">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:4px">🌐 Public Landing Settings</h3>
+        <p style="font-size:12px;color:var(--muted)">${name}</p>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">
+            Season
+          </label>
+          <input id="sa-season" type="text" value="${currentSeason||''}" placeholder="e.g. 2025-26"
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;outline:none">
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:10px;transition:all .12s"
+          id="sa-label">
+          <input type="checkbox" id="sa-active" ${currentActive?'checked':''} style="width:16px;height:16px;accent-color:var(--green)">
+          <div>
+            <div style="font-size:13px;font-weight:600">Show on public landing page</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px">Parents can find and open this competition</div>
+          </div>
+        </label>
+      </div>
+      <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="this.closest('[style]').remove()" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-weight:600;background:#fff;cursor:pointer">Cancel</button>
+        <button id="sa-save" style="padding:8px 16px;background:var(--orange);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#sa-label').addEventListener('change', () => {
+    const checked = overlay.querySelector('#sa-active').checked;
+    overlay.querySelector('#sa-label').style.borderColor = checked ? 'var(--green)' : 'var(--border)';
+    overlay.querySelector('#sa-label').style.background  = checked ? '#F1F8E9' : '';
+  });
+  if (currentActive) {
+    overlay.querySelector('#sa-label').style.borderColor = 'var(--green)';
+    overlay.querySelector('#sa-label').style.background  = '#F1F8E9';
+  }
+  overlay.querySelector('#sa-save').addEventListener('click', async () => {
+    const season   = overlay.querySelector('#sa-season').value.trim();
+    const isActive = overlay.querySelector('#sa-active').checked;
+    overlay.remove();
+    const r = await fetch(`/api/competitions/${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({season, is_active: isActive})
+    });
+    const d = await r.json();
+    if (d.ok) { toast('✓ Landing settings saved','success'); location.reload(); }
+    else toast(d.error || 'Error', 'error');
+  });
+  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.remove(); });
 }
 
 // ── Registration Links ────────────────────────────────────────────────────────

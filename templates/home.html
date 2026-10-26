@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SWPL Racing — Live Results</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange: #F4511E;
+  --orange-dim: #BF360C;
+  --orange-glow: rgba(244,81,30,.2);
+  --ink: #0A0A0F;
+  --ink-2: #12121A;
+  --ink-3: #1A1A28;
+  --surface: #FFFFFF;
+  --border: rgba(255,255,255,.1);
+  --muted: rgba(255,255,255,.45);
+  --text: #FFFFFF;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--ink);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Background grid ───────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(244,81,30,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244,81,30,.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+/* ── Nav ───────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center;
+  padding: 0 28px; height: 56px;
+  background: rgba(10,10,15,.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px; font-weight: 900;
+  letter-spacing: .04em; color: #fff;
+  text-decoration: none;
+}
+.nav-logo .slash { color: var(--orange); }
+.nav-right { margin-left: auto; }
+.nav-manage {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  color: rgba(255,255,255,.6);
+  font-size: 12px; font-weight: 600;
+  text-decoration: none;
+  transition: all .15s;
+}
+.nav-manage:hover {
+  border-color: rgba(255,255,255,.5);
+  color: #fff;
+}
+
+/* ── Hero ──────────────────────────────────────────── */
+.hero {
+  position: relative; z-index: 1;
+  padding: 72px 28px 64px;
+  text-align: center;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -80px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 500px;
+  background: radial-gradient(ellipse, rgba(244,81,30,.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 20px;
+}
+.hero-kicker::before, .hero-kicker::after {
+  content: ''; display: inline-block;
+  width: 20px; height: 2px; background: var(--orange);
+}
+.hero-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(52px, 9vw, 100px);
+  font-weight: 900; line-height: .92;
+  letter-spacing: -.01em;
+  margin-bottom: 20px;
+}
+.hero-title .accent { color: var(--orange); display: block; }
+.hero-sub {
+  font-size: 16px; line-height: 1.6;
+  color: var(--muted); max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Main content ──────────────────────────────────── */
+.main {
+  position: relative; z-index: 1;
+  max-width: 1060px; margin: 0 auto;
+  padding: 0 28px 80px;
+}
+
+/* ── Season selector ───────────────────────────────── */
+.season-bar {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.season-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-right: 4px;
+}
+.season-pill {
+  padding: 7px 18px;
+  border-radius: 100px;
+  border: 1.5px solid rgba(255,255,255,.15);
+  background: transparent;
+  color: rgba(255,255,255,.6);
+  font-size: 13px; font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer; transition: all .15s;
+}
+.season-pill:hover {
+  border-color: rgba(255,255,255,.4);
+  color: #fff;
+}
+.season-pill.active {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(244,81,30,.35);
+}
+
+/* ── Competition grid ──────────────────────────────── */
+.comp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.comp-card {
+  position: relative;
+  background: var(--ink-2);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+  display: flex; flex-direction: column; gap: 16px;
+  transition: all .2s;
+  overflow: hidden;
+}
+.comp-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--orange), transparent);
+  opacity: 0; transition: opacity .2s;
+}
+.comp-card:hover {
+  border-color: rgba(244,81,30,.4);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+}
+.comp-card:hover::before { opacity: 1; }
+
+.comp-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px; font-weight: 800;
+  letter-spacing: .01em; line-height: 1.1;
+}
+.comp-meta {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.comp-meta-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--muted);
+}
+.comp-meta-row .icon { font-size: 14px; flex-shrink: 0; }
+.comp-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 6px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-top: auto;
+}
+.badge-indoor  { background: rgba(21,101,192,.25); color: #90CAF9; }
+.badge-outdoor { background: rgba(46,125,50,.25); color: #A5D6A7; }
+
+.comp-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: auto; padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.cta-text {
+  font-size: 13px; font-weight: 700;
+  color: var(--orange); letter-spacing: .02em;
+}
+.cta-arrow { font-size: 18px; color: var(--orange); transition: transform .2s; }
+.comp-card:hover .cta-arrow { transform: translateX(4px); }
+
+/* ── States ────────────────────────────────────────── */
+.loading-state, .empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-icon {
+  font-size: 48px; margin-bottom: 16px;
+  display: block;
+  opacity: .4;
+}
+.empty-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 24px; font-weight: 700;
+  color: rgba(255,255,255,.5); margin-bottom: 8px;
+}
+.empty-sub { font-size: 14px; line-height: 1.6; }
+
+/* ── Spinner ───────────────────────────────────────── */
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid rgba(255,255,255,.1);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Card stagger ──────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.comp-card {
+  animation: fadeUp .35s ease both;
+}
+
+/* ── Footer ────────────────────────────────────────── */
+.footer {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 24px 28px;
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: rgba(255,255,255,.2);
+}
+.footer a { color: rgba(255,255,255,.3); text-decoration: none; }
+.footer a:hover { color: rgba(255,255,255,.6); }
+
+/* ── Mobile ────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .hero { padding: 48px 20px 44px; }
+  .main { padding: 0 16px 60px; }
+  .nav  { padding: 0 20px; }
+  .comp-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="/" class="nav-logo">SWPL<span class="slash">/</span>RACING</a>
+  <div class="nav-right">
+    <a href="/manage" class="nav-manage">Operator ↗</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-kicker">Live Results</div>
+  <h1 class="hero-title">
+    Race
+    <span class="accent">Results</span>
+  </h1>
+  <p class="hero-sub">Select a season and competition below to view live results, standings, and race schedules.</p>
+</section>
+
+<!-- Content -->
+<main class="main" id="main">
+  <!-- Season bar (injected by JS) -->
+  <div class="season-bar" id="season-bar" style="display:none"></div>
+
+  <!-- Competition grid -->
+  <div class="comp-grid" id="comp-grid">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading competitions…</p>
+    </div>
+  </div>
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+  South West Pacific League &nbsp;·&nbsp; <a href="/manage">Operator Access</a>
+</footer>
+
+<script>
+let _allComps = [];
+let _seasons  = [];
+let _selected = null;
+
+async function init() {
+  try {
+    const r = await fetch('/api/public_competitions');
+    const d = await r.json();
+    _allComps = d.competitions || [];
+    _seasons  = d.seasons      || [];
+
+    if (!_allComps.length) {
+      renderEmpty('No competitions are currently published.');
+      return;
+    }
+
+    // Build season bar
+    if (_seasons.length > 1) {
+      buildSeasonBar();
+    }
+
+    // Default to first season
+    _selected = _seasons[0] || null;
+    renderComps();
+  } catch (e) {
+    renderEmpty('Could not load competitions. Please try again later.');
+    console.error(e);
+  }
+}
+
+function buildSeasonBar() {
+  const bar = document.getElementById('season-bar');
+  bar.style.display = 'flex';
+
+  let html = '<span class="season-label">Season</span>';
+  _seasons.forEach((s, i) => {
+    html += `<button class="season-pill ${i===0?'active':''}" onclick="selectSeason('${s}',this)">${s}</button>`;
+  });
+  bar.innerHTML = html;
+}
+
+function selectSeason(season, btn) {
+  _selected = season;
+  document.querySelectorAll('.season-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderComps();
+}
+
+function renderComps() {
+  const grid = document.getElementById('comp-grid');
+  const comps = _selected
+    ? _allComps.filter(c => (c.season || 'Other') === _selected)
+    : _allComps;
+
+  if (!comps.length) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-icon">🏁</span>
+        <div class="empty-title">No competitions this season</div>
+        <p class="empty-sub">Check back soon for upcoming events.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = comps.map((c, i) => `
+    <a href="/public/${c.id}" class="comp-card" style="animation-delay:${i*0.07}s">
+      <div>
+        <div class="comp-name">${esc(c.name)}</div>
+      </div>
+      <div class="comp-meta">
+        ${c.venue ? `<div class="comp-meta-row"><span class="icon">📍</span><span>${esc(c.venue)}</span></div>` : ''}
+        ${c.date  ? `<div class="comp-meta-row"><span class="icon">📅</span><span>${esc(c.date)}</span></div>` : ''}
+      </div>
+      <div class="comp-cta">
+        <div>
+          <span class="comp-badge badge-${c.type}">${c.type}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="cta-text">View Results</span>
+          <span class="cta-arrow">→</span>
+        </div>
+      </div>
+    </a>`).join('');
+}
+
+function renderEmpty(msg) {
+  document.getElementById('comp-grid').innerHTML = `
+    <div class="empty-state">
+      <span class="empty-icon">🏁</span>
+      <div class="empty-title">Nothing here yet</div>
+      <p class="empty-sub">${msg}</p>
+    </div>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
