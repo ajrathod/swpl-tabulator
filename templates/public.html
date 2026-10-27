@@ -522,9 +522,20 @@ body {
 .sk-name-link:active { color:var(--brand); text-decoration-color:var(--brand); }
 
 /* ── Tappable schedule row ────────────────────────────────────────────── */
-.sched-row-link { cursor:pointer; }
+.sched-row-link {
+  cursor:pointer;
+  border-left:3px solid var(--brand);
+  padding-left:11px; /* compensate for border so text stays aligned */
+}
+.sched-row-link .sched-label {
+  text-decoration:underline;
+  text-decoration-color:rgba(244,81,30,.4);
+  text-underline-offset:2px;
+}
 .sched-row-link:hover, .sched-row-link:active { background:var(--brand-dim); }
-.sched-row-link:hover .sched-label, .sched-row-link:active .sched-label { color:var(--brand); }
+.sched-row-link:hover .sched-label, .sched-row-link:active .sched-label {
+  color:var(--brand); text-decoration-color:var(--brand);
+}
 </style>
 </head>
 <body>
@@ -1057,14 +1068,13 @@ async function renderSchedulePublic() {
       const isGroupRow = groupKey && allGroups[groupKey];
       const rowCls = `sched-row ${ev.status||''} ${isGroupRow ? 'sched-row-link' : ''}`.trim();
       const rowClick = isGroupRow ? `onclick="goToResultsGroup('${groupKey}')"` : '';
-      const arrowIcon = isGroupRow ? `<span style="font-size:13px;color:var(--text-faint);flex-shrink:0">›</span>` : '';
       html += `<div class="${rowCls}" ${rowClick}>
         <div class="sched-num">${ev.race_number}</div>
         <div class="sched-info">
           <div class="sched-label">${ev.label}</div>
           <div class="sched-meta">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
         </div>
-        ${statusBadge}${arrowIcon}
+        ${statusBadge}
       </div>`;
     });
     if (sectionOpen) html += '</div>';
