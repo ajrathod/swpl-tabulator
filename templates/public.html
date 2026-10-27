@@ -509,6 +509,14 @@ body {
   padding:14px; text-align:center;
   font-size:13px; color:var(--text-faint);
 }
+
+/* ── Tappable athlete name ────────────────────────────────────────────── */
+.sk-name-link {
+  cursor:pointer;
+  transition:color .15s;
+}
+.sk-name-link:hover,
+.sk-name-link:active { color:var(--brand); text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -943,7 +951,7 @@ function hCard(heat, hdrCls) {
     return `<div class="sk-row${rc}" style="animation-delay:${i*.04}s">
       <div class="rank-num ${ranked?pcls:'rn'}">${ranked?num:i+1}</div>
       <div class="sk-info">
-        <div class="sk-name">${s.full_name}</div>
+        <div class="sk-name sk-name-link" onclick="searchAthlete('${esc(s.full_name)}')">${s.full_name}</div>
         <div class="sk-meta">#${s.panel} · ${s.club}</div>
       </div>${plEl}
     </div>`;
@@ -1152,6 +1160,26 @@ function buildProgRelayBody(ev) {
 function toggleProgCard(cardId) {
   const card = document.getElementById(cardId);
   if (card) card.classList.toggle('open');
+}
+
+// ── Tap athlete name → Search tab ────────────────────────────────────────────
+function searchAthlete(name) {
+  // Switch to Search tab
+  curTab = 'search';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-search').classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-search').classList.add('active');
+  document.getElementById('searchWrap').classList.remove('hidden');
+  // Pre-fill search input
+  const input = document.getElementById('searchInput');
+  input.value = name;
+  document.getElementById('searchClear').classList.add('visible');
+  savePubState();
+  // Run search
+  doUnifiedSearch(name.toLowerCase());
+  // Scroll to top
+  document.querySelector('.content-area').scrollTop = 0;
 }
 
 // ── Search tab ───────────────────────────────────────────────────────────────
