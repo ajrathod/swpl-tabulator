@@ -513,10 +513,18 @@ body {
 /* ── Tappable athlete name ────────────────────────────────────────────── */
 .sk-name-link {
   cursor:pointer;
-  transition:color .15s;
+  text-decoration:underline;
+  text-decoration-color:var(--text-faint);
+  text-underline-offset:2px;
+  transition:color .15s, text-decoration-color .15s;
 }
 .sk-name-link:hover,
-.sk-name-link:active { color:var(--brand); text-decoration:underline; }
+.sk-name-link:active { color:var(--brand); text-decoration-color:var(--brand); }
+
+/* ── Tappable schedule row ────────────────────────────────────────────── */
+.sched-row-link { cursor:pointer; }
+.sched-row-link:hover { background:var(--brand-dim); }
+.sched-row-link .sched-label { color:var(--brand); }
 </style>
 </head>
 <body>
@@ -611,6 +619,7 @@ let curTab      = 'results';
 let timer       = null;
 let searchTimer = null;
 let scheduleLoaded = false;
+let pendingScrollGroup = null; // set before switching to Results to auto-scroll to a group
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 (function applyTheme() {
@@ -718,7 +727,7 @@ async function renderResults() {
     ];
 
     const skaterCount = allGroups[group]?.skater_count ?? allGroups[group] ?? '';
-    html += `<div class="group-label">Group ${group}${skaterCount ? ` · ${skaterCount} skaters` : ''}</div>`;
+    html += `<div class="group-label" id="group-anchor-${esc(group)}">Group ${group}${skaterCount ? ` · ${skaterCount} skaters` : ''}</div>`;
 
     for (const evName of ordered) {
       const ev = events[evName];
@@ -794,6 +803,16 @@ async function renderResults() {
     if (hasPoints) {
       loadStandingsInline(group);
     }
+  }
+
+  // Scroll to a group if navigated from Schedule tab
+  if (pendingScrollGroup) {
+    const target = pendingScrollGroup;
+    pendingScrollGroup = null;
+    setTimeout(() => {
+      const el = document.getElementById(`group-anchor-${target}`);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 80);
   }
 }
 
@@ -1032,13 +1051,20 @@ async function renderSchedulePublic() {
           : ev.status === 'next'
             ? `<span class="sched-badge next">Up Next</span>`
             : `<span class="sched-badge pending">Upcoming</span>`;
-      html += `<div class="sched-row ${ev.status||''}">
+      // Check if label refers to a known group (e.g. "Group 2F" or "1A …")
+      const gm = ev.label.match(/(?:^|\bGroup\s+)([A-Z0-9]+(?:[A-Z0-9])?)\b/i);
+      const groupKey = gm ? gm[1].toUpperCase() : null;
+      const isGroupRow = groupKey && allGroups[groupKey];
+      const rowCls = `sched-row ${ev.status||''} ${isGroupRow ? 'sched-row-link' : ''}`.trim();
+      const rowClick = isGroupRow ? `onclick="goToResultsGroup('${groupKey}')"` : '';
+      const arrowIcon = isGroupRow ? `<span style="font-size:13px;color:var(--text-faint);flex-shrink:0">›</span>` : '';
+      html += `<div class="${rowCls}" ${rowClick}>
         <div class="sched-num">${ev.race_number}</div>
         <div class="sched-info">
           <div class="sched-label">${ev.label}</div>
           <div class="sched-meta">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
         </div>
-        ${statusBadge}
+        ${statusBadge}${arrowIcon}
       </div>`;
     });
     if (sectionOpen) html += '</div>';
@@ -1119,7 +1145,7 @@ function buildProgGroupBody(group, events) {
       skaters.map(s =>
         `<div class="prog-skater-row">
           <span class="prog-bib">#${s.panel}</span>
-          <span class="prog-skater-name">${s.full_name}</span>
+          <span class="prog-skater-name sk-name-link" onclick="searchAthlete('${esc(s.full_name)}')">${s.full_name}</span>
           <span class="prog-club">${s.club}</span>
         </div>`
       ).join('');
@@ -1160,6 +1186,12 @@ function buildProgRelayBody(ev) {
 function toggleProgCard(cardId) {
   const card = document.getElementById(cardId);
   if (card) card.classList.toggle('open');
+}
+
+// ── Tap schedule row → Results tab scrolled to that group ────────────────────
+function goToResultsGroup(group) {
+  pendingScrollGroup = group;
+  setTab('results');
 }
 
 // ── Tap athlete name → Search tab ────────────────────────────────────────────
