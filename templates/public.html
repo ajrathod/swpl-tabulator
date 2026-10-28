@@ -176,13 +176,37 @@ body {
 .view.active { display:block; }
 .content-pad { padding:12px 12px 80px; }
 
-/* ── Group header (Results tab) ───────────────────────────────────────── */
-.group-section { margin-bottom:4px; }
-.group-label {
-  font-family:'Barlow Condensed',sans-serif;
-  font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--text-faint); padding:16px 4px 6px;
+/* ── Group section card (Results tab, collapsible) ────────────────────── */
+.group-sec-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden; margin-bottom:8px;
 }
+.group-sec-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px; cursor:pointer; user-select:none;
+}
+.group-sec-hdr:active { background:var(--brand-dim); }
+.group-sec-title {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:15px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--text);
+}
+.group-sec-count { font-size:12px; font-weight:400; color:var(--text-faint); margin-left:6px; }
+.group-sec-chevron { color:var(--text-faint); font-size:12px; transition:transform .2s; flex-shrink:0; }
+.group-sec-card.open .group-sec-chevron { transform:rotate(180deg); }
+.group-sec-body { display:none; border-top:1px solid var(--divider); padding:8px; }
+.group-sec-card.open .group-sec-body { display:block; }
+
+/* Results toolbar (collapse-all button) */
+.results-toolbar {
+  display:flex; justify-content:flex-end; padding:0 0 8px;
+}
+.collapse-all-btn {
+  font-size:11px; font-weight:600; color:var(--text-faint);
+  background:var(--pill-bg); border:none; border-radius:20px;
+  padding:4px 12px; cursor:pointer; letter-spacing:.03em;
+}
+.collapse-all-btn:active { color:var(--brand); background:var(--brand-dim); }
 
 /* ── Event card ───────────────────────────────────────────────────────── */
 .ev-card {
@@ -727,6 +751,11 @@ async function renderResults() {
   const ORDER = ['Short Distance', 'Medium Distance', 'Long Distance'];
   let html = '';
 
+  // Collapse-all toolbar (only if multiple groups)
+  if (groups.length > 1) {
+    html += `<div class="results-toolbar"><button class="collapse-all-btn" onclick="collapseAllGroups()">Collapse All</button></div>`;
+  }
+
   for (const group of groups) {
     const events = allGroupData[group] || {};
     const evNames = Object.keys(events).filter(n => n !== '__standings__');
@@ -738,7 +767,8 @@ async function renderResults() {
     ];
 
     const skaterCount = allGroups[group]?.skater_count ?? allGroups[group] ?? '';
-    html += `<div class="group-label" id="group-anchor-${esc(group)}">Group ${group}${skaterCount ? ` · ${skaterCount} skaters` : ''}</div>`;
+    const secId = `gsec-${esc(group)}`;
+    let secBody = '';
 
     for (const evName of ordered) {
       const ev = events[evName];
@@ -746,7 +776,7 @@ async function renderResults() {
       const cardId = `ev-${esc(group)}-${esc(evName)}`;
       const pills  = buildStagePills(ev);
       const isPoints = ev.points_event;
-      html += `<div class="ev-card" id="${cardId}">
+      secBody += `<div class="ev-card" id="${cardId}">
         <div class="ev-head" onclick="toggleEvCard('${cardId}')">
           <div class="ev-head-left">
             <div class="ev-name">${evName}</div>
@@ -765,9 +795,15 @@ async function renderResults() {
 
     // Standings card if this group has points events
     const hasPoints = Object.values(events).some(e => e && e.points_event);
-    if (hasPoints) {
-      html += `<div id="standings-${esc(group)}"></div>`;
-    }
+    if (hasPoints) secBody += `<div id="standings-${esc(group)}"></div>`;
+
+    html += `<div class="group-sec-card" id="${secId}">
+      <div class="group-sec-hdr" onclick="toggleGroupSec('${secId}')">
+        <span class="group-sec-title">Group ${group}<span class="group-sec-count">${skaterCount ? `${skaterCount} skaters` : ''}</span></span>
+        <span class="group-sec-chevron">▼</span>
+      </div>
+      <div class="group-sec-body">${secBody}</div>
+    </div>`;
   }
 
   // Relay section
@@ -816,14 +852,20 @@ async function renderResults() {
     }
   }
 
-  // Scroll to a group if navigated from Schedule tab
+  // Open & scroll to a group if navigated from Schedule tab
   if (pendingScrollGroup) {
     const target = pendingScrollGroup;
     pendingScrollGroup = null;
-    setTimeout(() => {
-      const el = document.getElementById(`group-anchor-${target}`);
-      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
-    }, 80);
+    const secEl = document.getElementById(`gsec-${esc(target)}`);
+    if (secEl) {
+      secEl.classList.add('open');
+      setTimeout(() => {
+        const ca = document.querySelector('.content-area');
+        const rect = secEl.getBoundingClientRect();
+        const caRect = ca.getBoundingClientRect();
+        ca.scrollTop = ca.scrollTop + rect.top - caRect.top - 12;
+      }, 50);
+    }
   }
 }
 
@@ -960,6 +1002,15 @@ function buildRelayBody(ev) {
 function toggleEvCard(cardId) {
   const card = document.getElementById(cardId);
   if (card) card.classList.toggle('open');
+}
+
+function toggleGroupSec(secId) {
+  const el = document.getElementById(secId);
+  if (el) el.classList.toggle('open');
+}
+
+function collapseAllGroups() {
+  document.querySelectorAll('.group-sec-card.open').forEach(el => el.classList.remove('open'));
 }
 
 // ── Heat card ────────────────────────────────────────────────────────────────
