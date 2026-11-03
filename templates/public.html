@@ -660,8 +660,8 @@ let pendingScrollGroup = null; // set before switching to Results to auto-scroll
 (function applyTheme() {
   try {
     const saved = localStorage.getItem('pw_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const dark = saved ? saved === 'dark' : prefersDark;
+    // Public page is parent-facing — default to light regardless of system preference
+    const dark = saved === 'dark';
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     updateThemeIcon(dark);
   } catch(e) {}
