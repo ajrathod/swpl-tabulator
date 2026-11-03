@@ -10,32 +10,32 @@
 :root {
   --orange: #F4511E;
   --orange-dim: #BF360C;
-  --orange-glow: rgba(244,81,30,.2);
-  --ink: #0A0A0F;
-  --ink-2: #12121A;
-  --ink-3: #1A1A28;
+  --orange-glow: rgba(244,81,30,.12);
+  --ink: #FFFFFF;
+  --ink-2: #F7F7F9;
+  --ink-3: #F0F0F4;
   --surface: #FFFFFF;
-  --border: rgba(255,255,255,.1);
-  --muted: rgba(255,255,255,.45);
-  --text: #FFFFFF;
+  --border: #E8E8EE;
+  --muted: #8888A0;
+  --text: #1A1A2E;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--ink);
+  background: var(--ink-2);
   color: var(--text);
   min-height: 100vh;
 }
 
-/* ── Background grid ───────────────────────────────── */
+/* ── Background grid (subtle, light theme) ─────────── */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
   background-image:
-    linear-gradient(rgba(244,81,30,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(244,81,30,.04) 1px, transparent 1px);
+    linear-gradient(rgba(244,81,30,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244,81,30,.03) 1px, transparent 1px);
   background-size: 48px 48px;
   pointer-events: none;
 }
@@ -45,14 +45,14 @@ body::before {
   position: sticky; top: 0; z-index: 100;
   display: flex; align-items: center;
   padding: 0 28px; height: 56px;
-  background: rgba(10,10,15,.85);
-  backdrop-filter: blur(20px);
+  background: #fff;
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .nav-logo {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 22px; font-weight: 900;
-  letter-spacing: .04em; color: #fff;
+  letter-spacing: .04em; color: var(--text);
   text-decoration: none;
 }
 .nav-logo .slash { color: var(--orange); }
@@ -60,31 +60,33 @@ body::before {
 .nav-manage {
   padding: 6px 16px;
   background: transparent;
-  border: 1px solid rgba(255,255,255,.2);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: rgba(255,255,255,.6);
+  color: var(--muted);
   font-size: 12px; font-weight: 600;
   text-decoration: none;
   transition: all .15s;
 }
 .nav-manage:hover {
-  border-color: rgba(255,255,255,.5);
-  color: #fff;
+  border-color: var(--text);
+  color: var(--text);
 }
 
 /* ── Hero ──────────────────────────────────────────── */
 .hero {
   position: relative; z-index: 1;
-  padding: 72px 28px 64px;
+  padding: 64px 28px 56px;
   text-align: center;
   overflow: hidden;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
 }
 .hero::after {
   content: '';
   position: absolute;
   top: -80px; left: 50%; transform: translateX(-50%);
   width: 800px; height: 500px;
-  background: radial-gradient(ellipse, rgba(244,81,30,.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(244,81,30,.06) 0%, transparent 70%);
   pointer-events: none;
 }
 .hero-kicker {
@@ -132,22 +134,22 @@ body::before {
 .season-pill {
   padding: 7px 18px;
   border-radius: 100px;
-  border: 1.5px solid rgba(255,255,255,.15);
-  background: transparent;
-  color: rgba(255,255,255,.6);
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--muted);
   font-size: 13px; font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer; transition: all .15s;
 }
 .season-pill:hover {
-  border-color: rgba(255,255,255,.4);
-  color: #fff;
+  border-color: var(--text);
+  color: var(--text);
 }
 .season-pill.active {
   background: var(--orange);
   border-color: var(--orange);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(244,81,30,.35);
+  box-shadow: 0 4px 16px rgba(244,81,30,.25);
 }
 
 /* ── Competition grid ──────────────────────────────── */
@@ -159,8 +161,8 @@ body::before {
 
 .comp-card {
   position: relative;
-  background: var(--ink-2);
-  border: 1px solid rgba(255,255,255,.1);
+  background: #fff;
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 24px;
   text-decoration: none;
@@ -168,17 +170,19 @@ body::before {
   display: flex; flex-direction: column; gap: 16px;
   transition: all .2s;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .comp-card::before {
   content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--orange), transparent);
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--orange);
+  border-radius: 16px 16px 0 0;
   opacity: 0; transition: opacity .2s;
 }
 .comp-card:hover {
-  border-color: rgba(244,81,30,.4);
+  border-color: var(--orange);
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+  box-shadow: 0 8px 32px rgba(244,81,30,.12);
 }
 .comp-card:hover::before { opacity: 1; }
 
@@ -202,13 +206,13 @@ body::before {
   letter-spacing: .08em; text-transform: uppercase;
   margin-top: auto;
 }
-.badge-indoor  { background: rgba(21,101,192,.25); color: #90CAF9; }
-.badge-outdoor { background: rgba(46,125,50,.25); color: #A5D6A7; }
+.badge-indoor  { background: #E3F2FD; color: #1565C0; }
+.badge-outdoor { background: #E8F5E9; color: #2E7D32; }
 
 .comp-cta {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: auto; padding-top: 14px;
-  border-top: 1px solid rgba(255,255,255,.06);
+  border-top: 1px solid var(--border);
 }
 .cta-text {
   font-size: 13px; font-weight: 700;
@@ -232,14 +236,14 @@ body::before {
 .empty-title {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 24px; font-weight: 700;
-  color: rgba(255,255,255,.5); margin-bottom: 8px;
+  color: var(--muted); margin-bottom: 8px;
 }
 .empty-sub { font-size: 14px; line-height: 1.6; }
 
 /* ── Spinner ───────────────────────────────────────── */
 .spinner {
   width: 32px; height: 32px;
-  border: 3px solid rgba(255,255,255,.1);
+  border: 3px solid var(--border);
   border-top-color: var(--orange);
   border-radius: 50%;
   animation: spin .7s linear infinite;
@@ -262,10 +266,10 @@ body::before {
   text-align: center;
   padding: 24px 28px;
   border-top: 1px solid var(--border);
-  font-size: 12px; color: rgba(255,255,255,.2);
+  font-size: 12px; color: var(--muted);
 }
-.footer a { color: rgba(255,255,255,.3); text-decoration: none; }
-.footer a:hover { color: rgba(255,255,255,.6); }
+.footer a { color: var(--muted); text-decoration: none; }
+.footer a:hover { color: var(--text); }
 
 /* ── Mobile ────────────────────────────────────────── */
 @media (max-width: 600px) {
