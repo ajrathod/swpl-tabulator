@@ -198,20 +198,23 @@ def parse_individual(filepath):
                 hrow = i; break
         if hrow is None: continue
 
-        # Auto-detect ALL column positions from header row
+        # Auto-detect ALL column positions from header row.
+        # Only record the FIRST occurrence of each key — sheets often repeat
+        # "First / Last / Number" in a summary section on the right, which
+        # would otherwise overwrite the real column positions.
         header = ws.iloc[hrow]
         col_map = {}
         for col_idx in range(len(header)):
             h = _clean(header.get(col_idx,"")).lower().strip()
-            if h == 'first':            col_map['first']   = col_idx
-            elif h in ('last', 'last '): col_map['last']   = col_idx
-            elif h in ('age',):          col_map['age']    = col_idx
-            elif h in ('number', 'panel', 'bib', 'bib #', 'panel #'): col_map['panel'] = col_idx
-            elif h == 'club':            col_map['club']   = col_idx
-            elif h in ('group', 'race group', 'race group '): col_map['group'] = col_idx
-            elif h in ('m/f', 'gender', 'sex'): col_map['gender'] = col_idx
-            elif h in ('100m time', '100m', 'lap time'): col_map['lap_time'] = col_idx
-            elif h in ('heat', 'heat / final', 'heat/final', 'heat_final'): col_map['heat'] = col_idx
+            if h == 'first'            and 'first'    not in col_map: col_map['first']    = col_idx
+            elif h in ('last','last ') and 'last'     not in col_map: col_map['last']     = col_idx
+            elif h == 'age'            and 'age'      not in col_map: col_map['age']      = col_idx
+            elif h in ('number','panel','bib','bib #','panel #') and 'panel' not in col_map: col_map['panel'] = col_idx
+            elif h == 'club'           and 'club'     not in col_map: col_map['club']     = col_idx
+            elif h in ('group','race group','race group ') and 'group' not in col_map: col_map['group'] = col_idx
+            elif h in ('m/f','gender','sex') and 'gender' not in col_map: col_map['gender'] = col_idx
+            elif h in ('100m time','100m','lap time') and 'lap_time' not in col_map: col_map['lap_time'] = col_idx
+            elif h in ('heat','heat / final','heat/final','heat_final') and 'heat' not in col_map: col_map['heat'] = col_idx
 
         # Use detected columns or fall back to known defaults
         c_first   = col_map.get('first',   0)
