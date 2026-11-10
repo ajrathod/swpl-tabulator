@@ -138,25 +138,25 @@ body {
 
 /* ── Season bar ────────────────────────────────────── */
 .season-bar {
-  display: flex; align-items: center; gap: 8px;
-  flex-wrap: wrap; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; margin-bottom: 24px;
 }
 .season-label {
-  font-size: 11px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase;
-  color: var(--muted);
+  color: var(--muted); margin-right: 2px;
 }
 .season-pill {
-  padding: 5px 16px;
+  padding: 8px 22px;
   border-radius: 100px;
   border: 1.5px solid var(--border);
   background: var(--surface);
-  color: var(--muted);
-  font-size: 12px; font-weight: 600;
+  color: var(--text);
+  font-size: 15px; font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer; transition: all .15s;
 }
-.season-pill:hover { border-color: var(--text); color: var(--text); }
+.season-pill:hover { border-color: var(--orange); color: var(--orange); }
 .season-pill.active {
   background: var(--orange); border-color: var(--orange); color: #fff;
 }
