@@ -4,7 +4,7 @@ Swap DATABASE_URL env var to postgresql://... for cloud deployment.
 """
 from sqlalchemy import (
     create_engine, Column, Integer, String, ForeignKey,
-    DateTime, UniqueConstraint, Float, Boolean
+    DateTime, UniqueConstraint, Float, Boolean, Text
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from datetime import datetime
