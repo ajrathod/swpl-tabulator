@@ -16,6 +16,16 @@ from seeding import compute_stages, distribute
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'swpl-dev-secret-key-change-in-prod')
 
+# ── Disable caching on all API responses ─────────────────────────────────────
+@app.after_request
+def no_cache_api(response):
+    """Prevent browsers from caching any /api/ response (live meet data)."""
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 # ── Global App Passcode ───────────────────────────────────────────────────────
 APP_PASSCODE = os.environ.get('APP_PASSCODE', '')  # Set in Railway env vars
 
