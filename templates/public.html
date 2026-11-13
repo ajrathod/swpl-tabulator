@@ -1146,6 +1146,12 @@ async function renderProgram() {
   await Promise.all(groups.map(g => loadGroupData(g)));
 
   let html = '';
+  const totalCards = groups.length + Object.keys(allRelays).length;
+
+  // Toolbar: show collapse/expand button when there are multiple groups
+  if (totalCards > 1) {
+    html += `<div class="results-toolbar"><button id="prog-toggle-btn" class="collapse-all-btn" onclick="toggleAllProgGroups()">Collapse All</button></div>`;
+  }
 
   for (const group of groups) {
     const events = allGroupData[group] || {};
@@ -1153,7 +1159,7 @@ async function renderProgram() {
     const cardId = `prog-${esc(group)}`;
 
     const body = buildProgGroupBody(group, events);
-    html += `<div class="prog-group-card" id="${cardId}">
+    html += `<div class="prog-group-card open" id="${cardId}">
       <div class="prog-group-hdr" onclick="toggleProgCard('${cardId}')">
         <span class="prog-group-name">${group}<span class="prog-group-count">${skaterCount ? `${skaterCount} skaters` : ''}</span></span>
         <span class="prog-chevron">▼</span>
@@ -1167,7 +1173,7 @@ async function renderProgram() {
     const ev = allRelays[name];
     const cardId = `prog-relay-${esc(name)}`;
     const body = buildProgRelayBody(ev);
-    html += `<div class="prog-group-card" id="${cardId}">
+    html += `<div class="prog-group-card open" id="${cardId}">
       <div class="prog-group-hdr" onclick="toggleProgCard('${cardId}')" style="background:rgba(91,184,255,.07)">
         <div>
           <span class="relay-type-badge">Relay</span>
@@ -1247,6 +1253,26 @@ function buildProgRelayBody(ev) {
 function toggleProgCard(cardId) {
   const card = document.getElementById(cardId);
   if (card) card.classList.toggle('open');
+  syncProgBtn();
+}
+
+function toggleAllProgGroups() {
+  const cards = document.querySelectorAll('.prog-group-card');
+  const anyOpen = [...cards].some(c => c.classList.contains('open'));
+  if (anyOpen) {
+    cards.forEach(c => c.classList.remove('open'));
+  } else {
+    cards.forEach(c => c.classList.add('open'));
+  }
+  syncProgBtn();
+}
+
+function syncProgBtn() {
+  const btn = document.getElementById('prog-toggle-btn');
+  if (!btn) return;
+  const cards = document.querySelectorAll('.prog-group-card');
+  const anyOpen = [...cards].some(c => c.classList.contains('open'));
+  btn.textContent = anyOpen ? 'Collapse All' : 'Expand All';
 }
 
 // ── Tap schedule row → Results tab scrolled to that group ────────────────────
