@@ -3032,15 +3032,20 @@ def seed_from_registrations(comp_id):
 def parse_schedule(filepath):
     """
     Parse a dedicated schedule Excel file.
-    Expected format (any sheet name):
-    - Time header rows: col0 = time (e.g. 06:00:00), col2 = section name
+    Looks for a sheet named 'Schedule' first, then falls back to the first sheet.
+    Expected formats:
+    - Time header rows: col0 = time (datetime/time object or string like "6:00 AM"), col2 = section name
     - Race rows: col0 = race number(s), col1 = group/event, col2 = distance, col3 = stage, col4 = note
-    - Announcement rows (5:00am Doors Open etc.) are skipped
+    - Relay rows: col0 = race number(s), col1 = group/event, col2+col3 blank, col4 = distance, col5 = stage, col6 = note
+    - Announcement rows (AWARDS, Doors Open, etc.) are stored as section markers
     """
     import datetime as dt_mod
+    import re
     xl = pd.ExcelFile(filepath, engine='openpyxl')
-    # Use the first sheet
-    df = pd.read_excel(filepath, sheet_name=xl.sheet_names[0], header=None, engine='openpyxl')
+    # Prefer a sheet named "Schedule", fall back to first sheet
+    sheet_names_lower = {s.strip().lower(): s for s in xl.sheet_names}
+    sheet_name = sheet_names_lower.get('schedule', xl.sheet_names[0])
+    df = pd.read_excel(filepath, sheet_name=sheet_name, header=None, engine='openpyxl')
 
     events      = []
     cur_section = ""
@@ -3053,6 +3058,8 @@ def parse_schedule(filepath):
         col2 = _clean(row.get(2, ""))
         col3 = _clean(row.get(3, ""))
         col4 = _clean(row.get(4, ""))
+        col5 = _clean(row.get(5, ""))
+        col6 = _clean(row.get(6, ""))
 
         if not col0 and not col1:
             continue
@@ -3061,27 +3068,33 @@ def parse_schedule(filepath):
         raw0 = row.get(0)
         is_time = isinstance(raw0, dt_mod.time) or isinstance(raw0, dt_mod.datetime)
         if not is_time and col0 and ':' in col0:
-            try:
-                parts = col0.split(':')
-                is_time = len(parts) >= 2 and all(p.strip().isdigit() for p in parts[:2])
-            except: pass
+            # Match strings like "6:00 AM", "10:30 PM", "06:00", "14:30"
+            m = re.match(r'^(\d{1,2}):(\d{2})(\s*(AM|PM))?$', col0.strip(), re.IGNORECASE)
+            if m:
+                is_time = True
 
         if is_time:
             try:
                 if isinstance(raw0, (dt_mod.time, dt_mod.datetime)):
-                    h = raw0.hour; m = raw0.minute
+                    h = raw0.hour; mn = raw0.minute
                 else:
-                    parts = col0.split(':')
-                    h, m = int(parts[0]), int(parts[1])
+                    # Parse "H:MM AM/PM" or "HH:MM"
+                    tm = re.match(r'^(\d{1,2}):(\d{2})(\s*(AM|PM))?$', col0.strip(), re.IGNORECASE)
+                    h, mn = int(tm.group(1)), int(tm.group(2))
+                    suffix = (tm.group(4) or "").upper()
+                    if suffix == "PM" and h < 12:
+                        h += 12
+                    elif suffix == "AM" and h == 12:
+                        h = 0
                 period = 'AM' if h < 12 else 'PM'
                 dh = h % 12 or 12
-                cur_time    = f"{dh}:{m:02d} {period}"
+                cur_time    = f"{dh}:{mn:02d} {period}"
                 cur_section = col2 or col1 or ""
             except: pass
             sort_order += 1
             continue
 
-        # Skip announcement rows (e.g. "5:00am Doors Open", "AWARDS", title rows)
+        # Skip announcement / section-only rows (col0 has text but col1 is empty)
         if col0 and not col1:
             sort_order += 1
             continue
@@ -3089,15 +3102,16 @@ def parse_schedule(filepath):
         # Race entry: col0 = race number(s), col1 = label
         if col0 and col1:
             sort_order += 1
-            # Distinguish distance vs stage when col4 has note and col3 has stage
-            distance = col2
-            stage    = col3
-            note     = col4
-            # Handle relay format where distance is in col4
-            if not col2 and col4:
+            if not col2 and not col3:
+                # Relay format: col4=distance, col5=stage, col6=note
                 distance = col4
+                stage    = col5
+                note     = col6
+            else:
+                # Standard format: col2=distance, col3=stage, col4=note
+                distance = col2
                 stage    = col3
-                note     = ""
+                note     = col4
 
             events.append({
                 "race_number":  col0,
