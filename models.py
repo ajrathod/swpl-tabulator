@@ -120,6 +120,8 @@ class Competition(Base):
     # migration: ALTER TABLE competitions ADD COLUMN IF NOT EXISTS season VARCHAR(20);
     is_active  = Column(Boolean, default=False) # show on public landing page
     # migration: ALTER TABLE competitions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT FALSE;
+    meet_info  = Column(Text)                  # JSON blob from Meet Info sheet of PROGRAM file
+    # migration: ALTER TABLE competitions ADD COLUMN IF NOT EXISTS meet_info TEXT;
     created_at = Column(DateTime, default=datetime.utcnow)
 
     skaters        = relationship("Skater",        back_populates="competition", cascade="all, delete-orphan")

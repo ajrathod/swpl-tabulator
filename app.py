@@ -126,6 +126,7 @@ def run_migrations():
     stmts = [
         "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS season VARCHAR(20)",
         "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS meet_info TEXT",
         "ALTER TABLE heat_skaters ADD COLUMN IF NOT EXISTS dq_reason VARCHAR(200)",
     ]
     applied = []
@@ -3025,6 +3026,177 @@ def seed_from_registrations(comp_id):
     finally:
         session.close()
 
+
+
+# ── Meet Info ─────────────────────────────────────────────────────────────────
+
+def parse_meet_info(filepath):
+    """
+    Parse the 'Meet Info' sheet from a PROGRAM Excel file.
+    Returns a dict with keys: title, date, sanction, officials (list of {role, names}),
+    clubs (list of {name, coach}), notes (list of strings).
+    """
+    import re as _re
+    xl = pd.ExcelFile(filepath, engine='openpyxl')
+    sheet_names_lower = {s.strip().lower(): s for s in xl.sheet_names}
+    if 'meet info' not in sheet_names_lower:
+        return None
+    df = pd.read_excel(filepath, sheet_name=sheet_names_lower['meet info'],
+                       header=None, engine='openpyxl')
+
+    result = {"title": "", "date": "", "sanction": "", "officials": [], "clubs": [], "notes": []}
+    cur_role = None
+    cur_names = []
+    in_clubs = False
+    cur_club = None
+    OFFICIAL_ROLES = {
+        "host operator", "host club", "host coaches", "meet director",
+        "chief referee", "referees", "competitive steward", "tabulator",
+        "place judges", "lap counter", "announcer", "referee",
+    }
+    skip_keys = {"participating clubs", "number placement"}
+
+    def flush_role():
+        nonlocal cur_role, cur_names
+        if cur_role and cur_names:
+            result["officials"].append({"role": cur_role, "names": cur_names[:]})
+        cur_role = None
+        cur_names = []
+
+    def flush_club():
+        nonlocal cur_club
+        if cur_club:
+            result["clubs"].append(cur_club)
+        cur_club = None
+
+    rows_seen = 0
+    for i, row in df.iterrows():
+        col0 = _clean(row.get(0, ""))
+        col1 = _clean(row.get(1, ""))
+
+        if not col0 and not col1:
+            continue
+
+        # First non-empty row = meet title
+        if rows_seen == 0 and col0:
+            result["title"] = col0
+            rows_seen += 1
+            continue
+
+        # Second content row = date
+        if rows_seen == 1 and col0:
+            result["date"] = col0.strip('"\'')
+            rows_seen += 1
+            continue
+
+        rows_seen += 1
+        combined = col0.lower().rstrip(':').strip()
+
+        # Sanction line
+        if combined.startswith("sanction"):
+            result["sanction"] = col1
+            continue
+
+        # Club section header
+        if combined == "participating clubs":
+            flush_role()
+            in_clubs = True
+            continue
+
+        # Number placement / notes
+        if combined == "number placement":
+            flush_role()
+            flush_club()
+            in_clubs = False
+            continue
+
+        if in_clubs:
+            if col0 and not col0.lower().startswith("coach"):
+                flush_club()
+                cur_club = {"name": col0.strip('"\''), "coach": ""}
+            elif col0.lower().startswith("coach") and col1:
+                if cur_club:
+                    cur_club["coach"] = col1
+            elif col0.lower().startswith("coach") and not col1:
+                # "COACH: name" in col0
+                parts = col0.split(":", 1)
+                if len(parts) == 2 and cur_club:
+                    cur_club["coach"] = parts[1].strip()
+            continue
+
+        # Official role key (col0 has role, col1 has first name)
+        role_key = combined
+        if role_key in OFFICIAL_ROLES:
+            flush_role()
+            cur_role = col0.rstrip(':').strip().title()
+            if col1:
+                cur_names = [col1]
+            continue
+
+        # Continuation of multi-person role (col0 blank, col1 has name)
+        if not col0 and col1 and cur_role:
+            cur_names.append(col1)
+            continue
+
+        # Notes (long text)
+        if col0 and len(col0) > 60:
+            result["notes"].append(col0.strip('"\''))
+
+    flush_role()
+    flush_club()
+    return result
+
+
+@app.route("/api/upload/meet_info/<int:comp_id>", methods=["POST"])
+def upload_meet_info(comp_id):
+    """Parse Meet Info sheet from a PROGRAM Excel and save to competition."""
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"error": "No file"}), 400
+    import tempfile, os, json as _json
+    suffix = os.path.splitext(file.filename)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        file.save(tmp.name)
+        try:
+            info = parse_meet_info(tmp.name)
+        except Exception as e:
+            return jsonify({"error": f"Could not parse Meet Info: {e}"}), 400
+        finally:
+            os.unlink(tmp.name)
+
+    if not info:
+        return jsonify({"error": "No 'Meet Info' sheet found in file"}), 400
+
+    session = db()
+    try:
+        comp = session.query(Competition).get(comp_id)
+        if not comp:
+            return jsonify({"error": "Competition not found"}), 404
+        comp.meet_info = _json.dumps(info)
+        session.commit()
+        return jsonify({"ok": True, "title": info.get("title", "")})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/meet_info")
+def get_meet_info(comp_id):
+    """Return parsed Meet Info JSON for a competition."""
+    import json as _json
+    session = db()
+    try:
+        comp = session.query(Competition).get(comp_id)
+        if not comp:
+            return jsonify({}), 404
+        raw = getattr(comp, 'meet_info', None)
+        if not raw:
+            return jsonify({})
+        return jsonify(_json.loads(raw))
+    finally:
+        session.close()
 
 
 # ── Schedule ──────────────────────────────────────────────────────────────────

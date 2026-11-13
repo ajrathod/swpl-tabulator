@@ -493,6 +493,37 @@ body {
 .prog-relay-members { font-size:12px; color:var(--text-dim); margin-top:3px; }
 .bib-chip { font-size:10px; font-weight:700; padding:1px 8px; border-radius:20px; color:#fff; }
 
+/* ── Meet Info tab ────────────────────────────────────────────────────── */
+.mi-header {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+  padding:18px 20px; margin-bottom:16px;
+}
+.mi-title { font-size:18px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.mi-date  { font-size:13px; color:var(--text-dim); margin-top:4px; }
+.mi-sanction { font-size:12px; color:var(--text-faint); margin-top:2px; }
+.mi-section { margin-bottom:16px; }
+.mi-section-label {
+  font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-faint); margin-bottom:8px; padding-left:2px;
+}
+.mi-table {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden;
+}
+.mi-row {
+  display:flex; gap:12px; padding:10px 16px; border-bottom:1px solid var(--divider);
+}
+.mi-row:last-child { border-bottom:none; }
+.mi-role  { font-size:12px; font-weight:600; color:var(--text-dim); min-width:130px; flex-shrink:0; }
+.mi-names { font-size:14px; color:var(--text); line-height:1.5; }
+.mi-clubs { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.mi-club-card {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px;
+}
+.mi-club-name  { font-size:14px; font-weight:600; color:var(--text); margin-bottom:3px; }
+.mi-club-coach { font-size:12px; color:var(--text-faint); }
+.mi-notes { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.mi-note  { font-size:13px; color:var(--text-dim); line-height:1.6; margin:0; }
+
 /* ── Waiting / empty states ───────────────────────────────────────────── */
 .waiting { padding:48px 24px; text-align:center; }
 .wi { font-size:36px; margin-bottom:12px; }
@@ -598,6 +629,10 @@ body {
         <span class="tab-icon">👥</span>
         <span class="tab-label">Program</span>
       </button>
+      <button class="tab-btn" id="tab-meetinfo" onclick="setTab('meetinfo')" role="tab">
+        <span class="tab-icon">ℹ️</span>
+        <span class="tab-label">Meet Info</span>
+      </button>
     </nav>
   </header>
 
@@ -635,6 +670,11 @@ body {
     </div>
     <div id="view-program" class="view">
       <div class="content-pad" id="program-content">
+        <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
+      </div>
+    </div>
+    <div id="view-meetinfo" class="view">
+      <div class="content-pad" id="meetinfo-content">
         <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
       </div>
     </div>
@@ -707,6 +747,7 @@ function setTab(tab) {
   if (tab === 'results') renderResults();
   if (tab === 'schedule') renderSchedulePublic();
   if (tab === 'program') renderProgram();
+  if (tab === 'meetinfo') renderMeetInfo();
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1275,6 +1316,78 @@ function syncProgBtn() {
   btn.textContent = anyOpen ? 'Collapse All' : 'Expand All';
 }
 
+// ── Meet Info tab ─────────────────────────────────────────────────────────────
+let _meetInfoLoaded = false;
+
+async function renderMeetInfo() {
+  if (_meetInfoLoaded) return;
+  const el = document.getElementById('meetinfo-content');
+  if (!el) return;
+  el.innerHTML = '<div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>';
+
+  try {
+    const r = await fetch(`/api/comp/${COMP_ID}/meet_info`);
+    const info = await r.json();
+
+    if (!info || !info.title) {
+      el.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">ℹ️</div>
+          <div class="empty-title">No Meet Info yet</div>
+          <div class="empty-sub">Upload the PROGRAM Excel file using the ℹ️ Meet Info button in the operator view</div>
+        </div>`;
+      return;
+    }
+
+    _meetInfoLoaded = true;
+
+    // Officials section
+    const officialsHtml = (info.officials || []).map(o => `
+      <div class="mi-row">
+        <div class="mi-role">${o.role}</div>
+        <div class="mi-names">${(o.names || []).join('<br>')}</div>
+      </div>`).join('');
+
+    // Clubs section
+    const clubsHtml = (info.clubs || []).map(c => `
+      <div class="mi-club-card">
+        <div class="mi-club-name">${c.name}</div>
+        ${c.coach ? `<div class="mi-club-coach">Coach: ${c.coach}</div>` : ''}
+      </div>`).join('');
+
+    // Notes section
+    const notesHtml = (info.notes || []).map(n =>
+      `<p class="mi-note">${n}</p>`).join('');
+
+    el.innerHTML = `
+      <div class="mi-header">
+        <div class="mi-title">${info.title}</div>
+        ${info.date ? `<div class="mi-date">📅 ${info.date}</div>` : ''}
+        ${info.sanction ? `<div class="mi-sanction">Sanction # ${info.sanction}</div>` : ''}
+      </div>
+
+      ${officialsHtml ? `
+        <div class="mi-section">
+          <div class="mi-section-label">Officials</div>
+          <div class="mi-table">${officialsHtml}</div>
+        </div>` : ''}
+
+      ${clubsHtml ? `
+        <div class="mi-section">
+          <div class="mi-section-label">Participating Clubs</div>
+          <div class="mi-clubs">${clubsHtml}</div>
+        </div>` : ''}
+
+      ${notesHtml ? `
+        <div class="mi-section">
+          <div class="mi-section-label">Number Placement</div>
+          <div class="mi-notes">${notesHtml}</div>
+        </div>` : ''}`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Error loading Meet Info</div></div>`;
+  }
+}
+
 // ── Tap schedule row → Results tab scrolled to that group ────────────────────
 function goToResultsGroup(group) {
   pendingScrollGroup = group;
@@ -1504,6 +1617,8 @@ async function doRefresh(isManual = false) {
     } else if (curTab === 'program') {
       allGroupData = {};
       await renderProgram();
+    } else if (curTab === 'meetinfo') {
+      if (isManual) renderMeetInfo();
     }
 
     const upd = document.getElementById('last-upd');
@@ -1543,6 +1658,7 @@ async function init() {
   if (curTab === 'results')  await renderResults();
   if (curTab === 'schedule') await renderSchedulePublic();
   if (curTab === 'program')  await renderProgram();
+  if (curTab === 'meetinfo') await renderMeetInfo();
   // Search tab: nothing to pre-render
 
   timer = setInterval(doRefresh, 120000);
