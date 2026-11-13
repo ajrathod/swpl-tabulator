@@ -621,11 +621,11 @@ body {
         <span class="tab-icon">📋</span>
         <span class="tab-label">Schedule</span>
       </button>
-      <button class="tab-btn" id="tab-program" onclick="setTab('program')" role="tab">
+      <button class="tab-btn active" id="tab-program" onclick="setTab('program')" role="tab">
         <span class="tab-icon">👥</span>
         <span class="tab-label">Program</span>
       </button>
-      <button class="tab-btn active" id="tab-results" onclick="setTab('results')" role="tab">
+      <button class="tab-btn" id="tab-results" onclick="setTab('results')" role="tab">
         <span class="tab-icon">🏅</span>
         <span class="tab-label">Results</span>
       </button>
@@ -649,7 +649,7 @@ body {
 
   <!-- ── Main content ───────────────────────────────────────────────── -->
   <main class="content-area">
-    <div id="view-results" class="view active">
+    <div id="view-results" class="view">
       <div class="content-pad" id="results-content">
         <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
       </div>
@@ -668,7 +668,7 @@ body {
         <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
       </div>
     </div>
-    <div id="view-program" class="view">
+    <div id="view-program" class="view active">
       <div class="content-pad" id="program-content">
         <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
       </div>
@@ -690,7 +690,7 @@ const COMP_ID = {{comp.id}};
 let allGroups   = {};   // {groupName: {skater_count: N}}
 let allRelays   = {};   // {evName: {heats,semis,finals}}
 let allGroupData= {};   // {groupName: {evName: {heats,semis,finals,...}}}
-let curTab      = 'results';
+let curTab      = 'program';
 let timer       = null;
 let searchTimer = null;
 let scheduleLoaded = false;
