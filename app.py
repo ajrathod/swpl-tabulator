@@ -43,6 +43,7 @@ PUBLIC_ROUTES = {
     # Public read APIs (results, relays, standings — parents viewing live data)
     'api_groups', 'api_group', 'api_relays', 'api_standings',
     'get_schedule', 'get_checkin_status', 'set_checkin_status', 'update_schedule_status',
+    'get_meet_info',
 }
 
 def is_app_authed():
