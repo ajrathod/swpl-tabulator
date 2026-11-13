@@ -405,6 +405,9 @@ body {
   padding:9px 14px; border-bottom:1px solid var(--divider); gap:10px;
 }
 .sr-row:last-child { border-bottom:none; }
+.sr-row-link { cursor:pointer; }
+.sr-row-link:hover { background:var(--bg-hover, rgba(0,0,0,.04)); }
+.sr-row-arrow { font-size:16px; color:var(--text-faint); flex-shrink:0; }
 .sr-ev-name { font-size:14px; color:var(--text); }
 .sr-ev-meta { font-size:11px; color:var(--text-faint); margin-top:1px; }
 .sr-place {
@@ -533,6 +536,16 @@ body {
 .empty-title { font-size:16px; font-weight:600; color:var(--text-dim); margin-bottom:6px; }
 .empty-sub { font-size:13px; color:var(--text-faint); }
 
+/* ── Results back button ──────────────────────────────────────────────── */
+.results-back-btn {
+  display:block; width:100%; padding:10px 16px;
+  background:var(--bg-card); border:none; border-bottom:1px solid var(--border);
+  color:var(--brand); font-size:13px; font-weight:600; text-align:left;
+  cursor:pointer; letter-spacing:.01em;
+}
+.results-back-btn:hover { background:var(--border); }
+.results-back-btn.hidden { display:none; }
+
 /* ── Refresh pill ─────────────────────────────────────────────────────── */
 .refresh-area { padding:12px; text-align:center; }
 .refresh-pill {
@@ -650,6 +663,7 @@ body {
   <!-- ── Main content ───────────────────────────────────────────────── -->
   <main class="content-area">
     <div id="view-results" class="view">
+      <button id="results-back-btn" class="results-back-btn hidden" onclick="goBack()"></button>
       <div class="content-pad" id="results-content">
         <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
       </div>
@@ -695,6 +709,9 @@ let timer       = null;
 let searchTimer = null;
 let scheduleLoaded = false;
 let pendingScrollGroup = null; // set before switching to Results to auto-scroll to a group
+let pendingScrollEvent = null; // specific event card to open within the group
+let pendingScrollRelay = null; // relay card to open (relay events don't use group)
+let prevTab = null;            // tab to return to when back button is tapped
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 (function applyTheme() {
@@ -743,6 +760,8 @@ function setTab(tab) {
   }
   // Persist state
   savePubState();
+  // Clear prevTab if user manually taps away from Results
+  if (tab !== 'results') prevTab = null;
   // Render if needed
   if (tab === 'results') renderResults();
   if (tab === 'schedule') renderSchedulePublic();
@@ -893,21 +912,47 @@ async function renderResults() {
     }
   }
 
-  // Open & scroll to a group if navigated from Schedule tab
+  // Open & scroll to a group (and optionally a specific event card) if navigated from elsewhere
   if (pendingScrollGroup) {
     const target = pendingScrollGroup;
+    const evTarget = pendingScrollEvent;
     pendingScrollGroup = null;
+    pendingScrollEvent = null;
     const secEl = document.getElementById(`gsec-${esc(target)}`);
     if (secEl) {
       secEl.classList.add('open');
+      // If a specific event was requested, open that card too
+      const cardId = evTarget ? `ev-${esc(target)}-${esc(evTarget)}` : null;
+      const cardEl = cardId ? document.getElementById(cardId) : null;
+      if (cardEl) cardEl.classList.add('open');
       setTimeout(() => {
         const ca = document.querySelector('.content-area');
-        const rect = secEl.getBoundingClientRect();
+        const scrollTo = cardEl || secEl;
+        const rect = scrollTo.getBoundingClientRect();
         const caRect = ca.getBoundingClientRect();
         ca.scrollTop = ca.scrollTop + rect.top - caRect.top - 12;
       }, 50);
     }
   }
+
+  // Open & scroll to a relay card if navigated from Search
+  if (pendingScrollRelay) {
+    const relayTarget = pendingScrollRelay;
+    pendingScrollRelay = null;
+    const cardEl = document.getElementById(`relay-${esc(relayTarget)}`);
+    if (cardEl) {
+      cardEl.classList.add('open');
+      setTimeout(() => {
+        const ca = document.querySelector('.content-area');
+        const rect = cardEl.getBoundingClientRect();
+        const caRect = ca.getBoundingClientRect();
+        ca.scrollTop = ca.scrollTop + rect.top - caRect.top - 12;
+      }, 50);
+    }
+  }
+
+  // Show/hide back button
+  updateBackBtn();
 }
 
 function buildStagePills(ev) {
@@ -1394,6 +1439,40 @@ function goToResultsGroup(group) {
   setTab('results');
 }
 
+// ── Tap Search result row → Results tab, open specific event card ────────────
+function goToResultsEvent(group, evName) {
+  prevTab = curTab;
+  pendingScrollGroup = group;
+  pendingScrollEvent = evName;
+  setTab('results');
+}
+
+// ── Tap Search relay row → Results tab, open relay card ──────────────────────
+function goToRelayEvent(evName) {
+  prevTab = curTab;
+  pendingScrollRelay = evName;
+  setTab('results');
+}
+
+// ── Back button (shown in Results when navigated from Search/Program) ─────────
+function updateBackBtn() {
+  const btn = document.getElementById('results-back-btn');
+  if (!btn) return;
+  if (prevTab) {
+    const label = prevTab === 'search' ? '← Back to Search' : prevTab === 'program' ? '← Back to Program' : '← Back';
+    btn.textContent = label;
+    btn.classList.remove('hidden');
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+function goBack() {
+  const tab = prevTab;
+  prevTab = null;
+  setTab(tab || 'program');
+}
+
 // ── Tap athlete name → Search tab ────────────────────────────────────────────
 function searchAthlete(name) {
   // Switch to Search tab
@@ -1535,12 +1614,12 @@ async function doUnifiedSearch(q) {
         : ranked
           ? `<div class="sr-place ${pcls}">${r.placement}</div>`
           : `<div class="sr-place pending">—</div>`;
-      return `<div class="sr-row">
+      return `<div class="sr-row sr-row-link" onclick="goToResultsEvent('${esc(r.group)}','${esc(r.event)}')">
         <div>
           <div class="sr-ev-name">${r.event}</div>
           <div class="sr-ev-meta">${r.group} · ${r.stage}${r.stage!=='Final'?' '+r.number:''}</div>
         </div>
-        ${plEl}
+        <div style="display:flex;align-items:center;gap:6px">${plEl}<span class="sr-row-arrow">›</span></div>
       </div>`;
     }).join('');
 
@@ -1576,12 +1655,12 @@ async function doUnifiedSearch(q) {
           <div class="sr-skater-meta">${r.members.join(' · ')}</div>
         </div>
       </div>
-      <div class="sr-row">
+      <div class="sr-row sr-row-link" onclick="goToRelayEvent('${esc(r.evName)}')">
         <div>
           <div class="sr-ev-name">${r.evName}</div>
           <div class="sr-ev-meta">${r.stage}${r.stage!=='Final'?' '+r.number:''}</div>
         </div>
-        ${plEl}
+        <div style="display:flex;align-items:center;gap:6px">${plEl}<span class="sr-row-arrow">›</span></div>
       </div>
     </div>`;
   }
