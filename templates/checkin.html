@@ -1814,10 +1814,21 @@ function renderScheduleOperator(events) {
     };
     const badgeLabel = {pending:'Upcoming', in_progress:'In Progress', done:'Done'};
 
+    // Determine if this row links to a group or relay
+    const isGroup = !!allGroups[ev.label];
+    const relayKey = !isGroup && window._relayData
+      ? Object.keys(window._relayData).find(k => k.toLowerCase().startsWith(ev.label.toLowerCase()))
+      : null;
+    const navFn = isGroup
+      ? `selectGroup('${esc(ev.label)}')`
+      : relayKey ? `showRelayByName('${esc(relayKey)}')` : null;
+
     html += `<div class="flex items-center gap-3 px-4 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
       <span class="text-xs font-mono text-gray-400 w-16 flex-shrink-0">${ev.race_number}</span>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold">${ev.label}</div>
+      <div class="flex-1 min-w-0 ${navFn ? 'cursor-pointer hover:text-brand' : ''}" ${navFn ? `onclick="${navFn}"` : ''}>
+        <div class="text-sm font-semibold flex items-center gap-1">
+          ${ev.label}${navFn ? '<span class="text-gray-400 font-normal text-base leading-none">›</span>' : ''}
+        </div>
         <div class="text-xs text-gray-400">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
       </div>
       <div class="flex items-center gap-1.5 flex-shrink-0">
