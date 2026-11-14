@@ -1067,11 +1067,11 @@ function buildRelayBody(ev) {
       return `<div class="sk-row${num===1?' r1':num===2?' r2':num===3?' r3':''}" style="animation-delay:${i*.04}s">
         <div class="rank-num ${ranked?pcls:'rn'}">${ranked?num:i+1}</div>
         <div class="sk-info">
-          <div class="sk-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${memberList?`<div class="sk-name" style="white-space:normal;font-weight:600">${memberList}</div>`:''}
+          <div class="sk-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:${memberList?'3':'0'}px">
             <span>${t.club}</span>
             <span class="bib-chip" style="background:${bibColor}">${t.color||''}</span>
           </div>
-          ${memberList?`<div class="sk-meta">${memberList}</div>`:''}
         </div>${plEl}
       </div>`;
     }).join('');
