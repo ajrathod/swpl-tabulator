@@ -128,11 +128,6 @@ body:not(.readonly) .readonly-color { display: none; }
   <!-- Sidebar -->
   <aside class="sidebar fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
     <div class="px-3 pt-4 pb-2">
-      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
-      <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
-    </div>
-    <div class="border-t border-gray-100 mx-3 my-2"></div>
-    <div class="px-3 pb-2">
       <button onclick="showSchedule()"
         class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
         📅 <span>Schedule</span>
@@ -144,6 +139,11 @@ body:not(.readonly) .readonly-color { display: none; }
         class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
         🔗 <span>Registrations</span>
       </button>
+    </div>
+    <div class="border-t border-gray-100 mx-3 my-2"></div>
+    <div class="px-3 pb-2">
+      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Individual Races</p>
+      <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
     </div>
     <div class="border-t border-gray-100 mx-3 my-2"></div>
     <div class="px-3 pb-4">
