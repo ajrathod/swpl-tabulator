@@ -482,16 +482,18 @@ body {
 .prog-group-card.open .prog-group-body { display:block; }
 .prog-heat-label {
   font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--text-faint); padding:8px 14px 2px;
+  color:var(--text-dim); padding:8px 14px 2px;
 }
+.prog-heat-label.lbl-final { color:var(--stage-final); }
+.prog-heat-label.lbl-heat  { color:var(--stage-heat); }
 .prog-skater-row {
   display:flex; align-items:center; gap:10px;
   padding:9px 14px; border-bottom:1px solid var(--divider);
 }
 .prog-skater-row:last-child { border-bottom:none; }
-.prog-bib { font-size:12px; color:var(--text-faint); min-width:36px; flex-shrink:0; font-family:monospace; }
+.prog-bib { font-size:12px; color:var(--text-dim); min-width:36px; flex-shrink:0; font-family:monospace; font-weight:600; }
 .prog-skater-name { font-size:15px; color:var(--text); flex:1; min-width:0; }
-.prog-club { font-size:12px; color:var(--text-faint); }
+.prog-club { font-size:12px; color:var(--text-dim); }
 .relay-type-badge {
   font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
   color:var(--ice); background:rgba(91,184,255,.12);
@@ -1309,8 +1311,9 @@ function buildProgGroupBody(group, events) {
 
   return stages.map(h => {
     const skaters = h.skaters || [];
-    if (!skaters.length) return `<div class="prog-heat-label">${h._label}</div><div class="lineup-placeholder">No skaters assigned</div>`;
-    return `<div class="prog-heat-label">${h._label}</div>` +
+    const lblCls = /final/i.test(h._label) ? 'lbl-final' : /heat/i.test(h._label) ? 'lbl-heat' : '';
+    if (!skaters.length) return `<div class="prog-heat-label ${lblCls}">${h._label}</div><div class="lineup-placeholder">No skaters assigned</div>`;
+    return `<div class="prog-heat-label ${lblCls}">${h._label}</div>` +
       skaters.map(s =>
         `<div class="prog-skater-row">
           <span class="prog-bib">#${s.panel}</span>
@@ -1333,8 +1336,9 @@ function buildProgRelayBody(ev) {
 
   return stages.map(h => {
     const teams = h.teams || [];
-    if (!teams.length) return `<div class="prog-heat-label">${h._label}</div><div class="lineup-placeholder">Lineup not posted</div>`;
-    return `<div class="prog-heat-label">${h._label}</div>` +
+    const rLblCls = /final/i.test(h._label) ? 'lbl-final' : /heat/i.test(h._label) ? 'lbl-heat' : '';
+    if (!teams.length) return `<div class="prog-heat-label ${rLblCls}">${h._label}</div><div class="lineup-placeholder">Lineup not posted</div>`;
+    return `<div class="prog-heat-label ${rLblCls}">${h._label}</div>` +
       teams.map((t, i) => {
         const bibColor = COLORS[t.color?.toLowerCase()] || '#9E9E9E';
         const members = (t.members||[]).filter(m=>m&&m!=='nan');
