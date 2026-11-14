@@ -504,8 +504,8 @@ body {
 .prog-relay-team:last-child { border-bottom:none; }
 .prog-relay-num { font-size:14px; font-weight:700; color:var(--text-faint); min-width:24px; font-family:'Barlow Condensed',sans-serif; flex-shrink:0; }
 .prog-relay-info { flex:1; min-width:0; }
-.prog-relay-club { font-size:15px; color:var(--text); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.prog-relay-members { font-size:12px; color:var(--text-dim); margin-top:3px; }
+.prog-relay-club { font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:5px; }
+.prog-relay-members { font-size:15px; font-weight:600; color:var(--text); line-height:1.4; }
 .bib-chip { font-size:10px; font-weight:700; padding:1px 8px; border-radius:20px; color:#fff; }
 
 /* ── Meet Info tab ────────────────────────────────────────────────────── */
@@ -1341,11 +1341,11 @@ function buildProgRelayBody(ev) {
         return `<div class="prog-relay-team">
           <div class="prog-relay-num">${i+1}</div>
           <div class="prog-relay-info">
+            ${members.length ? `<div class="prog-relay-members">${members.join(' · ')}</div>` : ''}
             <div class="prog-relay-club">
               ${t.club}
               <span class="bib-chip" style="background:${bibColor}">${t.color||''}</span>
             </div>
-            ${members.length ? `<div class="prog-relay-members">${members.join(' · ')}</div>` : ''}
           </div>
         </div>`;
       }).join('');
