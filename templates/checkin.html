@@ -1825,26 +1825,34 @@ function renderScheduleOperator(events) {
       ? `selectGroup('${esc(groupKey)}')`
       : relayKey ? `showRelayByName('${esc(relayKey)}')` : null;
 
-    html += `<div class="flex items-center gap-3 px-4 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
-      <span class="text-xs font-mono text-gray-400 w-16 flex-shrink-0">${ev.race_number}</span>
+    // Status badge shown to everyone; buttons only to operators
+    const statusBadge = {
+      pending:     '',
+      in_progress: '<span class="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full whitespace-nowrap">⚡ In Progress</span>',
+      done:        '<span class="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full whitespace-nowrap">✓ Done</span>',
+    };
+
+    html += `<div class="flex items-center gap-2 px-3 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
+      <span class="text-xs font-mono text-gray-400 w-14 flex-shrink-0">${ev.race_number}</span>
       <div class="flex-1 min-w-0 ${navFn ? 'cursor-pointer hover:text-brand' : ''}" ${navFn ? `onclick="${navFn}"` : ''}>
-        <div class="text-sm font-semibold flex items-center gap-1">
+        <div class="text-sm font-semibold flex items-center gap-1 flex-wrap">
           ${ev.label}${navFn ? '<span class="text-gray-400 font-normal text-base leading-none">›</span>' : ''}
         </div>
-        <div class="text-xs text-gray-400">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
+        <div class="text-xs text-gray-400 mt-0.5">${ev.stage}${ev.distance?' · '+ev.distance:''}${ev.note?' · '+ev.note:''}</div>
       </div>
-      <div class="flex items-center gap-1.5 flex-shrink-0">
+      ${statusBadge[ev.status] || ''}
+      <div class="operator-only flex items-center gap-1 flex-shrink-0">
         <button onclick="setSchedStatus(${ev.id},'pending')"
           class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='pending'?'bg-gray-200 border-gray-300 font-semibold':'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}">
           Upcoming
         </button>
         <button onclick="setSchedStatus(${ev.id},'in_progress')"
           class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='in_progress'?'bg-amber-200 border-amber-300 font-semibold text-amber-900':'bg-white border-gray-200 text-gray-500 hover:bg-amber-50'}">
-          ⚡ In Progress
+          ⚡
         </button>
         <button onclick="setSchedStatus(${ev.id},'done')"
           class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='done'?'bg-green-200 border-green-300 font-semibold text-green-900':'bg-white border-gray-200 text-gray-500 hover:bg-green-50'}">
-          ✓ Done
+          ✓
         </button>
       </div>
     </div>`;
@@ -2182,11 +2190,6 @@ function toggleSidebar() {
 
 if (READONLY) {
   document.body.classList.add('readonly');
-  // Add check-in banner
-  const banner = document.createElement('div');
-  banner.style.cssText = 'background:#1D4ED8;color:white;text-align:center;padding:6px 16px;font-size:13px;font-weight:600;letter-spacing:.02em;position:sticky;top:56px;z-index:49';
-  banner.innerHTML = '👁 Check-in View — Read Only';
-  document.querySelector('header').after(banner);
   // Hide all upload labels and action buttons in header
   document.querySelectorAll('header label, header a[href*="checkin"], header button').forEach(el => {
     if (el.id !== 'lock-btn') el.style.display = 'none';
