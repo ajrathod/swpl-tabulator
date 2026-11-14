@@ -419,9 +419,11 @@ body {
 .sr-row:last-child { border-bottom:none; }
 .sr-row-link { cursor:pointer; }
 .sr-row-link:hover { background:var(--bg-hover, rgba(0,0,0,.04)); }
-.sr-row-arrow { font-size:16px; color:var(--text-faint); flex-shrink:0; }
+.sr-row-arrow { font-size:16px; color:var(--text-dim); flex-shrink:0; }
 .sr-ev-name { font-size:14px; color:var(--text); }
-.sr-ev-meta { font-size:11px; color:var(--text-faint); margin-top:1px; }
+.sr-ev-meta { font-size:11px; color:var(--text-dim); margin-top:1px; }
+.stage-heat  { color:var(--stage-heat);  font-weight:600; }
+.stage-final { color:var(--stage-final); font-weight:600; }
 .sr-place {
   min-width:30px; height:30px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
@@ -1634,10 +1636,11 @@ async function doUnifiedSearch(q) {
         : ranked
           ? `<div class="sr-place ${pcls}">${r.placement}</div>`
           : `<div class="sr-place pending">—</div>`;
+      const sCls = /final/i.test(r.stage) ? 'stage-final' : /heat/i.test(r.stage) ? 'stage-heat' : '';
       return `<div class="sr-row sr-row-link" onclick="goToResultsEvent('${esc(r.group)}','${esc(r.event)}')">
         <div>
           <div class="sr-ev-name">${r.event}</div>
-          <div class="sr-ev-meta">${r.group} · ${r.stage}${r.stage!=='Final'?' '+r.number:''}</div>
+          <div class="sr-ev-meta">${r.group} · <span class="${sCls}">${r.stage}${r.stage!=='Final'?' '+r.number:''}</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">${plEl}<span class="sr-row-arrow">›</span></div>
       </div>`;
@@ -1678,7 +1681,7 @@ async function doUnifiedSearch(q) {
       <div class="sr-row sr-row-link" onclick="goToRelayEvent('${esc(r.evName)}')">
         <div>
           <div class="sr-ev-name">${r.evName}</div>
-          <div class="sr-ev-meta">${r.stage}${r.stage!=='Final'?' '+r.number:''}</div>
+          <div class="sr-ev-meta"><span class="${/final/i.test(r.stage)?'stage-final':/heat/i.test(r.stage)?'stage-heat':''}">${r.stage}${r.stage!=='Final'?' '+r.number:''}</span></div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">${plEl}<span class="sr-row-arrow">›</span></div>
       </div>
