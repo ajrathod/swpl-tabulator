@@ -892,7 +892,7 @@ async function renderResults() {
 
   // Collapse-all toolbar (only if multiple groups)
   if (groups.length > 1) {
-    html += `<div class="results-toolbar"><button class="collapse-all-btn" onclick="collapseAllGroups()">Collapse All</button></div>`;
+    html += `<div class="results-toolbar"><button class="results-toggle-btn collapse-all-btn" onclick="toggleAllResultsGroups()">Expand All</button></div>`;
   }
 
   for (const group of groups) {
@@ -1172,10 +1172,21 @@ function toggleEvCard(cardId) {
 function toggleGroupSec(secId) {
   const el = document.getElementById(secId);
   if (el) el.classList.toggle('open');
+  syncResultsBtn();
 }
 
-function collapseAllGroups() {
-  document.querySelectorAll('.group-sec-card.open').forEach(el => el.classList.remove('open'));
+function toggleAllResultsGroups() {
+  const cards = document.querySelectorAll('.group-sec-card');
+  const anyOpen = [...cards].some(c => c.classList.contains('open'));
+  cards.forEach(c => anyOpen ? c.classList.remove('open') : c.classList.add('open'));
+  syncResultsBtn();
+}
+
+function syncResultsBtn() {
+  const btn = document.querySelector('.results-toggle-btn');
+  if (!btn) return;
+  const anyOpen = [...document.querySelectorAll('.group-sec-card')].some(c => c.classList.contains('open'));
+  btn.textContent = anyOpen ? 'Collapse All' : 'Expand All';
 }
 
 // ── Heat card ────────────────────────────────────────────────────────────────
