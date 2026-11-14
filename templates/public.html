@@ -182,6 +182,34 @@ body {
 }
 .search-clear.visible { display:block; }
 
+/* ── Program sub-tabs ─────────────────────────────────────────────────── */
+.prog-subtab-bar {
+  display:flex; background:var(--bg-header); border-bottom:1px solid var(--border);
+  padding:0 12px; flex-shrink:0;
+}
+.prog-subtab-bar.hidden { display:none; }
+.prog-subtab-btn {
+  flex:1; padding:10px 4px 9px; background:none; border:none; cursor:pointer;
+  font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+  color:var(--text-faint); letter-spacing:.01em; position:relative;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  -webkit-tap-highlight-color:transparent; transition:color .15s;
+}
+.prog-subtab-btn::after {
+  content:''; position:absolute; bottom:0; left:10%; right:10%; height:2px;
+  background:var(--brand); border-radius:2px 2px 0 0;
+  opacity:0; transform:scaleX(0); transition:opacity .15s,transform .15s;
+}
+.prog-subtab-btn.active { color:var(--text); }
+.prog-subtab-btn.active::after { opacity:1; transform:scaleX(1); }
+.prog-subtab-count {
+  font-size:10px; font-weight:700; background:var(--pill-bg);
+  border-radius:20px; padding:1px 6px; color:var(--text-dim);
+}
+.prog-subtab-btn.active .prog-subtab-count { background:var(--brand-dim); color:var(--brand); }
+.prog-pane { display:none; }
+.prog-pane.active { display:block; }
+
 /* ── Content area ─────────────────────────────────────────────────────── */
 .content-area { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .view { display:none; }
@@ -669,6 +697,18 @@ body {
     </nav>
   </header>
 
+  <!-- ── Program sub-tab bar (only shown in Program tab) ──────────── -->
+  <div id="progSubtabBar" class="prog-subtab-bar hidden">
+    <button class="prog-subtab-btn active" id="prog-subtab-individual" onclick="setProgSubtab('individual')">
+      Individual Races
+      <span class="prog-subtab-count" id="prog-cnt-individual"></span>
+    </button>
+    <button class="prog-subtab-btn" id="prog-subtab-relays" onclick="setProgSubtab('relays')">
+      Relays
+      <span class="prog-subtab-count" id="prog-cnt-relays"></span>
+    </button>
+  </div>
+
   <!-- ── Search bar (only shown in Search tab) ─────────────────────── -->
   <div id="searchWrap" class="search-wrap hidden">
     <div class="search-inner">
@@ -703,8 +743,15 @@ body {
       </div>
     </div>
     <div id="view-program" class="view active">
-      <div class="content-pad" id="program-content">
-        <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
+      <div id="prog-pane-individual" class="prog-pane active">
+        <div class="content-pad" id="program-content">
+          <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
+        </div>
+      </div>
+      <div id="prog-pane-relays" class="prog-pane">
+        <div class="content-pad" id="program-relay-content">
+          <div class="waiting"><div class="wi">⏳</div><p>Loading…</p></div>
+        </div>
       </div>
     </div>
     <div id="view-meetinfo" class="view">
@@ -732,6 +779,7 @@ let pendingScrollGroup = null; // set before switching to Results to auto-scroll
 let pendingScrollEvent = null; // specific event card to open within the group
 let pendingScrollRelay = null; // relay card to open (relay events don't use group)
 let prevTab = null;            // tab to return to when back button is tapped
+let curProgSubtab = 'individual'; // active program sub-tab
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 (function applyTheme() {
@@ -764,6 +812,15 @@ function updateThemeIcon(isDark) {
 }
 
 // ── Tab switching ────────────────────────────────────────────────────────────
+function setProgSubtab(tab) {
+  curProgSubtab = tab;
+  document.querySelectorAll('.prog-subtab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`prog-subtab-${tab}`).classList.add('active');
+  document.querySelectorAll('.prog-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(`prog-pane-${tab}`).classList.add('active');
+  document.querySelector('.content-area').scrollTop = 0;
+}
+
 function setTab(tab) {
   curTab = tab;
   // Update tab buttons
@@ -772,6 +829,8 @@ function setTab(tab) {
   // Show/hide views
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(`view-${tab}`).classList.add('active');
+  // Show/hide program sub-tab bar
+  document.getElementById('progSubtabBar').classList.toggle('hidden', tab !== 'program');
   // Show/hide search bar
   const searchWrap = document.getElementById('searchWrap');
   searchWrap.classList.toggle('hidden', tab !== 'search');
@@ -1247,25 +1306,22 @@ async function renderSchedulePublic() {
 // ── Program tab ──────────────────────────────────────────────────────────────
 async function renderProgram() {
   setView('program-content', waiting('Loading program…'));
+  setView('program-relay-content', waiting('Loading relays…'));
 
   const groups = Object.keys(allGroups).sort();
   await Promise.all(groups.map(g => loadGroupData(g)));
 
-  let html = '';
-  const totalCards = groups.length + Object.keys(allRelays).length;
-
-  // Toolbar: show collapse/expand button when there are multiple groups
-  if (totalCards > 1) {
-    html += `<div class="results-toolbar"><button id="prog-toggle-btn" class="collapse-all-btn" onclick="toggleAllProgGroups()">Collapse All</button></div>`;
+  // ── Individual pane ──
+  let indHtml = '';
+  if (groups.length > 1) {
+    indHtml += `<div class="results-toolbar"><button class="prog-toggle-btn collapse-all-btn" onclick="toggleAllProgGroups()">Collapse All</button></div>`;
   }
-
   for (const group of groups) {
     const events = allGroupData[group] || {};
     const skaterCount = allGroups[group]?.skater_count ?? allGroups[group] ?? '';
     const cardId = `prog-${esc(group)}`;
-
     const body = buildProgGroupBody(group, events);
-    html += `<div class="prog-group-card open" id="${cardId}">
+    indHtml += `<div class="prog-group-card open" id="${cardId}">
       <div class="prog-group-hdr" onclick="toggleProgCard('${cardId}')">
         <span class="prog-group-name">${group}<span class="prog-group-count">${skaterCount ? `${skaterCount} skaters` : ''}</span></span>
         <span class="prog-chevron">▼</span>
@@ -1273,29 +1329,39 @@ async function renderProgram() {
       <div class="prog-group-body">${body}</div>
     </div>`;
   }
+  if (!indHtml) {
+    indHtml = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No individual races yet</div></div>';
+  }
+  setView('program-content', indHtml);
 
+  // ── Relay pane ──
   const relayNames = Object.keys(allRelays).sort();
+  let relHtml = '';
+  if (relayNames.length > 1) {
+    relHtml += `<div class="results-toolbar"><button class="prog-toggle-btn collapse-all-btn" onclick="toggleAllProgGroups()">Collapse All</button></div>`;
+  }
   for (const name of relayNames) {
     const ev = allRelays[name];
     const cardId = `prog-relay-${esc(name)}`;
     const body = buildProgRelayBody(ev);
-    html += `<div class="prog-group-card open" id="${cardId}">
-      <div class="prog-group-hdr" onclick="toggleProgCard('${cardId}')" style="background:rgba(91,184,255,.07)">
-        <div>
-          <span class="relay-type-badge">Relay</span>
-          <span class="prog-group-name">${name}</span>
-        </div>
+    relHtml += `<div class="prog-group-card open" id="${cardId}">
+      <div class="prog-group-hdr" onclick="toggleProgCard('${cardId}')">
+        <span class="prog-group-name">${name}</span>
         <span class="prog-chevron">▼</span>
       </div>
       <div class="prog-group-body">${body}</div>
     </div>`;
   }
-
-  if (!html) {
-    html = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No program yet</div></div>';
+  if (!relHtml) {
+    relHtml = '<div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-title">No relays yet</div></div>';
   }
+  setView('program-relay-content', relHtml);
 
-  setView('program-content', html);
+  // ── Update count badges ──
+  const indCnt = document.getElementById('prog-cnt-individual');
+  if (indCnt) indCnt.textContent = groups.length;
+  const relCnt = document.getElementById('prog-cnt-relays');
+  if (relCnt) relCnt.textContent = relayNames.length;
 }
 
 function buildProgGroupBody(group, events) {
@@ -1365,7 +1431,8 @@ function toggleProgCard(cardId) {
 }
 
 function toggleAllProgGroups() {
-  const cards = document.querySelectorAll('.prog-group-card');
+  const pane = document.getElementById(`prog-pane-${curProgSubtab}`);
+  const cards = (pane || document).querySelectorAll('.prog-group-card');
   const anyOpen = [...cards].some(c => c.classList.contains('open'));
   if (anyOpen) {
     cards.forEach(c => c.classList.remove('open'));
@@ -1376,9 +1443,10 @@ function toggleAllProgGroups() {
 }
 
 function syncProgBtn() {
-  const btn = document.getElementById('prog-toggle-btn');
+  const pane = document.getElementById(`prog-pane-${curProgSubtab}`);
+  const btn = pane ? pane.querySelector('.prog-toggle-btn') : null;
   if (!btn) return;
-  const cards = document.querySelectorAll('.prog-group-card');
+  const cards = pane.querySelectorAll('.prog-group-card');
   const anyOpen = [...cards].some(c => c.classList.contains('open'));
   btn.textContent = anyOpen ? 'Collapse All' : 'Expand All';
 }
