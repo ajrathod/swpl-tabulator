@@ -2117,29 +2117,35 @@ function loadState() {
 const _origSelectGroup = selectGroup;
 selectGroup = async function(group) {
   saveState('group', group);
-  // Close sidebar on mobile
+  closeSidebarMobile();
+  return _origSelectGroup(group);
+};
+
+function closeSidebarMobile() {
   if (window.innerWidth <= 768) {
     document.querySelector('aside.sidebar')?.classList.remove('open');
     document.getElementById('sidebar-overlay')?.classList.remove('open');
   }
-  return _origSelectGroup(group);
-};
+}
 
 const _origShowRelayByName = showRelayByName;
 showRelayByName = function(name) {
   saveState('relay', name);
+  closeSidebarMobile();
   return _origShowRelayByName(name);
 };
 
 const _origShowRegistrations = showRegistrations;
 showRegistrations = async function() {
   saveState('section', 'registrations');
+  closeSidebarMobile();
   return _origShowRegistrations();
 };
 
 const _origShowSchedule = showSchedule;
 showSchedule = async function() {
   saveState('section', 'schedule');
+  closeSidebarMobile();
   return _origShowSchedule();
 };
 
