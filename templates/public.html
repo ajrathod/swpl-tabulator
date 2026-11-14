@@ -108,6 +108,16 @@ body {
 .header-logo .slash { color:var(--brand); }
 .header-comp { font-size:12px; color:var(--text-dim); margin-top:1px; line-height:1; }
 .header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.home-btn {
+  display:flex; align-items:center; gap:5px;
+  background:var(--pill-bg); border:1px solid var(--border);
+  padding:5px 11px; border-radius:20px;
+  font-size:12px; font-weight:600; color:var(--text-dim);
+  text-decoration:none; transition:background .15s, color .15s;
+  white-space:nowrap;
+}
+.home-btn:hover { background:var(--border); color:var(--text); }
+.home-btn svg { flex-shrink:0; }
 .live-pill {
   display:flex; align-items:center; gap:5px;
   background:var(--live-bg); border:1px solid rgba(239,68,68,.25);
@@ -619,6 +629,10 @@ body {
         <div class="header-comp">{{comp.name}}</div>
       </div>
       <div class="header-actions">
+        <a class="home-btn" href="{{ url_for('home') }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Main Page
+        </a>
         <div class="live-pill"><span class="live-dot"></span>LIVE</div>
         <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle theme">
           <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
