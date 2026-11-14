@@ -1815,12 +1815,14 @@ function renderScheduleOperator(events) {
     const badgeLabel = {pending:'Upcoming', in_progress:'In Progress', done:'Done'};
 
     // Determine if this row links to a group or relay
-    const isGroup = !!allGroups[ev.label];
-    const relayKey = !isGroup && window._relayData
+    // Schedule labels may have "Group " prefix (e.g. "Group 2F") while allGroups keys are bare ("2F")
+    const bareLabel = ev.label.replace(/^Group\s+/i, '').trim();
+    const groupKey = allGroups[ev.label] ? ev.label : allGroups[bareLabel] ? bareLabel : null;
+    const relayKey = !groupKey && window._relayData
       ? Object.keys(window._relayData).find(k => k.toLowerCase().startsWith(ev.label.toLowerCase()))
       : null;
-    const navFn = isGroup
-      ? `selectGroup('${esc(ev.label)}')`
+    const navFn = groupKey
+      ? `selectGroup('${esc(groupKey)}')`
       : relayKey ? `showRelayByName('${esc(relayKey)}')` : null;
 
     html += `<div class="flex items-center gap-3 px-4 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
