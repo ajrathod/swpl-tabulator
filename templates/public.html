@@ -102,7 +102,9 @@ body {
 .header-logo {
   font-family:'Barlow Condensed',sans-serif; font-size:17px; font-weight:800;
   letter-spacing:.05em; color:var(--text); line-height:1;
+  text-decoration:none; display:inline-block;
 }
+.header-logo:hover { opacity:.75; }
 .header-logo .slash { color:var(--brand); }
 .header-comp { font-size:12px; color:var(--text-dim); margin-top:1px; line-height:1; }
 .header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
@@ -613,7 +615,7 @@ body {
   <header class="app-header">
     <div class="header-top">
       <div class="header-identity">
-        <div class="header-logo">SWPL<span class="slash">/</span>TAB</div>
+        <a class="header-logo" href="{{ url_for('home') }}">SWPL<span class="slash">/</span>TAB</a>
         <div class="header-comp">{{comp.name}}</div>
       </div>
       <div class="header-actions">
