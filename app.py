@@ -9,7 +9,7 @@ from models import (
     Competition, CompEvent, Skater, Event, Heat, HeatSkater,
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
     AthleteRegistry, ScratchRecord, RelayPoolAthlete,
-    RegistrationLink, Registration, ScheduleEvent, CheckinStatus,
+    RegistrationLink, Registration, ScheduleEvent, CheckinStatus, GroupLabel,
 )
 from seeding import compute_stages, distribute
 
@@ -276,7 +276,7 @@ def parse_individual(filepath):
 
             skaters.append({"first":first,"last":last,"gender":gender,"age":age,
                             "panel":panel,"club":club,"group":group,"usars_no":usars_no,
-                            "heat":heat_val})
+                            "heat":heat_val,"section_label":cur_group or ""})
     return skaters
 
 
@@ -1218,6 +1218,18 @@ def upload_individual(comp_id):
         reg_session.close()
         session.flush()
 
+        # Save group → section label mapping (e.g. "3A" → "Senior 3 Lady")
+        label_map = {}
+        for r in raw:
+            lbl = r.get("section_label", "").strip()
+            grp = r["group"]
+            if lbl and grp not in label_map:
+                label_map[grp] = lbl
+        session.query(GroupLabel).filter_by(competition_id=comp_id).delete()
+        for grp, lbl in label_map.items():
+            session.add(GroupLabel(competition_id=comp_id, group_name=grp, label=lbl))
+        session.flush()
+
         # Create one Event row per (group, enabled_individual_event)
         for group, panels in panels_by_group.items():
             grp_heats = heat_assignments.get(group, {})
@@ -1450,12 +1462,14 @@ def api_groups(comp_id):
     session = db()
     try:
         events = session.query(Event).filter_by(competition_id=comp_id).all()
+        labels = {gl.group_name: gl.label for gl in
+                  session.query(GroupLabel).filter_by(competition_id=comp_id).all()}
         groups = {}
         for ev in events:
             g = ev.group_name
             if g not in groups:
                 count = session.query(Skater).filter_by(competition_id=comp_id, group_name=g).count()
-                groups[g] = {"skater_count": count, "events": []}
+                groups[g] = {"skater_count": count, "events": [], "label": labels.get(g, "")}
             if ev.name not in groups[g]["events"]:
                 groups[g]["events"].append(ev.name)
         return jsonify(groups)

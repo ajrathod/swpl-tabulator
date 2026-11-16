@@ -1814,10 +1814,18 @@ function renderScheduleOperator(events) {
     };
     const badgeLabel = {pending:'Upcoming', in_progress:'In Progress', done:'Done'};
 
-    // Determine if this row links to a group or relay
-    // Schedule labels may have "Group " prefix (e.g. "Group 2F") while allGroups keys are bare ("2F")
+    // Determine if this row links to a group or relay.
+    // Try 1: exact match on group code (e.g. schedule label = "2F" or "Group 2F")
     const bareLabel = ev.label.replace(/^Group\s+/i, '').trim();
-    const groupKey = allGroups[ev.label] ? ev.label : allGroups[bareLabel] ? bareLabel : null;
+    let groupKey = allGroups[ev.label] ? ev.label : allGroups[bareLabel] ? bareLabel : null;
+    // Try 2: match against stored category label (e.g. "Senior 3 Lady" → group "3A")
+    if (!groupKey) {
+      const lo = ev.label.toLowerCase();
+      groupKey = Object.keys(allGroups).find(k => {
+        const lbl = (allGroups[k].label || '').toLowerCase();
+        return lbl && lbl === lo;
+      }) || null;
+    }
     const relayKey = !groupKey && window._relayData
       ? Object.keys(window._relayData).find(k => k.toLowerCase().startsWith(ev.label.toLowerCase()))
       : null;

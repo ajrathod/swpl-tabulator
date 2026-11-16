@@ -409,6 +409,18 @@ class Registration(Base):
                 "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M") if self.updated_at else ""}
 
 
+class GroupLabel(Base):
+    """Maps a competition's group code (e.g. '3A') to its category label (e.g. 'Senior 3 Lady').
+    Populated automatically when an individual roster Excel is uploaded."""
+    __tablename__ = "group_labels"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    group_name     = Column(String(200), nullable=False)
+    label          = Column(String(200), default="")
+
+    __table_args__ = (UniqueConstraint("competition_id", "group_name"),)
+
+
 class ScheduleEvent(Base):
     __tablename__ = "schedule_events"
     id             = Column(Integer, primary_key=True)
