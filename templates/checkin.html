@@ -1770,6 +1770,7 @@ async function showSchedule() {
     <div class="flex items-center gap-3 mb-5">
       <h2 class="text-xl font-bold">📅 Schedule</h2>
       <span class="text-xs text-gray-400">Click a row to update status</span>
+      <button onclick="openSchedAddModal()" class="operator-only ml-auto px-3 py-1.5 text-xs font-semibold bg-brand text-white rounded-lg hover:bg-brand/90 transition">+ Add Event</button>
     </div>
     <div id="sched-body"><div class="text-gray-400 text-sm py-4">Loading…</div></div>`;
 
@@ -1778,7 +1779,11 @@ async function showSchedule() {
   renderScheduleOperator(events);
 }
 
+// Store current schedule globally so edit modal can read it
+let _schedEvents = [];
+
 function renderScheduleOperator(events) {
+  _schedEvents = events;
   const body = document.getElementById('sched-body');
   if (!events.length) {
     body.innerHTML = `<div class="text-center py-16 text-gray-400">
@@ -1792,7 +1797,7 @@ function renderScheduleOperator(events) {
   let html = '';
   let curSection = '';
 
-  events.forEach(ev => {
+  events.forEach((ev, idx) => {
     if (ev.section !== curSection) {
       curSection = ev.section;
       html += `<div class="flex items-center gap-3 mt-6 mb-3">
@@ -1807,12 +1812,6 @@ function renderScheduleOperator(events) {
       in_progress: 'bg-amber-50 border-amber-300',
       done:        'bg-green-50 border-green-300',
     };
-    const badgeStyles = {
-      pending:     'bg-gray-100 text-gray-500',
-      in_progress: 'bg-amber-100 text-amber-800',
-      done:        'bg-green-100 text-green-800',
-    };
-    const badgeLabel = {pending:'Upcoming', in_progress:'In Progress', done:'Done'};
 
     // Determine if this row links to a group or relay.
     // Try 1: exact match on group code (e.g. schedule label = "2F" or "Group 2F")
@@ -1840,7 +1839,17 @@ function renderScheduleOperator(events) {
       done:        '<span class="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full whitespace-nowrap">✓ Done</span>',
     };
 
-    html += `<div class="flex items-center gap-2 px-3 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}">
+    const isFirst = idx === 0;
+    const isLast  = idx === events.length - 1;
+
+    html += `<div class="flex items-center gap-2 px-3 py-3 rounded-xl border mb-2 transition ${statusStyles[ev.status]||statusStyles.pending}" data-sched-id="${ev.id}">
+      <!-- reorder arrows (operator-only) -->
+      <div class="operator-only flex flex-col gap-0.5 flex-shrink-0">
+        <button onclick="moveSchedRow(${ev.id},-1)" ${isFirst?'disabled':''} title="Move up"
+          class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-brand disabled:opacity-20 disabled:cursor-not-allowed transition text-xs leading-none">▲</button>
+        <button onclick="moveSchedRow(${ev.id},1)" ${isLast?'disabled':''} title="Move down"
+          class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-brand disabled:opacity-20 disabled:cursor-not-allowed transition text-xs leading-none">▼</button>
+      </div>
       <span class="text-xs font-mono text-gray-400 w-14 flex-shrink-0">${ev.race_number}</span>
       <div class="flex-1 min-w-0 ${navFn ? 'cursor-pointer hover:text-brand' : ''}" ${navFn ? `onclick="${navFn}"` : ''}>
         <div class="text-sm font-semibold flex items-center gap-1 flex-wrap">
@@ -1862,11 +1871,145 @@ function renderScheduleOperator(events) {
           class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='done'?'bg-green-200 border-green-300 font-semibold text-green-900':'bg-white border-gray-200 text-gray-500 hover:bg-green-50'}">
           ✓
         </button>
+        <!-- edit & delete -->
+        <button onclick="openSchedEditModal(${ev.id})" title="Edit" class="px-2 py-1 text-xs rounded-lg border bg-white border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition">✏️</button>
+        <button onclick="deleteSchedEvent(${ev.id})" title="Delete" class="px-2 py-1 text-xs rounded-lg border bg-white border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 transition">🗑</button>
       </div>
     </div>`;
   });
 
   body.innerHTML = html;
+}
+
+// ── Schedule move up/down ──────────────────────────────────────────────────
+async function moveSchedRow(evId, direction) {
+  const idx = _schedEvents.findIndex(e => e.id === evId);
+  if (idx < 0) return;
+  const swap = idx + direction;
+  if (swap < 0 || swap >= _schedEvents.length) return;
+  // Swap in local array first for instant feedback
+  [_schedEvents[idx], _schedEvents[swap]] = [_schedEvents[swap], _schedEvents[idx]];
+  renderScheduleOperator([..._schedEvents]);
+  // Persist new order
+  const r = await fetch(`/api/comp/${COMP_ID}/schedule/reorder`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({order: _schedEvents.map(e => e.id)})
+  });
+  const d = await r.json();
+  if (!d.ok) { toast(d.error || 'Reorder failed', 'error'); showSchedule(); }
+}
+
+// ── Schedule delete ────────────────────────────────────────────────────────
+async function deleteSchedEvent(evId) {
+  const ev = _schedEvents.find(e => e.id === evId);
+  const label = ev ? ev.label : `#${evId}`;
+  if (!confirm(`Delete "${label}" from the schedule? This cannot be undone.`)) return;
+  const r = await fetch(`/api/schedule/${evId}`, {method:'DELETE'});
+  const d = await r.json();
+  if (d.ok) { toast('Event deleted', 'success'); showSchedule(); }
+  else toast(d.error || 'Delete failed', 'error');
+}
+
+// ── Schedule edit modal ────────────────────────────────────────────────────
+function _schedModalHTML(title, ev) {
+  const v = f => ev ? (ev[f] || '') : '';
+  return `<div id="sched-modal-overlay" onclick="if(event.target===this)closeSchedModal()"
+    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-bold">${title}</h3>
+        <button onclick="closeSchedModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs text-gray-500 font-medium">Race #</span>
+            <input id="sm-race" value="${v('race_number')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          </label>
+          <label class="block">
+            <span class="text-xs text-gray-500 font-medium">Distance</span>
+            <input id="sm-dist" value="${v('distance')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          </label>
+        </div>
+        <label class="block">
+          <span class="text-xs text-gray-500 font-medium">Label</span>
+          <input id="sm-label" value="${v('label')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500 font-medium">Stage</span>
+          <input id="sm-stage" value="${v('stage')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500 font-medium">Note</span>
+          <input id="sm-note" value="${v('note')}" placeholder="Optional note" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs text-gray-500 font-medium">Section</span>
+            <input id="sm-section" value="${v('section')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          </label>
+          <label class="block">
+            <span class="text-xs text-gray-500 font-medium">Section Time</span>
+            <input id="sm-sectime" value="${v('section_time')}" placeholder="e.g. 9:00 AM" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          </label>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeSchedModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+        <button id="sm-save-btn" class="flex-1 px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition">Save</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _schedModalPayload() {
+  return {
+    race_number:  document.getElementById('sm-race').value,
+    label:        document.getElementById('sm-label').value,
+    distance:     document.getElementById('sm-dist').value,
+    stage:        document.getElementById('sm-stage').value,
+    note:         document.getElementById('sm-note').value,
+    section:      document.getElementById('sm-section').value,
+    section_time: document.getElementById('sm-sectime').value,
+  };
+}
+
+function closeSchedModal() {
+  const el = document.getElementById('sched-modal-overlay');
+  if (el) el.remove();
+}
+
+function openSchedEditModal(evId) {
+  const ev = _schedEvents.find(e => e.id === evId);
+  if (!ev) return;
+  closeSchedModal();
+  document.body.insertAdjacentHTML('beforeend', _schedModalHTML('Edit Schedule Event', ev));
+  document.getElementById('sm-save-btn').onclick = async () => {
+    const payload = _schedModalPayload();
+    const r = await fetch(`/api/schedule/${evId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.ok) { closeSchedModal(); toast('Event updated', 'success'); showSchedule(); }
+    else toast(d.error || 'Save failed', 'error');
+  };
+}
+
+function openSchedAddModal() {
+  closeSchedModal();
+  document.body.insertAdjacentHTML('beforeend', _schedModalHTML('Add Schedule Event', null));
+  document.getElementById('sm-save-btn').onclick = async () => {
+    const payload = _schedModalPayload();
+    if (!payload.label.trim()) { toast('Label is required', 'error'); return; }
+    const r = await fetch(`/api/comp/${COMP_ID}/schedule/add`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.ok) { closeSchedModal(); toast('Event added', 'success'); showSchedule(); }
+    else toast(d.error || 'Add failed', 'error');
+  };
 }
 
 async function setSchedStatus(eventId, status) {

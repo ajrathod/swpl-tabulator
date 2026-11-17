@@ -3442,16 +3442,103 @@ def update_schedule_status(event_id):
         session.close()
 
 
-
-    init_db()
-    import socket
+@app.route("/api/schedule/<int:event_id>", methods=["PATCH"])
+def patch_schedule_event(event_id):
+    """Update editable fields on a schedule event."""
+    data = request.json or {}
+    session = db()
     try:
-        s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("8.8.8.8",80))
-        ip=s.getsockname()[0]; s.close()
-    except: ip="localhost"
-    print(f"\n{'='*55}\n  PacWest Race Manager v3\n{'='*55}")
-    print(f"  Operator : http://localhost:5001")
-    print(f"  Public   : http://{ip}:5001/public/<comp_id>")
-    print(f"  Athletes : http://localhost:5001/athletes")
-    print(f"  Database : skating.db\n{'='*55}\n")
-    app.run(host="0.0.0.0", port=5001, debug=False)
+        ev = session.query(ScheduleEvent).get(event_id)
+        if not ev: return jsonify({"error": "Not found"}), 404
+        for field in ("race_number", "label", "distance", "stage", "note",
+                      "section", "section_time"):
+            if field in data:
+                setattr(ev, field, (data[field] or "").strip())
+        session.commit()
+        return jsonify({"ok": True, "event": ev.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/schedule/<int:event_id>", methods=["DELETE"])
+def delete_schedule_event(event_id):
+    """Remove a schedule event."""
+    session = db()
+    try:
+        ev = session.query(ScheduleEvent).get(event_id)
+        if not ev: return jsonify({"error": "Not found"}), 404
+        session.delete(ev)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/schedule/add", methods=["POST"])
+def add_schedule_event(comp_id):
+    """Insert a new schedule event."""
+    data = request.json or {}
+    session = db()
+    try:
+        # Place after the highest existing sort_order
+        max_order = session.query(ScheduleEvent).filter_by(competition_id=comp_id)\
+            .order_by(ScheduleEvent.sort_order.desc()).first()
+        next_order = (max_order.sort_order + 1) if max_order else 1
+        ev = ScheduleEvent(
+            competition_id=comp_id,
+            race_number  =(data.get("race_number") or "").strip(),
+            label        =(data.get("label")        or "").strip(),
+            distance     =(data.get("distance")     or "").strip(),
+            stage        =(data.get("stage")        or "").strip(),
+            note         =(data.get("note")         or "").strip(),
+            section      =(data.get("section")      or "").strip(),
+            section_time =(data.get("section_time") or "").strip(),
+            sort_order   =next_order,
+            status       ="pending",
+        )
+        session.add(ev)
+        session.commit()
+        return jsonify({"ok": True, "event": ev.to_dict()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/schedule/reorder", methods=["POST"])
+def reorder_schedule(comp_id):
+    """Bulk-update sort_order. Body: {order: [id, id, ...]}.
+    The position in the list becomes the new sort_order (1-based)."""
+    data = request.json or {}
+    ids  = data.get("order", [])
+    if not ids: return jsonify({"error": "order list required"}), 400
+    session = db()
+    try:
+        for i, ev_id in enumerate(ids, start=1):
+            session.query(ScheduleEvent).filter_by(
+                id=ev_id, competition_id=comp_id
+            ).update({"sort_order": i})
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+init_db()
+import socket
+try:
+    s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("8.8.8.8",80))
+    ip=s.getsockname()[0]; s.close()
+except: ip="localhost"
+print(f"\n{'='*55}\n  PacWest Race Manager v3\n{'='*55}")
+print(f"  Operator : http://localhost:5001")
+print(f"  Public   : http://{ip}:5001/public/<comp_id>")
+print(f"  Athletes : http://localhost:5001/athletes")
+print(f"  Database : skating.db\n{'='*55}\n")
+app.run(host="0.0.0.0", port=5001, debug=False)
