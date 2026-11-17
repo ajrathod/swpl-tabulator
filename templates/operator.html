@@ -1948,11 +1948,11 @@ function renderScheduleOperator(events) {
         </button>
         <button onclick="setSchedStatus(${ev.id},'in_progress')"
           class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='in_progress'?'bg-amber-200 border-amber-300 font-semibold text-amber-900':'bg-white border-gray-200 text-gray-500 hover:bg-amber-50'}">
-          ⚡
+          ⚡ In Progress
         </button>
         <button onclick="setSchedStatus(${ev.id},'done')"
           class="px-2 py-1 text-xs rounded-lg border transition ${ev.status==='done'?'bg-green-200 border-green-300 font-semibold text-green-900':'bg-white border-gray-200 text-gray-500 hover:bg-green-50'}">
-          ✓
+          ✓ Done
         </button>
         <button onclick="openSchedEditModal(${ev.id})" title="Edit" class="px-2 py-1 text-xs rounded-lg border bg-white border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition">✏️</button>
         <button onclick="deleteSchedEvent(${ev.id})" title="Delete" class="px-2 py-1 text-xs rounded-lg border bg-white border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 transition">🗑</button>
@@ -2001,7 +2001,7 @@ async function deleteSchedEvent(evId) {
 }
 
 // ── Schedule edit modal ────────────────────────────────────────────────────
-function _schedModalHTML(title, ev) {
+function _schedModalHTML(title, ev, extraHtml) {
   const v = f => ev ? (ev[f] || '') : '';
   return `<div id="sched-modal-overlay" onclick="if(event.target===this)closeSchedModal()"
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -2011,6 +2011,7 @@ function _schedModalHTML(title, ev) {
         <button onclick="closeSchedModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
       </div>
       <div class="space-y-3">
+        ${extraHtml || ''}
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
             <span class="text-xs text-gray-500 font-medium">Race #</span>
@@ -2088,17 +2089,55 @@ function openSchedEditModal(evId) {
 
 function openSchedAddModal() {
   closeSchedModal();
-  document.body.insertAdjacentHTML('beforeend', _schedModalHTML('Add Schedule Event', null));
+  // Build position dropdown options from current events
+  const posOptions = _schedEvents.map((e, i) => {
+    const rn = e.race_number ? `${e.race_number} · ` : '';
+    return `<option value="${e.id}">After: ${rn}${e.label}${e.stage ? ' (' + e.stage + ')' : ''}</option>`;
+  }).join('');
+  const posHtml = `<label class="block">
+    <span class="text-xs text-gray-500 font-medium">Insert position</span>
+    <select id="sm-position" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+      <option value="start">At the beginning</option>
+      ${posOptions}
+    </select>
+  </label>`;
+  document.body.insertAdjacentHTML('beforeend', _schedModalHTML('Add Schedule Event', null, posHtml));
+  // Default selection: last event (most common use case)
+  const sel = document.getElementById('sm-position');
+  if (sel && _schedEvents.length) sel.value = String(_schedEvents[_schedEvents.length - 1].id);
+
   document.getElementById('sm-save-btn').onclick = async () => {
     const payload = _schedModalPayload();
     if (!payload.label.trim()) { toast('Label is required', 'error'); return; }
+    // Add at end first
     const r = await fetch(`/api/comp/${COMP_ID}/schedule/add`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
     const d = await r.json();
-    if (d.ok) { closeSchedModal(); toast('Event added', 'success'); showSchedule(); }
-    else toast(d.error || 'Add failed', 'error');
+    if (!d.ok) { toast(d.error || 'Add failed', 'error'); return; }
+    const newId = d.event.id;
+    const posVal = document.getElementById('sm-position').value;
+    // If not "last" (default), reorder
+    const isLast = posVal === String(_schedEvents[_schedEvents.length - 1]?.id);
+    if (!isLast && _schedEvents.length > 0) {
+      let newOrder;
+      if (posVal === 'start') {
+        newOrder = [newId, ..._schedEvents.map(e => e.id)];
+      } else {
+        const afterIdx = _schedEvents.findIndex(e => String(e.id) === posVal);
+        const ids = _schedEvents.map(e => e.id);
+        ids.splice(afterIdx + 1, 0, newId);
+        newOrder = ids;
+      }
+      await fetch(`/api/comp/${COMP_ID}/schedule/reorder`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({order: newOrder})
+      });
+    }
+    closeSchedModal();
+    toast('Event added', 'success');
+    showSchedule();
   };
 }
 
