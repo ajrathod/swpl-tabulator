@@ -3530,15 +3530,15 @@ def reorder_schedule(comp_id):
         session.close()
 
 
-init_db()
-import socket
-try:
-    s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("8.8.8.8",80))
-    ip=s.getsockname()[0]; s.close()
-except: ip="localhost"
-print(f"\n{'='*55}\n  PacWest Race Manager v3\n{'='*55}")
-print(f"  Operator : http://localhost:5001")
-print(f"  Public   : http://{ip}:5001/public/<comp_id>")
-print(f"  Athletes : http://localhost:5001/athletes")
-print(f"  Database : skating.db\n{'='*55}\n")
-app.run(host="0.0.0.0", port=5001, debug=False)
+if __name__ == '__main__':
+    import socket
+    try:
+        s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("8.8.8.8",80))
+        ip=s.getsockname()[0]; s.close()
+    except: ip="localhost"
+    print(f"\n{'='*55}\n  PacWest Race Manager v3\n{'='*55}")
+    print(f"  Operator : http://localhost:5001")
+    print(f"  Public   : http://{ip}:5001/public/<comp_id>")
+    print(f"  Athletes : http://localhost:5001/athletes")
+    print(f"  Database : skating.db\n{'='*55}\n")
+    app.run(host="0.0.0.0", port=5001, debug=False)
