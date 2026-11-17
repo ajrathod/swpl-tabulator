@@ -1969,8 +1969,18 @@ async function setSchedStatus(eventId, status) {
     body: JSON.stringify({status})
   });
   const d = await r.json();
-  if (d.ok) { showSchedule(); }
+  if (d.ok) { await refreshSchedBody(); }
   else toast(d.error || 'Error', 'error');
+}
+
+// Refresh only the schedule rows, preserving scroll position
+async function refreshSchedBody() {
+  const main = document.getElementById('main');
+  const savedScroll = main ? main.scrollTop : 0;
+  const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
+  const events = await r.json();
+  renderScheduleOperator(events);
+  if (main) main.scrollTop = savedScroll;
 }
 
 // ── Schedule move up/down ──────────────────────────────────────────────────
@@ -1986,7 +1996,7 @@ async function moveSchedRow(evId, direction) {
     body: JSON.stringify({order: _schedEvents.map(e => e.id)})
   });
   const d = await r.json();
-  if (!d.ok) { toast(d.error || 'Reorder failed', 'error'); showSchedule(); }
+  if (!d.ok) { toast(d.error || 'Reorder failed', 'error'); await refreshSchedBody(); }
 }
 
 // ── Schedule delete ────────────────────────────────────────────────────────
@@ -1996,7 +2006,7 @@ async function deleteSchedEvent(evId) {
   if (!confirm(`Delete "${label}" from the schedule? This cannot be undone.`)) return;
   const r = await fetch(`/api/schedule/${evId}`, {method:'DELETE'});
   const d = await r.json();
-  if (d.ok) { toast('Event deleted', 'success'); showSchedule(); }
+  if (d.ok) { toast('Event deleted', 'success'); await refreshSchedBody(); }
   else toast(d.error || 'Delete failed', 'error');
 }
 
@@ -2082,7 +2092,7 @@ function openSchedEditModal(evId) {
       body: JSON.stringify(payload)
     });
     const d = await r.json();
-    if (d.ok) { closeSchedModal(); toast('Event updated', 'success'); showSchedule(); }
+    if (d.ok) { closeSchedModal(); toast('Event updated', 'success'); await refreshSchedBody(); }
     else toast(d.error || 'Save failed', 'error');
   };
 }
@@ -2137,7 +2147,7 @@ function openSchedAddModal() {
     }
     closeSchedModal();
     toast('Event added', 'success');
-    showSchedule();
+    await refreshSchedBody();
   };
 }
 
