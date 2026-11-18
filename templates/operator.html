@@ -2025,33 +2025,40 @@ function _schedModalHTML(title, ev, extraHtml) {
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
             <span class="text-xs text-gray-500 font-medium">Race #</span>
-            <input id="sm-race" value="${v('race_number')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <input id="sm-race" value="${v('race_number')}" placeholder="e.g. 112 or 100–101" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <span class="text-xs text-gray-400 mt-0.5 block">Race number(s) from the program</span>
           </label>
           <label class="block">
             <span class="text-xs text-gray-500 font-medium">Distance</span>
-            <input id="sm-dist" value="${v('distance')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <input id="sm-dist" value="${v('distance')}" placeholder="e.g. 300M or 700M" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <span class="text-xs text-gray-400 mt-0.5 block">Skating distance</span>
           </label>
         </div>
         <label class="block">
-          <span class="text-xs text-gray-500 font-medium">Label</span>
-          <input id="sm-label" value="${v('label')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <span class="text-xs text-gray-500 font-medium">Label <span class="text-red-400">*</span></span>
+          <input id="sm-label" value="${v('label')}" placeholder="e.g. Group 2F or Master 4 Person Relay" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <span class="text-xs text-gray-400 mt-0.5 block">Event or group name shown on the schedule row</span>
         </label>
         <label class="block">
           <span class="text-xs text-gray-500 font-medium">Stage</span>
-          <input id="sm-stage" value="${v('stage')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <input id="sm-stage" value="${v('stage')}" placeholder="e.g. Heats or Final" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <span class="text-xs text-gray-400 mt-0.5 block">Round type — Heats, Semi-Final, Final, etc.</span>
         </label>
         <label class="block">
           <span class="text-xs text-gray-500 font-medium">Note</span>
-          <input id="sm-note" value="${v('note')}" placeholder="Optional note" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <input id="sm-note" value="${v('note')}" placeholder="e.g. 3 qualify for Final" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <span class="text-xs text-gray-400 mt-0.5 block">Optional extra info shown under the row</span>
         </label>
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
             <span class="text-xs text-gray-500 font-medium">Section</span>
-            <input id="sm-section" value="${v('section')}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <input id="sm-section" value="${v('section')}" placeholder="e.g. Long Distance Events" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <span class="text-xs text-gray-400 mt-0.5 block">Header grouping in the schedule</span>
           </label>
           <label class="block">
             <span class="text-xs text-gray-500 font-medium">Section Time</span>
-            <input id="sm-sectime" value="${v('section_time')}" placeholder="e.g. 9:00 AM" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <input id="sm-sectime" value="${v('section_time')}" placeholder="e.g. 6:00 AM" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <span class="text-xs text-gray-400 mt-0.5 block">Start time shown next to the section</span>
           </label>
         </div>
       </div>
