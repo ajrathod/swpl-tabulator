@@ -2041,8 +2041,11 @@ function _schedModalHTML(title, ev, extraHtml) {
         </label>
         <label class="block">
           <span class="text-xs text-gray-500 font-medium">Stage</span>
-          <input id="sm-stage" value="${v('stage')}" placeholder="e.g. Heats or Final" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-          <span class="text-xs text-gray-400 mt-0.5 block">Round type — Heats, Semi-Final, Final, etc.</span>
+          <select id="sm-stage" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-white">
+            <option value="">— select —</option>
+            ${['Heats','Quarter Final','Semi Final','Final'].map(s => `<option value="${s}" ${v('stage')===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <span class="text-xs text-gray-400 mt-0.5 block">Round type for this event</span>
         </label>
         <label class="block">
           <span class="text-xs text-gray-500 font-medium">Note</span>
