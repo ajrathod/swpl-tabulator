@@ -2011,7 +2011,7 @@ async function deleteSchedEvent(evId) {
 }
 
 // ── Schedule edit modal ────────────────────────────────────────────────────
-function _schedModalHTML(title, ev, extraHtml) {
+function _schedModalHTML(title, ev, extraHtml, hideSection) {
   const v = f => ev ? (ev[f] || '') : '';
   return `<div id="sched-modal-overlay" onclick="if(event.target===this)closeSchedModal()"
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -2052,7 +2052,7 @@ function _schedModalHTML(title, ev, extraHtml) {
           <input id="sm-note" value="${v('note')}" placeholder="e.g. 3 qualify for Final" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
           <span class="text-xs text-gray-400 mt-0.5 block">Optional extra info shown under the row</span>
         </label>
-        <div class="grid grid-cols-2 gap-3">
+        ${hideSection ? '' : `<div class="grid grid-cols-2 gap-3">
           <label class="block">
             <span class="text-xs text-gray-500 font-medium">Section</span>
             <input id="sm-section" value="${v('section')}" placeholder="e.g. Long Distance Events" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
@@ -2063,7 +2063,7 @@ function _schedModalHTML(title, ev, extraHtml) {
             <input id="sm-sectime" value="${v('section_time')}" placeholder="e.g. 6:00 AM" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand">
             <span class="text-xs text-gray-400 mt-0.5 block">Start time shown next to the section</span>
           </label>
-        </div>
+        </div>`}
       </div>
       <div class="flex gap-3 mt-6">
         <button onclick="closeSchedModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</button>
@@ -2074,14 +2074,15 @@ function _schedModalHTML(title, ev, extraHtml) {
 }
 
 function _schedModalPayload() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   return {
-    race_number:  document.getElementById('sm-race').value,
-    label:        document.getElementById('sm-label').value,
-    distance:     document.getElementById('sm-dist').value,
-    stage:        document.getElementById('sm-stage').value,
-    note:         document.getElementById('sm-note').value,
-    section:      document.getElementById('sm-section').value,
-    section_time: document.getElementById('sm-sectime').value,
+    race_number:  g('sm-race'),
+    label:        g('sm-label'),
+    distance:     g('sm-dist'),
+    stage:        g('sm-stage'),
+    note:         g('sm-note'),
+    section:      g('sm-section'),
+    section_time: g('sm-sectime'),
   };
 }
 
@@ -2121,7 +2122,7 @@ function openSchedAddModal() {
       ${posOptions}
     </select>
   </label>`;
-  document.body.insertAdjacentHTML('beforeend', _schedModalHTML('Add Schedule Event', null, posHtml));
+  document.body.insertAdjacentHTML('beforeend', _schedModalHTML('Add Schedule Event', null, posHtml, true));
   // Default selection: last event (most common use case)
   const sel = document.getElementById('sm-position');
   if (sel && _schedEvents.length) sel.value = String(_schedEvents[_schedEvents.length - 1].id);
@@ -2129,6 +2130,15 @@ function openSchedAddModal() {
   document.getElementById('sm-save-btn').onclick = async () => {
     const payload = _schedModalPayload();
     if (!payload.label.trim()) { toast('Label is required', 'error'); return; }
+    // Inherit section/section_time from the "after" event (or first event if inserting at start)
+    const posVal = document.getElementById('sm-position').value;
+    const refEv = posVal === 'start'
+      ? _schedEvents[0]
+      : _schedEvents.find(e => String(e.id) === posVal);
+    if (refEv) {
+      payload.section      = refEv.section      || '';
+      payload.section_time = refEv.section_time || '';
+    }
     // Add at end first
     const r = await fetch(`/api/comp/${COMP_ID}/schedule/add`, {
       method:'POST', headers:{'Content-Type':'application/json'},
