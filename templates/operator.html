@@ -133,7 +133,11 @@ body:not(.readonly) .readonly-color { display: none; }
   <!-- Sidebar -->
   <aside class="sidebar fixed top-14 left-0 bottom-0 w-60 bg-white border-r border-gray-200 overflow-y-auto z-40 flex flex-col">
     <div class="px-3 pt-4 pb-2">
-      <p class="text-xs font-bold tracking-widest uppercase text-gray-400 px-2 mb-2">Race Groups</p>
+      <div class="flex items-center justify-between px-2 mb-2">
+        <p class="text-xs font-bold tracking-widest uppercase text-gray-400">Race Groups</p>
+        <button id="grp-sort-btn" onclick="toggleGroupSort()" title="Sort by schedule order"
+          class="text-xs text-gray-400 hover:text-brand transition px-1 py-0.5 rounded">📅</button>
+      </div>
       <div id="grp-list"><p class="text-sm text-gray-400 px-2 py-3">Load master sheet →</p></div>
     </div>
     <div class="border-t border-gray-100 mx-3 my-2"></div>
@@ -293,6 +297,37 @@ body:not(.readonly) .readonly-color { display: none; }
         class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700">
         Scratch
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Skater Edit Modal ── -->
+<div id="skater-edit-modal" class="hidden fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-lg font-bold">Edit Display Name</h2>
+      <button onclick="closeModal('skater-edit-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-xs text-gray-500">Changes apply to this competition only and do not affect the registry.</p>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">First Name</label>
+          <input id="edit-first" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="First">
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Last Name</label>
+          <input id="edit-last" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Last">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Club</label>
+        <input id="edit-club" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand" placeholder="Club">
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button onclick="closeModal('skater-edit-modal')" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+      <button onclick="saveSkaterEdit()" class="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark">Save</button>
     </div>
   </div>
 </div>
@@ -484,6 +519,7 @@ body:not(.readonly) .readonly-color { display: none; }
 <script>
 const COMP_ID = {{comp.id}};
 let curGroup = null, curEvent = null, allGroups = {};
+let _groupSortMode = 'name'; // 'name' | 'schedule'
 let _scratchPanel = null, _scratchEventId = null;
 
 
@@ -564,14 +600,63 @@ function showMissingAlert(missing) {
 async function refreshGroups() {
   const r = await fetch(`/api/${COMP_ID}/groups`);
   allGroups = await r.json();
+  renderGroupList();
+}
+
+function renderGroupList() {
   const list = document.getElementById('grp-list');
-  const sorted = Object.entries(allGroups).sort((a,b)=>a[0].localeCompare(b[0]));
-  list.innerHTML = sorted.map(([g,info]) => `
+  let entries = Object.entries(allGroups);
+
+  if (_groupSortMode === 'schedule' && _schedEvents.length) {
+    // Build a lookup: group name → first position in schedule (by sort_order)
+    const schedLabels = _schedEvents.map(e => (e.label || '').toLowerCase());
+    entries = entries.sort((a, b) => {
+      const ai = schedLabels.findIndex(lbl => lbl.includes(a[0].toLowerCase()));
+      const bi = schedLabels.findIndex(lbl => lbl.includes(b[0].toLowerCase()));
+      const apos = ai === -1 ? 9999 : ai;
+      const bpos = bi === -1 ? 9999 : bi;
+      return apos !== bpos ? apos - bpos : a[0].localeCompare(b[0]);
+    });
+  } else {
+    entries = entries.sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
+  // Update toggle button appearance
+  const btn = document.getElementById('grp-sort-btn');
+  if (btn) {
+    btn.title = _groupSortMode === 'schedule' ? 'Switch to alphabetical sort' : 'Sort by schedule order';
+    btn.className = `text-xs transition px-1 py-0.5 rounded ${_groupSortMode === 'schedule' ? 'text-brand font-bold' : 'text-gray-400 hover:text-brand'}`;
+  }
+
+  list.innerHTML = entries.map(([g, info]) => `
     <button onclick="selectGroup('${esc(g)}')"
       class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition mb-0.5 group-btn" data-group="${esc(g)}">
       <span class="truncate">${g}</span>
       <span class="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">${info.skater_count}</span>
     </button>`).join('');
+  // Re-highlight the active group if any
+  if (curGroup) {
+    document.querySelectorAll('.group-btn').forEach(b => {
+      const active = b.dataset.group === curGroup;
+      b.className = `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition mb-0.5 group-btn ${
+        active ? 'bg-orange-50 text-brand font-semibold' : 'text-gray-700 hover:bg-gray-100'
+      }`;
+      b.querySelector('span:last-child').className = `ml-2 text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+        active ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'
+      }`;
+    });
+  }
+}
+
+async function toggleGroupSort() {
+  _groupSortMode = _groupSortMode === 'name' ? 'schedule' : 'name';
+  // If switching to schedule sort, ensure schedule events are loaded
+  if (_groupSortMode === 'schedule' && !_schedEvents.length) {
+    const r = await fetch(`/api/comp/${COMP_ID}/schedule`);
+    const events = await r.json();
+    _schedEvents = events;
+  }
+  renderGroupList();
 }
 
 async function refreshRelays() {
@@ -795,6 +880,15 @@ function hCard(heat, color, parentId, kind) {
       <div class="p-6 text-center text-gray-400 text-sm">Waiting for advancement</div>
     </div>`;
 
+  // Check for duplicate helmet-cover colors (relay only)
+  let dupWarn = '';
+  if (isRelay) {
+    const colorCount = {};
+    items.forEach(s => { if (s.color) colorCount[s.color.toLowerCase()] = (colorCount[s.color.toLowerCase()]||0)+1; });
+    const dups = Object.entries(colorCount).filter(([,n])=>n>1).map(([c])=>c.charAt(0).toUpperCase()+c.slice(1));
+    if (dups.length) dupWarn = `<div class="operator-only px-3 py-2 bg-amber-50 border-t border-amber-200 flex items-center gap-1.5 text-xs text-amber-700 font-medium">⚠️ Duplicate helmet colors: ${dups.join(', ')}</div>`;
+  }
+
   const rows = items.map((s,i) => {
     const pl = s.placement;
     const rc = pl=='1'?'bg-yellow-50':pl=='2'?'bg-gray-50':pl=='3'?'bg-orange-50':'';
@@ -829,7 +923,10 @@ function hCard(heat, color, parentId, kind) {
         </div>
       </div>`;
     } else {
-      nameCell = `<span style="font-size:13px;font-weight:400;font-family:'Inter',system-ui,sans-serif">${s.full_name}</span>`;
+      nameCell = `<span style="font-size:13px;font-weight:400;font-family:'Inter',system-ui,sans-serif">${s.full_name}</span>
+        <button onclick="openSkaterEditModal('${esc(s.panel)}','${esc(s.first||'')}','${esc(s.last||'')}','${esc(s.club||'')}')"
+          title="Edit display name / club"
+          class="operator-only opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-600 text-xs px-1 transition ml-0.5">✏️</button>`;
     }
 
     // Scratch button
@@ -873,6 +970,7 @@ function hCard(heat, color, parentId, kind) {
       <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">${colHdrs}</tr></thead>
       <tbody class="divide-y divide-gray-50">${rows}</tbody>
     </table>
+    ${dupWarn}
     <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-t border-gray-100 operator-only">
       <button onclick="saveCard(${heat.id},'${kind}')"
         class="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:bg-brand-dark transition">💾 Save</button>
@@ -1340,6 +1438,31 @@ function openScratchModal(panel, name) {
   document.getElementById('scratch-reason').value = '';
   document.querySelector('input[name="scratch-scope"][value="event"]').checked = true;
   openModal('scratch-modal');
+}
+
+let _editPanel = null;
+function openSkaterEditModal(panel, first, last, club) {
+  _editPanel = panel;
+  document.getElementById('edit-first').value = first;
+  document.getElementById('edit-last').value  = last;
+  document.getElementById('edit-club').value  = club;
+  openModal('skater-edit-modal');
+}
+
+async function saveSkaterEdit() {
+  const first = document.getElementById('edit-first').value.trim();
+  const last  = document.getElementById('edit-last').value.trim();
+  const club  = document.getElementById('edit-club').value.trim();
+  const r = await fetch(`/api/comp/${COMP_ID}/skater/${encodeURIComponent(_editPanel)}/display`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({first, last, club})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    closeModal('skater-edit-modal');
+    toast(`✓ Updated ${d.skater.full_name}`, 'success');
+    selectGroup(curGroup);
+  } else toast(d.error || 'Error', 'error');
 }
 
 async function doScratch() {

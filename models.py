@@ -450,12 +450,14 @@ class CheckinStatus(Base):
     competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
     panel          = Column(String(30), nullable=False)
     event_name     = Column(String(100), default="")  # e.g. "Short Distance"
+    stage          = Column(String(30), default="Heat")   # Heat / Semi / Final — independent per stage
     status         = Column(String(20), default="pending")  # pending/checked_in/dns
     updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
         return {"id": self.id, "panel": self.panel,
                 "event_name": self.event_name or "",
+                "stage": self.stage or "Heat",
                 "status": self.status}
 
 

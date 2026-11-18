@@ -139,6 +139,7 @@ def run_migrations():
         "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT FALSE",
         "ALTER TABLE competitions ADD COLUMN IF NOT EXISTS meet_info TEXT",
         "ALTER TABLE heat_skaters ADD COLUMN IF NOT EXISTS dq_reason VARCHAR(200)",
+        "ALTER TABLE checkin_status ADD COLUMN IF NOT EXISTS stage VARCHAR(30) DEFAULT 'Heat'",
     ]
     applied = []
     for stmt in stmts:
@@ -1831,13 +1832,27 @@ def advance_relay():
             for rht in list(h.teams): session.delete(rht)
         session.flush()
 
+        # When advancing to Final: clear heat colors so finals get fresh sequential assignments
+        advancing_to_final = bool(dst) and dst[0].stage == "Final"
+        COLOR_POOL = ["Green", "Blue", "Yellow", "Pink", "Light Blue", "Black", "Red"]
+        if advancing_to_final:
+            for team in qualifiers:
+                team.color = None
+            session.flush()
+
         buckets = [qualifiers[:7]] if len(dst)==1 else \
                   [qualifiers[:math.ceil(len(qualifiers)/2)], qualifiers[math.ceil(len(qualifiers)/2):]]
         for heat, bucket in zip(dst, buckets):
             for order, team in enumerate(bucket):
                 session.add(RelayHeatTeam(relay_heat_id=heat.id, team_id=team.id, seed_order=order))
-
-            # Keep original team colors — operator will manually reassign if there's a conflict
+            if advancing_to_final:
+                # Assign fresh colors for the final — no heat colors bleed through
+                pool_iter = iter(COLOR_POOL)
+                for team in bucket:
+                    try:
+                        team.color = next(pool_iter)
+                    except StopIteration:
+                        pass
 
         session.commit()
         return jsonify({"ok":True, "message":f"{len(qualifiers)} teams advanced"})
@@ -1869,6 +1884,28 @@ def update_skater_panel(comp_id, panel):
     finally:
         session.close()
 
+
+
+@app.route("/api/comp/<int:comp_id>/skater/<path:panel>/display", methods=["PATCH"])
+def update_skater_display(comp_id, panel):
+    """Update a skater's display name / club for this competition without touching the registry."""
+    data = request.json or {}
+    session = db()
+    try:
+        sk = session.query(Skater).filter_by(competition_id=comp_id, panel=panel).first()
+        if not sk: return jsonify({"error": "Skater not found"}), 404
+        for field in ("first", "last", "club"):
+            if field in data:
+                setattr(sk, field, (data[field] or "").strip())
+        session.commit()
+        return jsonify({"ok": True, "skater": {
+            "panel": sk.panel, "first": sk.first, "last": sk.last,
+            "club": sk.club, "full_name": f"{sk.first} {sk.last}".strip()
+        }})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/comp/<int:comp_id>/sync_from_registry", methods=["POST"])
@@ -3382,8 +3419,8 @@ def get_checkin_status(comp_id):
     session = db()
     try:
         rows = session.query(CheckinStatus).filter_by(competition_id=comp_id).all()
-        # Return as {panel_event: status} e.g. {"579_Short Distance": "checked_in"}
-        return jsonify({f"{r.panel}__{r.event_name}": r.status for r in rows})
+        # Return as {panel__event_name__stage: status} — stage-aware so Heat ≠ Final check-in
+        return jsonify({f"{r.panel}__{r.event_name}__{r.stage or 'Heat'}": r.status for r in rows})
     except Exception as e:
         return jsonify({}), 500
     finally:
@@ -3395,22 +3432,26 @@ def set_checkin_status(comp_id):
     data = request.json
     panel      = (data.get("panel") or "").strip()
     event_name = (data.get("event_name") or "").strip()
+    stage      = (data.get("stage") or "Heat").strip()
     status     = (data.get("status") or "pending").strip()
     if not panel: return jsonify({"error": "panel required"}), 400
     if status not in ("pending", "checked_in", "dns"):
         return jsonify({"error": "invalid status"}), 400
+    if stage not in ("Heat", "Semi", "Final"):
+        stage = "Heat"
     session = db()
     try:
         row = session.query(CheckinStatus).filter_by(
-            competition_id=comp_id, panel=panel, event_name=event_name).first()
+            competition_id=comp_id, panel=panel, event_name=event_name, stage=stage).first()
         if row:
             row.status = status
         else:
             session.add(CheckinStatus(
                 competition_id=comp_id, panel=panel,
-                event_name=event_name, status=status))
+                event_name=event_name, stage=stage, status=status))
         session.commit()
-        return jsonify({"ok": True, "panel": panel, "event_name": event_name, "status": status})
+        return jsonify({"ok": True, "panel": panel, "event_name": event_name,
+                        "stage": stage, "status": status})
     except Exception as e:
         session.rollback(); return jsonify({"error": str(e)}), 500
     finally:

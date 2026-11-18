@@ -793,10 +793,11 @@ function hCard(heat, color, parentId, kind) {
         ${(()=>{
           const ciPanel = isRelay ? 'relay__'+s.club+'__'+(s.color||'none') : String(s.panel);
           const ciEv    = isRelay ? 'relay' : evCtx;
-          const ciKey   = ciPanel+'__'+ciEv;
+          const ciStage = heat.stage || 'Heat';
+          const ciKey   = ciPanel+'__'+ciEv+'__'+ciStage;
           const ciSt    = checkinStatus[ciKey]||'pending';
           const ciLbl   = ciSt==='pending'?'Check In':ciSt==='checked_in'?'✅ Present':'❌ DNS';
-          return `<button class="ci-btn ci-${ciSt}" onclick="toggleCheckin('${ciPanel}','${ciEv}',this)">${ciLbl}</button>`;
+          return `<button class="ci-btn ci-${ciSt}" onclick="toggleCheckin('${ciPanel}','${ciEv}','${ciStage}',this)">${ciLbl}</button>`;
         })()}
       </td>
     </tr>`;
@@ -2321,8 +2322,8 @@ async function loadCheckinStatus() {
   } catch(e) {}
 }
 
-async function toggleCheckin(panel, evName, btn) {
-  const key  = panel + '__' + evName;
+async function toggleCheckin(panel, evName, stage, btn) {
+  const key  = panel + '__' + evName + '__' + (stage || 'Heat');
   const cur  = checkinStatus[key] || 'pending';
   const next = cur==='pending'?'checked_in':cur==='checked_in'?'dns':'pending';
   checkinStatus[key] = next;
@@ -2332,7 +2333,7 @@ async function toggleCheckin(panel, evName, btn) {
   if (nameEl) nameEl.classList.toggle('name-dns', next==='dns');
   await fetch(`/api/comp/${COMP_ID_CI}/checkin_status`,{
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({panel: panel, event_name: evName, status: next})
+    body:JSON.stringify({panel: panel, event_name: evName, stage: stage || 'Heat', status: next})
   }).catch(()=>{});
 }
 
