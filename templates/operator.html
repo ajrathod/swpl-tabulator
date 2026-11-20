@@ -2344,7 +2344,7 @@ function openSchedAddModal() {
     const d = await r.json();
     if (!d.ok) { toast(d.error || 'Add failed', 'error'); return; }
     const newId = d.event.id;
-    const posVal = document.getElementById('sm-position').value;
+    // posVal already captured above (same select element, unchanged)
     // If not "last" (default), reorder
     const isLast = posVal === String(_schedEvents[_schedEvents.length - 1]?.id);
     if (!isLast && _schedEvents.length > 0) {
