@@ -29,3 +29,6 @@ Thumbs.db
 # Uploads / temp
 uploads/
 *.tmp
+
+# Local SQLite dev database (production uses PostgreSQL on Railway)
+*.db
