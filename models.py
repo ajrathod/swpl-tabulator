@@ -461,6 +461,20 @@ class CheckinStatus(Base):
                 "status": self.status}
 
 
+class FinalLock(Base):
+    """Locks final results for an event name (e.g. 'Long Distance') or relay event."""
+    __tablename__ = "final_locks"
+    id             = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    lock_key       = Column(String(200), nullable=False)   # event.name or relay_event.event_name
+    lock_type      = Column(String(20), default="event")   # "event" | "relay"
+    locked_at      = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"lock_key": self.lock_key, "lock_type": self.lock_type,
+                "locked_at": self.locked_at.isoformat() if self.locked_at else None}
+
+
 def init_db():
     Base.metadata.create_all(engine)
 

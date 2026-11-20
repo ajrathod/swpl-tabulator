@@ -10,6 +10,7 @@ from models import (
     RelayEvent, RelayTeam, RelayMember, RelayHeat, RelayHeatTeam,
     AthleteRegistry, ScratchRecord, RelayPoolAthlete,
     RegistrationLink, Registration, ScheduleEvent, CheckinStatus, GroupLabel,
+    FinalLock,
 )
 from seeding import compute_stages, distribute
 
@@ -1706,6 +1707,14 @@ def save_results():
     try:
         heat = session.query(Heat).get(heat_id)
         if not heat: return jsonify({"error":"Heat not found"}), 404
+        # Block saves when this event's finals are locked
+        if heat.stage == 'Final':
+            lock = session.query(FinalLock).filter_by(
+                competition_id=heat.event.competition_id,
+                lock_key=heat.event.name
+            ).first()
+            if lock:
+                return jsonify({"error": f"🔒 {heat.event.name} Finals are locked. Unlock to edit results."}), 403
         for hs in heat.skaters:
             val = str(results.get(hs.skater.panel,"")).strip().upper()
             hs.placement = "DQ" if val=="DQ" else (val if val.isdigit() else None)
@@ -1744,6 +1753,14 @@ def save_relay_results():
     try:
         rh = session.query(RelayHeat).get(relay_heat_id)
         if not rh: return jsonify({"error":"Relay heat not found"}), 404
+        # Block saves when this relay's finals are locked
+        if rh.stage == 'Final':
+            lock = session.query(FinalLock).filter_by(
+                competition_id=rh.relay_event.competition_id,
+                lock_key=rh.relay_event.event_name
+            ).first()
+            if lock:
+                return jsonify({"error": f"🔒 {rh.relay_event.event_name} Finals are locked. Unlock to edit results."}), 403
         for rht in rh.teams:
             val = str(results.get(str(rht.team_id),"")).strip().upper()
             rht.placement = "DQ" if val=="DQ" else (val if val.isdigit() else None)
@@ -3457,6 +3474,58 @@ def set_checkin_status(comp_id):
     finally:
         session.close()
 
+
+
+# ── Final locks ───────────────────────────────────────────────────────────────
+
+@app.route("/api/comp/<int:comp_id>/final_locks", methods=["GET"])
+def get_final_locks(comp_id):
+    session = db()
+    try:
+        rows = session.query(FinalLock).filter_by(competition_id=comp_id).all()
+        return jsonify({r.lock_key: r.locked_at.isoformat() for r in rows})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/final_locks", methods=["POST"])
+def add_final_lock(comp_id):
+    data = request.json or {}
+    lock_key  = (data.get("lock_key")  or "").strip()
+    lock_type = (data.get("lock_type") or "event").strip()
+    if not lock_key: return jsonify({"error": "lock_key required"}), 400
+    session = db()
+    try:
+        existing = session.query(FinalLock).filter_by(competition_id=comp_id, lock_key=lock_key).first()
+        if existing:
+            return jsonify({"ok": True, "locked_at": existing.locked_at.isoformat()})
+        lock = FinalLock(competition_id=comp_id, lock_key=lock_key, lock_type=lock_type)
+        session.add(lock)
+        session.commit()
+        return jsonify({"ok": True, "locked_at": lock.locked_at.isoformat()})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route("/api/comp/<int:comp_id>/final_locks", methods=["DELETE"])
+def remove_final_lock(comp_id):
+    data = request.json or {}
+    lock_key = (data.get("lock_key") or "").strip()
+    if not lock_key: return jsonify({"error": "lock_key required"}), 400
+    session = db()
+    try:
+        row = session.query(FinalLock).filter_by(competition_id=comp_id, lock_key=lock_key).first()
+        if row: session.delete(row)
+        session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        session.rollback(); return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @app.route("/api/schedule/<int:event_id>/status", methods=["POST"])
